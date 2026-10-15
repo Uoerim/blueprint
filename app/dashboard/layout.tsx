@@ -1,11 +1,14 @@
-import { UserButton } from "@clerk/nextjs";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { KofiButton } from "@/components/kofi-button";
+import { SupportButton } from "@/components/support";
 import { BrandMark, Monogram, readable } from "@/components/ui/primitives";
 import { requireOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
+import { AccountMenu } from "./_components/account-menu";
 import { InvitesBell } from "./_components/invites-bell";
 import { TeamSwitcher } from "./_components/team-switcher";
 
@@ -30,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }),
   ]);
 
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   const teams: TeamSummary[] = memberships.map((m) => ({ ...m.team, role: m.role }));
   const incoming: IncomingInvite[] = invites.map((i) => ({
     id: i.id,
@@ -49,23 +53,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <TeamSwitcher teams={teams} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <KofiButton label="Ko-fi" className="hidden h-8 px-2.5 md:inline-flex" />
+            <SupportButton />
             <InvitesBell invites={incoming} />
-            <Link
-              href="/dashboard/settings"
-              aria-label="Settings"
-              title="Settings"
-              className="grid size-9 place-items-center rounded-lg text-ink-2 transition-colors hover:bg-tint/[0.06] hover:text-ink"
-            >
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-                <path d="M10 12.75a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M16.2 12.2a1.3 1.3 0 0 0 .26 1.43l.05.05a1.58 1.58 0 1 1-2.23 2.23l-.05-.05a1.3 1.3 0 0 0-1.43-.26 1.3 1.3 0 0 0-.79 1.19v.14a1.58 1.58 0 0 1-3.16 0v-.07a1.3 1.3 0 0 0-.85-1.19 1.3 1.3 0 0 0-1.43.26l-.05.05a1.58 1.58 0 1 1-2.23-2.23l.05-.05a1.3 1.3 0 0 0 .26-1.43 1.3 1.3 0 0 0-1.19-.79h-.14a1.58 1.58 0 0 1 0-3.16h.07a1.3 1.3 0 0 0 1.19-.85 1.3 1.3 0 0 0-.26-1.43l-.05-.05a1.58 1.58 0 1 1 2.23-2.23l.05.05a1.3 1.3 0 0 0 1.43.26h.06a1.3 1.3 0 0 0 .79-1.19v-.14a1.58 1.58 0 0 1 3.16 0v.07a1.3 1.3 0 0 0 .79 1.19 1.3 1.3 0 0 0 1.43-.26l.05-.05a1.58 1.58 0 1 1 2.23 2.23l-.05.05a1.3 1.3 0 0 0-.26 1.43v.06a1.3 1.3 0 0 0 1.19.79h.14a1.58 1.58 0 0 1 0 3.16h-.07a1.3 1.3 0 0 0-1.19.79Z" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-            </Link>
             <span className="hidden items-center gap-2 rounded-lg py-1 pl-1 pr-2.5 sm:flex" style={{ backgroundColor: `${user.accentColor}12` }}>
               <Monogram name={user.username!} color={user.accentColor} size={22} />
               <span className="font-mono text-xs" style={{ color: readable(user.accentColor) }}>@{user.username}</span>
             </span>
-            <UserButton />
+            <AccountMenu theme={theme} />
           </div>
         </div>
       </header>

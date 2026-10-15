@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -77,6 +78,7 @@ export function Workspace(props: {
   invites: OutgoingInvite[];
   initialView?: string;
   initialProject?: string;
+  initialInvite?: boolean;
 }) {
   const router = useRouter();
   const [view, setViewState] = useState<View>(
@@ -94,7 +96,14 @@ export function Workspace(props: {
     syncUrl("board", id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(!!props.initialInvite);
+  // ?invite=1 (from team settings) opens the invite dialog once, then leaves the URL.
+  useEffect(() => {
+    if (!props.initialInvite) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("invite");
+    window.history.replaceState(null, "", url);
+  }, [props.initialInvite]);
   const [toast, setToast] = useState<{ id: number; text: string; tone: "ok" | "error" } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -187,6 +196,18 @@ export function Workspace(props: {
             <button type="button" onClick={() => setInviteOpen(true)} className={cx(btn.outline, btn.sm)}>
               Invite teammates
             </button>
+            <Link
+              href={`/dashboard/${props.team.slug}/settings`}
+              aria-label="Team settings"
+              title="Team settings"
+              className={cx(btn.outline, btn.sm, "!px-2.5")}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path d="M10 12.75a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M16.2 12.2a1.3 1.3 0 0 0 .26 1.43l.05.05a1.58 1.58 0 1 1-2.23 2.23l-.05-.05a1.3 1.3 0 0 0-1.43-.26 1.3 1.3 0 0 0-.79 1.19v.14a1.58 1.58 0 0 1-3.16 0v-.07a1.3 1.3 0 0 0-.85-1.19 1.3 1.3 0 0 0-1.43.26l-.05.05a1.58 1.58 0 1 1-2.23-2.23l.05-.05a1.3 1.3 0 0 0 .26-1.43 1.3 1.3 0 0 0-1.19-.79h-.14a1.58 1.58 0 0 1 0-3.16h.07a1.3 1.3 0 0 0 1.19-.85 1.3 1.3 0 0 0-.26-1.43l-.05-.05a1.58 1.58 0 1 1 2.23-2.23l.05.05a1.3 1.3 0 0 0 1.43.26h.06a1.3 1.3 0 0 0 .79-1.19v-.14a1.58 1.58 0 0 1 3.16 0v.07a1.3 1.3 0 0 0 .79 1.19 1.3 1.3 0 0 0 1.43-.26l.05-.05a1.58 1.58 0 1 1 2.23 2.23l-.05.05a1.3 1.3 0 0 0-.26 1.43v.06a1.3 1.3 0 0 0 1.19.79h.14a1.58 1.58 0 0 1 0 3.16h-.07a1.3 1.3 0 0 0-1.19.79Z" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
           </div>
         </div>
 

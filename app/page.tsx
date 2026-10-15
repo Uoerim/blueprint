@@ -6,6 +6,7 @@ import { LivePreview } from "@/components/landing/live-preview";
 import { MaskedHeadline, Rise } from "@/components/landing/motion";
 import { LandingNav } from "@/components/landing/nav";
 import { ProjectDemo } from "@/components/landing/project-demo";
+import { SupportButton } from "@/components/support";
 import { btn, cx, Monogram, Pill, readable } from "@/components/ui/primitives";
 
 const REPO = "https://github.com/Uoerim/blueprint";
@@ -275,6 +276,7 @@ function Footer() {
       <div className="flex flex-col gap-3 text-sm text-ink-3 sm:flex-row sm:items-baseline sm:justify-between">
         <span>© 2026 Blueprint</span>
         <span className="flex flex-wrap gap-6">
+          <SupportButton variant="text" />
           <Link className="transition-colors hover:text-ink" href="/privacy">Privacy</Link>
           <Link className="transition-colors hover:text-ink" href="/terms">Terms</Link>
           <a className="transition-colors hover:text-ink" href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>

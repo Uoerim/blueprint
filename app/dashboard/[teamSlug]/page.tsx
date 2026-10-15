@@ -122,6 +122,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
       invites={outgoing}
       initialView={one(sp.view)}
       initialProject={one(sp.project)}
+      initialInvite={one(sp.invite) === "1"}
     />
   );
 }

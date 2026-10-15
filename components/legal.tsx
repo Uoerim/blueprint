@@ -1,9 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LEGAL_EMAIL, LEGAL_UPDATED } from "@/components/legal-constants";
 import { BrandMark } from "@/components/ui/primitives";
-
-export const LEGAL_EMAIL = "support@raqameen.com";
-export const LEGAL_UPDATED = "15 October 2026";
 
 /** Shared frame for /privacy and /terms: plain reading layout, no app chrome. */
 export function LegalPage({ title, intro, children }: { title: string; intro: ReactNode; children: ReactNode }) {

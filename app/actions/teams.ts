@@ -8,11 +8,14 @@ import { ActionError, requireMembership } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   createTeamSchema,
+  deleteTeamSchema,
   id,
   inviteSchema,
   respondInviteSchema,
   slugify,
+  teamOnly,
   teamScoped,
+  updateTeamSchema,
 } from "@/lib/validations";
 
 const isUniqueViolation = (e: unknown) =>
@@ -169,6 +172,65 @@ export async function setMemberRole(input: unknown) {
     });
     if (!count) throw new ActionError("Member not found.");
     await audit(ctx, { teamId, action: `member.role.${role}`, entityType: "TeamMember", entityId: userId });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+export async function updateTeam(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, name, description } = updateTeamSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id, ["OWNER", "ADMIN"]);
+    await db.team.update({ where: { id: teamId }, data: { name, description } });
+    await audit(ctx, { teamId, action: "team.updated", entityType: "Team", entityId: teamId });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+export async function transferOwnership(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId: userId } = teamScoped.parse(input);
+    const me = await requireMembership(teamId, ctx.user.id, ["OWNER"]);
+    if (userId === ctx.user.id) throw new ActionError("You already own this team.");
+    const target = await db.teamMember.findUnique({ where: { teamId_userId: { teamId, userId } } });
+    if (!target) throw new ActionError("Member not found.");
+    // The old owner stays on as an admin, so nobody loses access.
+    await db.$transaction([
+      db.teamMember.update({ where: { id: target.id }, data: { role: "OWNER" } }),
+      db.teamMember.update({ where: { id: me.id }, data: { role: "ADMIN" } }),
+    ]);
+    await audit(ctx, { teamId, action: "team.ownership.transferred", entityType: "TeamMember", entityId: target.id });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+export async function leaveTeam(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId } = teamOnly.parse(input);
+    const me = await requireMembership(teamId, ctx.user.id);
+    if (me.role === "OWNER") throw new ActionError("Hand ownership to someone else first, or delete the team.");
+    await db.$transaction([
+      db.task.updateMany({ where: { teamId, assigneeId: ctx.user.id }, data: { assigneeId: null, isFocused: false } }),
+      db.teamMember.delete({ where: { id: me.id } }),
+    ]);
+    await audit(ctx, { teamId, action: "member.left", entityType: "TeamMember", entityId: me.id });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+export async function deleteTeam(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, confirm } = deleteTeamSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id, ["OWNER"]);
+    const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } });
+    if (!team) throw new ActionError("Team not found.");
+    if (confirm.trim() !== team.name) throw new ActionError("Type the team name exactly to confirm.");
+    // Members, invites, ideas and tasks cascade with the team.
+    await db.team.delete({ where: { id: teamId } });
+    await audit(ctx, { teamId: null, action: "team.deleted", entityType: "Team", entityId: teamId });
     revalidatePath("/dashboard", "layout");
     return null;
   });

@@ -75,6 +75,15 @@ export const createTeamSchema = z.strictObject({
   description: optionalText(2000),
 });
 
+export const updateTeamSchema = z.strictObject({
+  teamId: id,
+  name: text(2, 50),
+  description: clearableText(2000),
+});
+
+export const teamOnly = z.strictObject({ teamId: id });
+export const deleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
+
 export const tagSchema = z
   .string()
   .trim()
