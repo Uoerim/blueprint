@@ -2,7 +2,8 @@
 
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useState } from "react";
-import { assignTask, createTask, setTaskPriority, setTaskStatus, startFocus, updateTask } from "@/app/actions/tasks";
+import { assignTask, createTask, deleteTask, setTaskPriority, setTaskStatus, startFocus, updateTask } from "@/app/actions/tasks";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
@@ -134,7 +135,7 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
 }
 
 function NewTask({ projectId }: { projectId?: string }) {
-  const { team, run, addTask, ideas } = useWorkspace();
+  const { team, run, addTask, ideas, viewer } = useWorkspace();
   const [title, setTitle] = useState("");
   const [picked, setPicked] = useState("");
   const projects = ideas.filter((i) => i.status === "PROMOTED" && !i.id.startsWith("tmp-"));
@@ -157,6 +158,7 @@ function NewTask({ projectId }: { projectId?: string }) {
           priority: "MEDIUM",
           isFocused: false,
           assigneeId: null,
+          createdById: viewer.id,
           idea: proj ? { id: proj.id, title: proj.title } : null,
           completedAt: null,
           createdAt: now,
@@ -448,14 +450,47 @@ function NotesGlyph() {
 }
 
 export function TaskDialog({ task, onClose }: { task: TaskDTO | null; onClose: () => void }) {
+  const { team, viewer, myRole, run, removeTask } = useWorkspace();
+  const [deleting, setDeleting] = useState<TaskDTO | null>(null);
+  const canDelete = (t: TaskDTO) =>
+    !t.id.startsWith("tmp-") && (myRole !== "MEMBER" || t.createdById === viewer.id || t.assigneeId === viewer.id);
+
   return (
-    <Dialog open={!!task} onClose={onClose} title="Task" description="Rename it, write notes, or move it to another project.">
-      {task && <TaskForm key={task.id} task={task} onClose={onClose} />}
-    </Dialog>
+    <>
+      <Dialog open={!!task && !deleting} onClose={onClose} title="Task" description="Rename it, write notes, or move it to another project.">
+        {task && (
+          <TaskForm
+            key={task.id}
+            task={task}
+            onClose={onClose}
+            onDelete={canDelete(task) ? () => setDeleting(task) : undefined}
+          />
+        )}
+      </Dialog>
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => {
+          setDeleting(null);
+          onClose();
+        }}
+        title="Delete task?"
+        description={<>&ldquo;{deleting?.title}&rdquo; and its notes will be deleted for everyone on the team.</>}
+        confirmLabel="Delete task"
+        level={{ kind: "ack" }}
+        onConfirm={() => {
+          const t = deleting;
+          if (!t) return;
+          run(() => deleteTask({ teamId: team.id, itemId: t.id }), {
+            optimistic: () => removeTask(t.id),
+            success: "Task deleted.",
+          });
+        }}
+      />
+    </>
   );
 }
 
-function TaskForm({ task, onClose }: { task: TaskDTO; onClose: () => void }) {
+function TaskForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () => void; onDelete?: () => void }) {
   const { team, ideas, run, patchTask, member } = useWorkspace();
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes ?? "");
@@ -515,7 +550,12 @@ function TaskForm({ task, onClose }: { task: TaskDTO; onClose: () => void }) {
           ))}
         </select>
       </Field>
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="flex items-center justify-end gap-2 pt-1">
+        {onDelete && (
+          <button type="button" onClick={onDelete} className={cx(btn.ghost, btn.sm, "mr-auto -ml-3 text-rose hover:text-rose")}>
+            Delete task
+          </button>
+        )}
         <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
         <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>Save task</button>
       </div>

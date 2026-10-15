@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { getViewer } from "@/lib/auth";
 import { OnboardingForm } from "./onboarding-form";
 
-export const metadata = { title: "Claim your handle" };
+export const metadata = { title: "Choose your username" };
 
 export default async function OnboardingPage() {
   const user = await getViewer();

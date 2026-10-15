@@ -7,8 +7,8 @@ import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
+  confirmedTeamSchema,
   createTeamSchema,
-  deleteTeamSchema,
   id,
   inviteSchema,
   respondInviteSchema,
@@ -223,7 +223,7 @@ export async function leaveTeam(input: unknown) {
 
 export async function deleteTeam(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, confirm } = deleteTeamSchema.parse(input);
+    const { teamId, confirm } = confirmedTeamSchema.parse(input);
     await requireMembership(teamId, ctx.user.id, ["OWNER"]);
     const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } });
     if (!team) throw new ActionError("Team not found.");
@@ -234,4 +234,36 @@ export async function deleteTeam(input: unknown) {
     revalidatePath("/dashboard", "layout");
     return null;
   });
+}
+
+/** Owner/admin: permanently deletes every finished task (empties Shipped). */
+export async function clearShipped(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, confirm } = confirmedTeamSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id, ["OWNER", "ADMIN"]);
+    await assertTeamName(teamId, confirm);
+    const { count } = await db.task.deleteMany({ where: { teamId, status: "DONE" } });
+    await audit(ctx, { teamId, action: "team.shipped.cleared", entityType: "Team", entityId: teamId });
+    revalidatePath("/dashboard", "layout");
+    return { count };
+  });
+}
+
+/** Owner/admin: permanently deletes everything in the archive. */
+export async function emptyArchive(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, confirm } = confirmedTeamSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id, ["OWNER", "ADMIN"]);
+    await assertTeamName(teamId, confirm);
+    const { count } = await db.idea.deleteMany({ where: { teamId, status: "ARCHIVED" } });
+    await audit(ctx, { teamId, action: "team.archive.emptied", entityType: "Team", entityId: teamId });
+    revalidatePath("/dashboard", "layout");
+    return { count };
+  });
+}
+
+async function assertTeamName(teamId: string, confirm: string) {
+  const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } });
+  if (!team) throw new ActionError("Team not found.");
+  if (confirm.trim() !== team.name) throw new ActionError("Type the team name exactly to confirm.");
 }

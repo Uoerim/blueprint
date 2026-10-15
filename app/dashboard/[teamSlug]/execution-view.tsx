@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { archiveIdea, createProject, updateProject } from "@/app/actions/ideas";
+import { archiveIdea, createProject, deleteIdea, updateProject } from "@/app/actions/ideas";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { IdeaDTO, TaskDTO } from "@/lib/types";
@@ -154,19 +155,33 @@ function ProjectList() {
 /* ── One project ────────────────────────────────────────────────────────── */
 
 function ProjectPage({ project }: { project: IdeaDTO }) {
-  const { tasks, member, openProject, team, viewer, myRole, run, removeIdea } = useWorkspace();
+  const { tasks, member, openProject, team, viewer, myRole, run, removeIdea, removeTask } = useWorkspace();
   const [editing, setEditing] = useState(false);
+  const [confirm, setConfirm] = useState<"archive" | "delete" | null>(null);
+  const [withTasks, setWithTasks] = useState(false);
   const s = projectStats(tasks, project.id);
   const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
   const canArchive = project.authorId === viewer.id || myRole !== "MEMBER";
   const author = member(project.authorId);
 
   const archive = () => {
-    if (!window.confirm(`Archive "${project.title}"? Its tasks stay on the board, outside any project.`)) return;
     openProject(null);
     run(() => archiveIdea({ teamId: team.id, itemId: project.id }), {
       optimistic: () => removeIdea(project.id),
-      success: "Project archived.",
+      success: "Project archived. Restore it from team settings.",
+    });
+  };
+
+  const destroy = () => {
+    const alsoTasks = withTasks;
+    const ids = tasks.filter((t) => t.idea?.id === project.id).map((t) => t.id);
+    openProject(null);
+    run(() => deleteIdea({ teamId: team.id, itemId: project.id, confirm: project.title, withTasks: alsoTasks }), {
+      optimistic: () => {
+        removeIdea(project.id);
+        if (alsoTasks) ids.forEach(removeTask);
+      },
+      success: alsoTasks ? "Project and its tasks deleted." : "Project deleted. Its tasks are still on the board.",
     });
   };
 
@@ -191,7 +206,10 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
         <div className="flex shrink-0 gap-2">
           <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>
           {canArchive && (
-            <button type="button" onClick={archive} className={cx(btn.ghost, btn.sm, "hover:text-rose")}>Archive</button>
+            <>
+              <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.ghost, btn.sm)}>Archive</button>
+              <button type="button" onClick={() => setConfirm("delete")} className={cx(btn.ghost, btn.sm, "text-rose hover:text-rose")}>Delete</button>
+            </>
           )}
         </div>
       </div>
@@ -242,6 +260,38 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
       </div>
 
       <ProjectDialog open={editing} onClose={() => setEditing(false)} project={project} />
+      <ConfirmDialog
+        open={confirm === "archive"}
+        onClose={() => setConfirm(null)}
+        title="Archive project?"
+        description={<>&ldquo;{project.title}&rdquo; leaves Execution. Its tasks stay on the board without a project, and you can restore it any time from team settings.</>}
+        confirmLabel="Archive project"
+        tone="neutral"
+        level={{ kind: "plain" }}
+        onConfirm={archive}
+      />
+      <ConfirmDialog
+        open={confirm === "delete"}
+        onClose={() => {
+          setConfirm(null);
+          setWithTasks(false);
+        }}
+        title="Delete project?"
+        description={<>&ldquo;{project.title}&rdquo;, its description and its notes will be deleted for everyone on the team.</>}
+        confirmLabel="Delete project"
+        level={{ kind: "type", phrase: project.title, what: "project name" }}
+        onConfirm={destroy}
+      >
+        {s.total > 0 && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 p-3 text-[14px] text-ink">
+            <input type="checkbox" checked={withTasks} onChange={(e) => setWithTasks(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--rose)]" />
+            <span>
+              Also delete its {s.total} task{s.total === 1 ? "" : "s"}
+              <span className="block text-[13px] text-ink-3">Otherwise they stay on the board, outside any project.</span>
+            </span>
+          </label>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

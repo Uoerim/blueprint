@@ -46,7 +46,7 @@ export const usernameSchema = z
   .trim()
   .toLowerCase()
   .regex(/^[a-z0-9_]{3,20}$/, "3–20 characters: a–z, 0–9 and _")
-  .refine((u) => !RESERVED_USERNAMES.has(u), "That handle is reserved");
+  .refine((u) => !RESERVED_USERNAMES.has(u), "That username is reserved");
 
 export const accentSchema = z.enum(ACCENT_HEXES);
 
@@ -82,7 +82,14 @@ export const updateTeamSchema = z.strictObject({
 });
 
 export const teamOnly = z.strictObject({ teamId: id });
-export const deleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
+/** Destructive team-wide actions repeat the team (or project) name as a typed confirmation. */
+export const confirmedTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(160) });
+export const deleteIdeaSchema = z.strictObject({
+  teamId: id,
+  itemId: id,
+  confirm: z.string().max(160).optional(),
+  withTasks: z.boolean().optional(),
+});
 
 export const tagSchema = z
   .string()

@@ -33,7 +33,7 @@ export function SupportDialog({ open, onClose }: { open: boolean; onClose: () =>
           Open in your mail app
         </a>
         <p className="mt-4 text-[13px] leading-relaxed text-ink-3">
-          We usually reply within a couple of days. Include your @handle and the team name if it&apos;s about a specific team.
+          We usually reply within a couple of days. Include your @username and the team name if it&apos;s about a specific team.
         </p>
         <p className="mt-4 flex gap-5 border-t border-line pt-4 text-[13px] text-ink-3">
           <Link href="/privacy" className="transition-colors hover:text-ink">Privacy Policy</Link>

@@ -22,7 +22,7 @@ import { InviteDialog } from "./invite-dialog";
 import { ShippedView } from "./shipped-view";
 import { VaultView } from "./vault-view";
 
-type TaskOp = { type: "patch"; id: string; patch: Partial<TaskDTO> } | { type: "add"; task: TaskDTO };
+type TaskOp = { type: "patch"; id: string; patch: Partial<TaskDTO> } | { type: "add"; task: TaskDTO } | { type: "remove"; id: string };
 type IdeaOp = { type: "patch"; id: string; patch: Partial<IdeaDTO> } | { type: "add"; idea: IdeaDTO } | { type: "remove"; id: string };
 
 type Ctx = {
@@ -36,6 +36,7 @@ type Ctx = {
   run: <T>(fn: () => Promise<ActionResult<T>>, opts?: { optimistic?: () => void; success?: string; onOk?: (data: T) => void }) => void;
   patchTask: (id: string, patch: Partial<TaskDTO>) => void;
   addTask: (task: TaskDTO) => void;
+  removeTask: (id: string) => void;
   patchIdea: (id: string, patch: Partial<IdeaDTO>) => void;
   addIdea: (idea: IdeaDTO) => void;
   removeIdea: (id: string) => void;
@@ -107,9 +108,11 @@ export function Workspace(props: {
   const [toast, setToast] = useState<{ id: number; text: string; tone: "ok" | "error" } | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const [tasks, applyTask] = useOptimistic(props.tasks, (state: TaskDTO[], op: TaskOp) =>
-    op.type === "add" ? [op.task, ...state] : state.map((t) => (t.id === op.id ? { ...t, ...op.patch } : t)),
-  );
+  const [tasks, applyTask] = useOptimistic(props.tasks, (state: TaskDTO[], op: TaskOp) => {
+    if (op.type === "add") return [op.task, ...state];
+    if (op.type === "remove") return state.filter((t) => t.id !== op.id);
+    return state.map((t) => (t.id === op.id ? { ...t, ...op.patch } : t));
+  });
   const [ideas, applyIdea] = useOptimistic(props.ideas, (state: IdeaDTO[], op: IdeaOp) => {
     if (op.type === "add") return [op.idea, ...state];
     if (op.type === "remove") return state.filter((i) => i.id !== op.id);
@@ -148,6 +151,7 @@ export function Workspace(props: {
       }),
     patchTask: (id, patch) => applyTask({ type: "patch", id, patch }),
     addTask: (task) => applyTask({ type: "add", task }),
+    removeTask: (id) => applyTask({ type: "remove", id }),
     patchIdea: (id, patch) => applyIdea({ type: "patch", id, patch }),
     addIdea: (idea) => applyIdea({ type: "add", idea }),
     removeIdea: (id) => applyIdea({ type: "remove", id }),

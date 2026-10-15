@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { archiveIdea, createIdea, promoteIdea, toggleSpark } from "@/app/actions/ideas";
+import { archiveIdea, createIdea, deleteIdea, promoteIdea, toggleSpark } from "@/app/actions/ideas";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, Pill, PRIORITY_COLORS, TAG_COLORS, readable } from "@/components/ui/primitives";
@@ -171,6 +172,7 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
   const author = member(idea.authorId);
   const temp = idea.id.startsWith("tmp-");
   const canArchive = idea.authorId === viewer.id || myRole !== "MEMBER";
+  const [deleting, setDeleting] = useState(false);
 
   const spark = () =>
     run(() => toggleSpark({ teamId: team.id, itemId: idea.id }), {
@@ -185,7 +187,7 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
       animate={{ opacity: temp ? 0.7 : 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
       transition={spring}
-      className="card group flex flex-col rounded-2xl p-4 transition-colors hover:bg-[#151519]"
+      className="card group flex flex-col rounded-2xl p-4 transition-colors hover:bg-surface-2"
     >
       <div className="flex items-start gap-3">
         <p className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-ink">{idea.title}</p>
@@ -197,20 +199,44 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
             trigger={<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><circle cx="3" cy="7" r="1.2" fill="currentColor" /><circle cx="7" cy="7" r="1.2" fill="currentColor" /><circle cx="11" cy="7" r="1.2" fill="currentColor" /></svg>}
           >
             {(close) => (
-              <MenuItem
-                onSelect={() => {
-                  close();
-                  run(() => archiveIdea({ teamId: team.id, itemId: idea.id }), {
-                    optimistic: () => removeIdea(idea.id),
-                    success: "Idea archived.",
-                  });
-                }}
-              >
-                Archive idea
-              </MenuItem>
+              <>
+                <MenuItem
+                  onSelect={() => {
+                    close();
+                    run(() => archiveIdea({ teamId: team.id, itemId: idea.id }), {
+                      optimistic: () => removeIdea(idea.id),
+                      success: "Idea archived. Restore it from team settings.",
+                    });
+                  }}
+                >
+                  Archive idea
+                </MenuItem>
+                <MenuItem
+                  onSelect={() => {
+                    close();
+                    setDeleting(true);
+                  }}
+                >
+                  <span className="text-rose">Delete idea</span>
+                </MenuItem>
+              </>
             )}
           </Popover>
         )}
+        <ConfirmDialog
+          open={deleting}
+          onClose={() => setDeleting(false)}
+          title="Delete idea?"
+          description={<>&ldquo;{idea.title}&rdquo; and its sparks will be deleted for everyone. To hide it but keep it, archive it instead.</>}
+          confirmLabel="Delete idea"
+          level={{ kind: "ack" }}
+          onConfirm={() =>
+            run(() => deleteIdea({ teamId: team.id, itemId: idea.id }), {
+              optimistic: () => removeIdea(idea.id),
+              success: "Idea deleted.",
+            })
+          }
+        />
       </div>
       {idea.description && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-2">{idea.description}</p>}
       <div className="mt-3 flex flex-wrap gap-1.5">

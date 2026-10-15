@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createIdeaSchema, createProjectSchema, promoteIdeaSchema, teamScoped, updateProjectSchema } from "@/lib/validations";
+import {
+  createIdeaSchema,
+  createProjectSchema,
+  deleteIdeaSchema,
+  promoteIdeaSchema,
+  teamScoped,
+  updateProjectSchema,
+} from "@/lib/validations";
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
@@ -142,6 +149,57 @@ export async function updateProject(input: unknown) {
       },
     });
     if (!count) throw new ActionError("Project not found.");
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+/** Brings an archived idea back: to Execution if it has tasks, otherwise to the vault. */
+export async function restoreIdea(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId } = teamScoped.parse(input);
+    const me = await requireMembership(teamId, ctx.user.id);
+    const idea = await db.idea.findFirst({
+      where: { id: itemId, teamId, status: "ARCHIVED" },
+      select: { createdById: true, _count: { select: { tasks: true } } },
+    });
+    if (!idea) throw new ActionError("Idea not found.");
+    if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
+      throw new ActionError("Only the author or an admin can restore this.");
+    }
+    const status = idea._count.tasks > 0 ? "PROMOTED" : "VAULT";
+    await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status } });
+    await audit(ctx, { teamId, action: "idea.restored", entityType: "Idea", entityId: itemId });
+    revalidatePath("/dashboard", "layout");
+    return { status };
+  });
+}
+
+/**
+ * Permanently deletes an idea or project. Live projects need their exact title
+ * as `confirm`; `withTasks` also deletes the project's tasks (otherwise they
+ * stay on the board without a project).
+ */
+export async function deleteIdea(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId, confirm, withTasks } = deleteIdeaSchema.parse(input);
+    const me = await requireMembership(teamId, ctx.user.id);
+    const idea = await db.idea.findFirst({
+      where: { id: itemId, teamId },
+      select: { title: true, status: true, createdById: true },
+    });
+    if (!idea) throw new ActionError("Idea not found.");
+    if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
+      throw new ActionError("Only the author or an admin can delete this.");
+    }
+    if (idea.status === "PROMOTED" && confirm?.trim() !== idea.title) {
+      throw new ActionError("Type the project name exactly to confirm.");
+    }
+    await db.$transaction([
+      ...(withTasks ? [db.task.deleteMany({ where: { teamId, ideaId: itemId } })] : []),
+      db.idea.deleteMany({ where: { id: itemId, teamId } }),
+    ]);
+    await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId });
     revalidatePath("/dashboard", "layout");
     return null;
   });

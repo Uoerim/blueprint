@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const parsed = usernameSchema.safeParse(raw);
   if (!parsed.success) {
     return json(
-      { available: false, reason: parsed.error.issues[0]?.message ?? "Invalid handle" },
+      { available: false, reason: parsed.error.issues[0]?.message ?? "Invalid username" },
       200,
       guard.headers,
     );

@@ -16,7 +16,7 @@ export const btn = {
   xs: "!h-7 !px-2.5 !text-xs !rounded-md",
 };
 
-/** Pushes an accent toward the ink side of the theme (white on dark, black on light) so small handle text stays legible. */
+/** Pushes an accent toward the ink side of the theme (white on dark, black on light) so small username text stays legible. */
 export const readable = (c?: string | null) => (c ? `color-mix(in oklab, ${c} 74%, var(--readable-mix))` : undefined);
 
 export function initials(name: string) {

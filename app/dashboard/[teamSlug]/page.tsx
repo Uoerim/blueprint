@@ -54,6 +54,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         priority: true,
         isFocused: true,
         assigneeId: true,
+        createdById: true,
         completedAt: true,
         createdAt: true,
         updatedAt: true,

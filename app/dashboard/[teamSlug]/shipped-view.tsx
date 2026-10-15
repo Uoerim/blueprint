@@ -77,7 +77,7 @@ export function ShippedView() {
         {!groups.length && (
           <div className="card rounded-2xl px-6 py-14 text-center">
             <p className="text-[15px] text-ink">Nothing shipped yet.</p>
-            <p className="mt-1 text-sm text-ink-3">Mark a task done and it lands here, with your handle on it.</p>
+            <p className="mt-1 text-sm text-ink-3">Mark a task done and it lands here, with your username on it.</p>
           </div>
         )}
         {groups.map((g) => (

@@ -32,7 +32,7 @@ export default function TermsPage() {
         <ul>
           <li>You must be at least 13 years old, or older if the law where you live requires it.</li>
           <li>One account is for one person. Keep your Google or GitHub sign-in secure; you are responsible for what happens under your account.</li>
-          <li>Don&apos;t pick an @handle that impersonates someone else or a brand you don&apos;t represent. We may reclaim handles that do.</li>
+          <li>Don&apos;t pick an @username that impersonates someone else or a brand you don&apos;t represent. We may reclaim usernames that do.</li>
         </ul>
       </Section>
 

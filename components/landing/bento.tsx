@@ -101,7 +101,7 @@ export function InviteDemo() {
           })}
         </AnimatePresence>
         {!results.length && (
-          <li className="px-2 py-3 text-xs text-ink-3">Type @ and the first letters of a handle.</li>
+          <li className="px-2 py-3 text-xs text-ink-3">Type @ and the first letters of a username.</li>
         )}
       </ul>
     </div>

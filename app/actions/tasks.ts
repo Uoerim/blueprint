@@ -161,3 +161,19 @@ export async function stopFocus(input: unknown) {
     return touched(count);
   });
 }
+
+/** Permanently deletes a task. Its creator, its assignee, or a team owner/admin may do it. */
+export async function deleteTask(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId } = teamScoped.parse(input);
+    const me = await requireMembership(teamId, ctx.user.id);
+    const task = await db.task.findFirst({ where: { id: itemId, teamId }, select: { createdById: true, assigneeId: true } });
+    if (!task) throw new ActionError("Task not found.");
+    const mine = task.createdById === ctx.user.id || task.assigneeId === ctx.user.id;
+    if (!mine && me.role === "MEMBER") throw new ActionError("Only its creator, its assignee or an admin can delete this task.");
+    await db.task.deleteMany({ where: { id: itemId, teamId } });
+    await audit(ctx, { teamId, action: "task.deleted", entityType: "Task", entityId: itemId });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}

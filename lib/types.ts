@@ -44,6 +44,7 @@ export type TaskDTO = {
   priority: Priority;
   isFocused: boolean;
   assigneeId: string | null;
+  createdById: string;
   idea: { id: string; title: string } | null;
   completedAt: string | null;
   createdAt: string;

@@ -232,8 +232,8 @@ function Tour() {
 
       <Row
         step="05 · Your team"
-        title="Invite friends by their @handle."
-        body="Everyone picks a unique handle when they join. Search it, send an invite, and they accept with one click. Make as many teams as you like."
+        title="Invite friends by their @username."
+        body="Everyone picks a unique username when they join. Search it, send an invite, and they accept with one click. Make as many teams as you like."
         points={["Unlimited teams and members", "Owners and admins manage roles", "Each team's ideas and tasks stay private to it"]}
       >
         <div className="card rounded-2xl p-4 sm:p-5">

@@ -20,7 +20,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
   const router = useRouter();
   const [username, setUsername] = useState(suggestion);
   const [accent, setAccent] = useState<string>(ACCENTS[0].hex);
-  // Results are keyed by the handle they answer, so a stale reply never shows.
+  // Results are keyed by the username they answer, so a stale reply never shows.
   const [result, setResult] = useState<{ for: string; check: Check } | null>(null);
   const check: Check =
     username.length < 3 ? { state: "idle" } : result?.for === username ? result.check : { state: "checking" };
@@ -88,7 +88,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
           <Monogram name={username || "you"} color={accent} size={44} />
         </motion.div>
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Claim your handle</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Choose your username</h1>
           <p className="text-sm text-ink-2">This is how your squad finds and invites you.</p>
         </div>
       </div>
@@ -110,7 +110,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
           onChange={(e) => setUsername(normalize(e.target.value))}
           aria-describedby="username-status"
           className="h-full min-w-0 flex-1 bg-transparent pl-0.5 font-mono text-sm text-ink placeholder:text-ink-3 focus:outline-none"
-          placeholder="your_handle"
+          placeholder="your_username"
         />
       </div>
       <div id="username-status" aria-live="polite" className="mt-2 h-5 text-[13px]">
@@ -166,7 +166,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
       )}
 
       <button type="submit" disabled={!canSubmit} className={cx(btn.primary, "mt-7 h-11 w-full")}>
-        {pending ? "Claiming…" : username.length >= 3 ? `Claim @${username} →` : "Claim handle →"}
+        {pending ? "Claiming…" : username.length >= 3 ? `Claim @${username} →` : "Claim username →"}
       </button>
     </motion.form>
   );

@@ -26,7 +26,7 @@ export default function PrivacyPage() {
             email address, name and profile picture. We never see your Google or GitHub password.
           </li>
           <li>
-            <strong>Your profile.</strong> The @handle, display name and colour you choose.
+            <strong>Your profile.</strong> The @username, display name and colour you choose.
           </li>
           <li>
             <strong>What you put in Blueprint.</strong> Teams, ideas, projects, tasks, descriptions, notes, tags, sparks,
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
       <Section id="use" title="How we use it">
         <ul>
           <li>To run Blueprint: sign you in, save your work and show it to your teammates.</li>
-          <li>To let other signed-in people find you by your @handle so they can invite you to a team.</li>
+          <li>To let other signed-in people find you by your @username so they can invite you to a team.</li>
           <li>To keep the service secure, investigate abuse and fix problems.</li>
           <li>To reply when you contact us, and to tell you about important changes to the service.</li>
         </ul>
@@ -66,11 +66,11 @@ export default function PrivacyPage() {
       <Section id="see" title="Who can see what">
         <ul>
           <li>
-            <strong>Your teammates</strong> see everything in the teams you share with them, along with your @handle, display
+            <strong>Your teammates</strong> see everything in the teams you share with them, along with your @username, display
             name, colour and profile picture.
           </li>
           <li>
-            <strong>Other signed-in users</strong> can see your @handle, display name and colour when they search for people to
+            <strong>Other signed-in users</strong> can see your @username, display name and colour when they search for people to
             invite. They cannot see your email address or the content of teams they are not in.
           </li>
           <li>
