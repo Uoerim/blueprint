@@ -125,7 +125,7 @@ function CaptureBar() {
   };
 
   return (
-    <form onSubmit={submit} className="card rounded-2xl p-2">
+    <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_#6366F1,0_0_0_4px_rgba(99,102,241,0.18)]">
       <div className="flex items-center gap-2 px-2">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0 text-ink-3">
           <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -347,7 +347,7 @@ function PromoteForm({
                   onChange={(e) => update(r.key, { title: e.target.value })}
                   aria-label={`Task ${i + 1} title`}
                   placeholder="What needs doing?"
-                  className={cx(inputCls, "h-10 !shadow-none bg-transparent")}
+                  className={cx(inputCls, "h-10")}
                 />
                 <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
                   <Popover

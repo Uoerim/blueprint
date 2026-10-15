@@ -58,7 +58,7 @@ export function InviteDialog({ open, onClose, invites }: { open: boolean; onClos
   return (
     <Dialog open={open} onClose={onClose} title="Invite teammates" description={`Search anyone on Blueprint by @username and add them to ${team.name}.`}>
       <div className="pt-2">
-        <label className="flex h-11 items-center gap-2 rounded-lg bg-bg px-3 shadow-[inset_0_0_0_1px_var(--line-strong)] focus-within:shadow-[inset_0_0_0_1px_#6366F1]">
+        <label className="field flex h-11 items-center gap-2 rounded-lg px-3">
           <span className="font-mono text-sm text-ink-3">@</span>
           <span className="sr-only">Search by username</span>
           <input

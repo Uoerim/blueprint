@@ -42,6 +42,10 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
           setCheck({ state: "error", reason: "Too many checks — wait a moment." });
           return;
         }
+        if (!res.ok) {
+          setCheck({ state: "error", reason: "Couldn't check right now. Refresh and try again." });
+          return;
+        }
         const data = (await res.json()) as { available: boolean; reason: string | null };
         setCheck(data.available ? { state: "available" } : { state: "taken", reason: data.reason ?? "Already taken" });
       } catch (e) {
@@ -77,7 +81,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
       initial={{ opacity: 0, y: 16, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="glass w-full max-w-[440px] rounded-2xl border border-line-strong p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] sm:p-8"
+      className="glass-solid w-full max-w-[440px] rounded-2xl border border-line-strong p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] sm:p-8"
     >
       <div className="flex items-center gap-3">
         <motion.div key={accent + username.slice(0, 2)} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 25 }}>
@@ -91,12 +95,9 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
 
       <label htmlFor="username" className="mt-7 block text-sm font-medium text-ink">Username</label>
       <div
-        className={cx(
-          "mt-2 flex h-11 items-center rounded-lg bg-bg px-3 transition-shadow",
-          check.state === "available" && "shadow-[inset_0_0_0_1px_#10B981]",
-          (check.state === "taken" || check.state === "error") && "shadow-[inset_0_0_0_1px_#F43F5E]",
-          (check.state === "idle" || check.state === "checking") && "shadow-[inset_0_0_0_1px_var(--line-strong)] focus-within:shadow-[inset_0_0_0_1px_#6366F1]",
-        )}
+        className="field mt-2 flex h-11 cursor-text items-center rounded-lg px-3"
+        data-state={check.state === "available" ? "ok" : check.state === "taken" || check.state === "error" ? "bad" : undefined}
+        onClick={() => document.getElementById("username")?.focus()}
       >
         <span className="font-mono text-sm text-ink-3">@</span>
         <input

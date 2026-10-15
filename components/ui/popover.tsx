@@ -79,7 +79,7 @@ export function Popover({
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
             className={cx(
-              "glass absolute top-full z-50 mt-1.5 min-w-48 rounded-xl border border-line-strong p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
+              "glass-solid absolute top-full z-50 mt-1.5 min-w-48 rounded-xl border border-line-strong p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
               align === "end" ? "right-0" : "left-0",
               className,
             )}

@@ -79,7 +79,7 @@ POSTGRES_URL_NON_POOLING=...   # direct
 **3. Database.** Push the schema, and optionally seed two demo squads:
 
 ```bash
-npm run db:push      # or: npm run db:migrate
+npm run db:deploy    # applies prisma/migrations (use db:push only for throwaway experiments)
 npm run db:seed      # optional; SEED_INVITE_USERNAME=your_handle invites you to the demo teams
 ```
 
@@ -98,7 +98,7 @@ Open http://localhost:3000, sign up, claim your `@handle`, create a team.
 | `npm run dev` | Dev server |
 | `npm run build` | `prisma generate` + production build |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run db:push` / `db:migrate` / `db:seed` / `db:studio` | Prisma against the URLs in `.env.local` |
+| `npm run db:migrate` / `db:deploy` / `db:push` / `db:seed` / `db:studio` | Prisma against the URLs in `.env.local` (`db:migrate` creates a migration, `db:deploy` applies them) |
 | `npm run team:role -- <username> <team-slug> <role>` (role: `OWNER`, `ADMIN` or `MEMBER`) | Grant a team role from the terminal (adds the user to the team if needed) |
 
 ### Notes
@@ -106,6 +106,50 @@ Open http://localhost:3000, sign up, claim your `@handle`, create a team.
 - Prisma runs in Rust-free mode (`engineType = "client"`) on the **Neon serverless driver adapter**, so there is no native query engine. It works on serverless/edge-style hosts and on Windows ARM64.
 - Users are synced lazily: the first authenticated request creates the Prisma `User` from the Clerk session, so no webhook is required.
 - `TaskStatus` includes `READY` on top of `TODO` / `IN_PROGRESS` / `DONE` so the board has four columns.
+
+## Deploy to Vercel
+
+The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` (next to Neon's `us-east-1`), and Vercel runs the `vercel-build` script automatically, which is `prisma generate && prisma migrate deploy && next build`. So every deploy applies pending migrations before building. A brand-new database gets its tables on the first deploy.
+
+### 1. Clerk production instance
+
+1. In the [Clerk Dashboard](https://dashboard.clerk.com), open the app, switch the instance toggle from **Development** to **Production**, and create it (choose to clone the development settings).
+2. Clerk production needs a **domain you own** (it can't use `*.vercel.app`). Enter it, then add the DNS records Clerk lists (CNAMEs such as `clerk.`, `accounts.`, `clkmail.` and the two DKIM records) at your DNS provider. Wait until **Domains** shows them verified.
+3. **SSO connections → GitHub and Google** need your own OAuth credentials in production:
+   - **GitHub:** github.com → Settings → Developer settings → OAuth Apps → New. Homepage URL is `https://your-domain`, and the callback URL is the **Authorized redirect URI** shown in Clerk's GitHub connection. Paste the Client ID and Secret into Clerk.
+   - **Google:** Google Cloud Console → APIs & Services. Configure the OAuth consent screen and **publish** it. Then go to Credentials → Create OAuth client ID (Web application), with authorized origin `https://your-domain` and redirect URI from Clerk's Google connection. Paste the ID and Secret into Clerk.
+4. **API keys** (production): copy `pk_live_…` and `sk_live_…`.
+
+### 2. Vercel project
+
+1. **Add New → Project → Import** this GitHub repo. Leave framework (Next.js), root directory, build and install commands on their defaults.
+2. **Storage:** connect a database and, for shared rate limits, Redis. Both inject env vars automatically:
+   - **Neon** (Marketplace): creates `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING` and others. Or paste the URLs of an existing Neon database yourself.
+   - **Upstash for Redis** (Marketplace): creates `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without it, each serverless instance rate-limits on its own.
+3. **Environment variables** (Settings → Environment Variables):
+
+   | Name | Production value |
+   | --- | --- |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_…` |
+   | `CLERK_SECRET_KEY` | `sk_live_…` |
+   | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
+   | `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
+   | `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/dashboard` |
+   | `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/onboarding` |
+   | `POSTGRES_PRISMA_URL` | Neon **pooled** URL (host contains `-pooler`) |
+   | `POSTGRES_URL_NON_POOLING` | Neon **direct** URL (used by migrations at build time) |
+   | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | from Upstash (optional, recommended) |
+
+   Scope the `pk_live`/`sk_live` keys and the production database to **Production** only. For **Preview**, use your development Clerk keys and a separate Neon branch. Otherwise a preview build would run migrations against production.
+4. **Domains:** add the same domain you gave Clerk, and point DNS at Vercel as instructed.
+5. **Deploy.** `NEXT_PUBLIC_*` values are baked in at build time, so redeploy after changing them.
+
+### 3. After the first deploy
+
+- Sign up on your domain, claim your `@handle` and create a team. You're its owner.
+- Do **not** run `db:seed` against production (the script refuses unless `SEED_ALLOW_PRODUCTION=1`).
+- To grant a role on production, run `team:role` with the production `POSTGRES_*` URLs in your environment.
+- Schema changes later: `npm run db:migrate -- --name <change>` locally, commit `prisma/migrations`, push. Vercel applies them on deploy.
 
 ## License
 

@@ -25,6 +25,11 @@ const people = [
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
 
 async function main() {
+  // Demo data only. Never let it near a production database by accident.
+  const prod = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+  if (prod && process.env.SEED_ALLOW_PRODUCTION !== "1") {
+    throw new Error("Refusing to seed in production. Set SEED_ALLOW_PRODUCTION=1 if you really mean it.");
+  }
   const seedClerkIds = people.map((p) => `seed_${p.username}`);
   const old = await db.user.findMany({ where: { clerkId: { in: seedClerkIds } }, select: { id: true } });
   const oldIds = old.map((u) => u.id);

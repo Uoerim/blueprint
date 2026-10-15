@@ -13,7 +13,9 @@
     "db:migrate": "dotenv -e .env.local -e .env -- prisma migrate dev",
     "db:seed": "dotenv -e .env.local -e .env -- tsx prisma/seed.ts",
     "db:studio": "dotenv -e .env.local -e .env -- prisma studio",
-    "team:role": "dotenv -e .env.local -e .env -- tsx prisma/set-role.ts"
+    "team:role": "dotenv -e .env.local -e .env -- tsx prisma/set-role.ts",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "db:deploy": "dotenv -e .env.local -e .env -- prisma migrate deploy"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.15",
@@ -42,6 +44,6 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": "24.x"
   }
 }

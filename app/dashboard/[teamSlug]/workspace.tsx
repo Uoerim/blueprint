@@ -235,7 +235,7 @@ export function Workspace(props: {
               exit={{ opacity: 0, y: 8 }}
               transition={{ type: "spring", stiffness: 500, damping: 36 }}
               className={cx(
-                "glass pointer-events-auto rounded-xl border px-4 py-2.5 text-sm shadow-[0_16px_40px_-16px_rgba(0,0,0,0.8)]",
+                "glass-solid pointer-events-auto rounded-xl border px-4 py-2.5 text-sm shadow-[0_16px_40px_-16px_rgba(0,0,0,0.8)]",
                 toast.tone === "error" ? "border-rose/40 text-rose" : "border-line-strong text-ink",
               )}
             >

@@ -86,7 +86,7 @@ export function Dialog({
             exit={side === "center" ? { opacity: 0, y: 8, scale: 0.98 } : { x: "100%" }}
             transition={{ type: "spring", stiffness: 420, damping: 38 }}
             className={cx(
-              "glass relative flex flex-col border-line-strong shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]",
+              "glass-solid relative flex flex-col border-line-strong shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]",
               side === "center" ? "max-h-[76vh] w-full max-w-lg rounded-2xl border" : "h-full w-full max-w-xl border-l",
               className,
             )}
@@ -138,5 +138,4 @@ export function Field({
   );
 }
 
-export const inputCls =
-  "w-full rounded-lg bg-bg px-3 text-sm text-ink placeholder:text-ink-3 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-shadow focus:outline-none focus:shadow-[inset_0_0_0_1px_#6366F1]";
+export const inputCls = "field w-full rounded-lg px-3 text-sm text-ink placeholder:text-ink-3";
