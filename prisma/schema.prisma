@@ -97,6 +97,8 @@ model Idea {
   team             Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
   title            String
   description      String?
+  // Once promoted, an idea is a project: notes are its working scratchpad.
+  notes            String?
   tags             String[]
   status           IdeaStatus @default(VAULT)
   sparksCount      Int        @default(0)

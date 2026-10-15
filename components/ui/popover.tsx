@@ -63,7 +63,7 @@ export function Popover({
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
         className={cx(
-          "inline-flex items-center rounded-md transition-colors hover:bg-white/[0.06] active:scale-[0.97]",
+          "inline-flex items-center rounded-md transition-colors hover:bg-tint/[0.06] active:scale-[0.97]",
           triggerClassName,
         )}
       >
@@ -107,8 +107,8 @@ export function MenuItem({
       role="menuitem"
       onClick={onSelect}
       className={cx(
-        "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink focus-visible:bg-white/[0.07]",
-        active && "text-ink bg-white/[0.05]",
+        "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-ink-2 transition-colors hover:bg-tint/[0.07] hover:text-ink focus-visible:bg-tint/[0.07]",
+        active && "text-ink bg-tint/[0.05]",
       )}
     >
       {children}

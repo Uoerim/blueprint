@@ -9,15 +9,14 @@ import {
   useEffect,
   useMemo,
   useOptimistic,
-  useRef,
   useState,
   useTransition,
 } from "react";
 import { stopFocus } from "@/app/actions/tasks";
-import { btn, cx, Kbd, Monogram, readable } from "@/components/ui/primitives";
+import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { ActionResult } from "@/lib/action-types";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TaskDTO, Viewer } from "@/lib/types";
-import { BoardView } from "./board-view";
+import { ExecutionView } from "./execution-view";
 import { InviteDialog } from "./invite-dialog";
 import { ShippedView } from "./shipped-view";
 import { VaultView } from "./vault-view";
@@ -39,7 +38,8 @@ type Ctx = {
   patchIdea: (id: string, patch: Partial<IdeaDTO>) => void;
   addIdea: (idea: IdeaDTO) => void;
   removeIdea: (id: string) => void;
-  captureRef: React.RefObject<HTMLInputElement | null>;
+  /** Open one project's page inside Execution (null = back to the list). */
+  openProject: (id: string | null) => void;
 };
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -50,11 +50,22 @@ export function useWorkspace() {
 }
 
 type View = "vault" | "board" | "shipped";
-const VIEWS: { id: View; label: string; key: string }[] = [
-  { id: "vault", label: "Idea vault", key: "1" },
-  { id: "board", label: "Execution", key: "2" },
-  { id: "shipped", label: "Shipped", key: "3" },
+const VIEWS: { id: View; label: string }[] = [
+  { id: "vault", label: "Idea vault" },
+  { id: "board", label: "Execution" },
+  { id: "shipped", label: "Shipped" },
 ];
+const isView = (v: string | undefined): v is View => v === "vault" || v === "board" || v === "shipped";
+
+/** Mirror the open view/project in the address bar so a project page can be shared or reloaded. */
+function syncUrl(view: View, project: string | null) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("view");
+  url.searchParams.delete("project");
+  if (view !== "vault") url.searchParams.set("view", view);
+  if (view === "board" && project) url.searchParams.set("project", project);
+  window.history.replaceState(null, "", url);
+}
 
 export function Workspace(props: {
   team: Ctx["team"];
@@ -64,13 +75,28 @@ export function Workspace(props: {
   ideas: IdeaDTO[];
   tasks: TaskDTO[];
   invites: OutgoingInvite[];
+  initialView?: string;
+  initialProject?: string;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<View>("vault");
+  const [view, setViewState] = useState<View>(
+    props.initialProject ? "board" : isView(props.initialView) ? props.initialView : "vault",
+  );
+  const [project, setProject] = useState<string | null>(props.initialProject ?? null);
+  const setView = (v: View) => {
+    setViewState(v);
+    setProject(null);
+    syncUrl(v, null);
+  };
+  const openProject = (id: string | null) => {
+    setViewState("board");
+    setProject(id);
+    syncUrl("board", id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [inviteOpen, setInviteOpen] = useState(false);
   const [toast, setToast] = useState<{ id: number; text: string; tone: "ok" | "error" } | null>(null);
   const [pending, startTransition] = useTransition();
-  const captureRef = useRef<HTMLInputElement>(null);
 
   const [tasks, applyTask] = useOptimistic(props.tasks, (state: TaskDTO[], op: TaskOp) =>
     op.type === "add" ? [op.task, ...state] : state.map((t) => (t.id === op.id ? { ...t, ...op.patch } : t)),
@@ -100,7 +126,7 @@ export function Workspace(props: {
     member: (id) => (id ? memberMap.get(id) : undefined),
     tasks,
     ideas,
-    captureRef,
+    openProject,
     run: (fn, opts) =>
       startTransition(async () => {
         opts?.optimistic?.();
@@ -117,27 +143,6 @@ export function Workspace(props: {
     addIdea: (idea) => applyIdea({ type: "add", idea }),
     removeIdea: (id) => applyIdea({ type: "remove", id }),
   };
-
-  // Keyboard: ⌘K capture, ⌘I invite, ⌘1–3 views.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const k = e.key.toLowerCase();
-      if (k === "k") {
-        e.preventDefault();
-        setView("vault");
-        window.setTimeout(() => captureRef.current?.focus(), 30);
-      } else if (k === "i") {
-        e.preventDefault();
-        setInviteOpen(true);
-      } else if (["1", "2", "3"].includes(k)) {
-        e.preventDefault();
-        setView(VIEWS[Number(k) - 1]!.id);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   // "Live" focus: refresh server state every 15s while the tab is visible.
   useEffect(() => {
@@ -167,7 +172,7 @@ export function Workspace(props: {
             <button
               type="button"
               onClick={() => setInviteOpen(true)}
-              className="flex -space-x-1.5 rounded-lg p-1 transition-colors hover:bg-white/[0.05]"
+              className="flex -space-x-1.5 rounded-lg p-1 transition-colors hover:bg-tint/[0.05]"
               aria-label={`${props.members.length} members — manage`}
             >
               {props.members.slice(0, 5).map((m) => (
@@ -180,7 +185,7 @@ export function Workspace(props: {
               )}
             </button>
             <button type="button" onClick={() => setInviteOpen(true)} className={cx(btn.outline, btn.sm)}>
-              Invite teammates <Kbd>⌘I</Kbd>
+              Invite teammates
             </button>
           </div>
         </div>
@@ -188,7 +193,7 @@ export function Workspace(props: {
         <FocusDock />
 
         {/* View switcher */}
-        <div className="mt-8 flex items-center gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]" role="tablist" aria-label="Workspace views">
+        <div className="mt-8 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none]" role="tablist" aria-label="Workspace views">
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -217,8 +222,8 @@ export function Workspace(props: {
         </div>
 
         <div className="pt-6">
-          {view === "vault" && <VaultView onPromoted={() => setView("board")} />}
-          {view === "board" && <BoardView />}
+          {view === "vault" && <VaultView onOpenProject={openProject} />}
+          {view === "board" && <ExecutionView projectId={project} />}
           {view === "shipped" && <ShippedView />}
         </div>
       </div>

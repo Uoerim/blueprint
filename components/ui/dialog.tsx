@@ -100,7 +100,7 @@ export function Dialog({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="grid size-8 place-items-center rounded-md text-ink-3 transition-colors hover:bg-white/[0.06] hover:text-ink active:scale-95"
+                className="grid size-8 place-items-center rounded-md text-ink-3 transition-colors hover:bg-tint/[0.06] hover:text-ink active:scale-95"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
                   <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

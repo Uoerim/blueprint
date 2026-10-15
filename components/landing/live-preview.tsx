@@ -2,7 +2,7 @@
 
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { btn, cx, Kbd, Monogram, Pill, TAG_COLORS, readable } from "@/components/ui/primitives";
+import { btn, cx, Monogram, Pill, TAG_COLORS, readable } from "@/components/ui/primitives";
 
 type Person = { handle: string; color: string };
 type Idea = { id: string; title: string; by: string; tags: string[]; sparks: number; sparked: boolean };
@@ -185,7 +185,7 @@ export function LivePreview() {
               <h3 className="text-[13px] font-medium text-ink">Idea vault</h3>
               <span className="font-mono text-[11px] text-ink-3">{ideas.length} raw</span>
             </div>
-            <form onSubmit={capture} className="mb-3 flex items-center gap-2 rounded-lg bg-bg px-3 shadow-[inset_0_0_0_1px_var(--line-strong)] focus-within:shadow-[inset_0_0_0_1px_#6366F1]">
+            <form onSubmit={capture} className="mb-3 flex items-center gap-2 rounded-lg bg-bg px-3 shadow-[inset_0_0_0_1px_var(--line-strong)] focus-within:shadow-[inset_0_0_0_1px_var(--accent)]">
               <input
                 ref={inputRef}
                 value={draft}
@@ -195,7 +195,7 @@ export function LivePreview() {
                 aria-label="Capture an idea"
                 className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-3 focus:outline-none"
               />
-              <Kbd>↵</Kbd>
+              <button type="submit" disabled={!draft.trim()} className="h-7 shrink-0 rounded-md px-2 text-[12px] font-medium text-ink-2 transition-colors hover:bg-tint/[0.06] hover:text-ink disabled:opacity-40">Add</button>
             </form>
             <ul className="space-y-2">
               <AnimatePresence initial={false} mode="popLayout">
@@ -226,7 +226,7 @@ export function LivePreview() {
                           aria-label={`Spark this idea, ${idea.sparks} sparks`}
                           className={cx(
                             "inline-flex h-7 items-center gap-1 rounded-md px-2 font-mono text-[11px] transition-colors",
-                            idea.sparked ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-white/[0.06] hover:text-ink",
+                            idea.sparked ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-tint/[0.06] hover:text-ink",
                             flash === idea.id && "text-amber",
                           )}
                         >

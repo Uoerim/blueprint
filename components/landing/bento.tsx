@@ -76,7 +76,7 @@ export function InviteDemo() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease, delay: i * 0.05 }}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.04]"
+                className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-tint/[0.04]"
               >
                 <Monogram name={u.name} color={u.color} size={26} />
                 <span className="min-w-0 flex-1">
@@ -91,7 +91,7 @@ export function InviteDemo() {
                   }}
                   className={cx(
                     "h-7 rounded-md px-2.5 text-xs font-medium transition-colors active:scale-95",
-                    done ? "bg-emerald/15 text-emerald" : "bg-surface-3 text-ink hover:bg-white/10",
+                    done ? "bg-emerald/15 text-emerald" : "bg-surface-3 text-ink hover:bg-tint/10",
                   )}
                 >
                   {done ? "Invited" : "Send invite"}
@@ -173,9 +173,9 @@ export function PipelineDemo() {
   return (
     <svg ref={ref} viewBox="0 0 520 200" className="h-auto w-full" role="img" aria-label="One vault idea branching into three assigned tasks">
       <g>
-        <rect x="4" y="76" width="168" height="48" rx="10" fill="#18181C" stroke="rgba(255,255,255,0.12)" />
-        <text x="18" y="96" fill="#FAFAFA" fontSize="12.5" fontFamily="var(--font-geist-sans)">Tilt arpeggiator</text>
-        <text x="18" y="113" fill="#8A8A94" fontSize="10.5" fontFamily="var(--font-geist-mono)">idea · 3 sparks</text>
+        <rect x="4" y="76" width="168" height="48" rx="10" fill="var(--surface-2)" stroke="var(--line-strong)" />
+        <text x="18" y="96" fill="var(--ink)" fontSize="12.5" fontFamily="var(--font-geist-sans)">Tilt arpeggiator</text>
+        <text x="18" y="113" fill="var(--ink-3)" fontSize="10.5" fontFamily="var(--font-geist-mono)">idea · 3 sparks</text>
       </g>
       {NODES.map((n, i) => {
         const d = `M172 100 C 240 100, 240 ${n.y}, 300 ${n.y}`;
@@ -202,65 +202,13 @@ export function PipelineDemo() {
               animate={inView ? { opacity: active ? 1 : 0.4, x: 0 } : undefined}
               transition={{ duration: 0.5, ease, delay: 0.7 + i * 0.15 }}
             >
-              <rect x="300" y={n.y - 20} width="214" height="40" rx="9" fill="#121215" stroke={hover === i ? n.color : "rgba(255,255,255,0.09)"} />
+              <rect x="300" y={n.y - 20} width="214" height="40" rx="9" fill="var(--surface)" stroke={hover === i ? n.color : "var(--line-strong)"} />
               <rect x="312" y={n.y - 7} width="14" height="14" rx="4" fill={`${n.color}26`} stroke={`${n.color}80`} />
-              <text x="336" y={n.y + 4} fill="#FAFAFA" fontSize="12" fontFamily="var(--font-geist-sans)">{n.label}</text>
+              <text x="336" y={n.y + 4} fill="var(--ink)" fontSize="12" fontFamily="var(--font-geist-sans)">{n.label}</text>
             </motion.g>
           </g>
         );
       })}
     </svg>
-  );
-}
-
-/* ── Card 4: security terminal ──────────────────────────────────────────── */
-
-const LOG: { t: string; tone: "ok" | "warn" | "deny" | "plain" }[] = [
-  { t: "GET  /api/users/search?q=gr      200  ip 29/30", tone: "plain" },
-  { t: "pass  zero-trust  member(night-shift, @you)", tone: "ok" },
-  { t: "POST action createIdea           200  user 19/20", tone: "plain" },
-  { t: "pass  anti-idor   where { id, teamId } scoped", tone: "ok" },
-  { t: "pass  zod.strict  title 1–140, tags ≤ 5", tone: "ok" },
-  { t: "GET  /api/users/search?q=a  ×31  from 203.0.113.7", tone: "warn" },
-  { t: "deny  429 Too Many Requests  Retry-After: 41", tone: "deny" },
-  { t: "POST action sendInvite  origin: evil.example", tone: "warn" },
-  { t: "deny  403 origin ≠ host  request blocked", tone: "deny" },
-  { t: "pass  csp  script-src 'nonce-…' 'strict-dynamic'", tone: "ok" },
-];
-const TONE = { ok: "text-emerald", warn: "text-amber", deny: "text-rose", plain: "text-ink-2" };
-
-export function SecurityTerminal() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { margin: "-10% 0px" });
-  const reduce = useReducedMotion();
-  const [n, setN] = useState(reduce ? LOG.length : 3);
-  useEffect(() => {
-    if (!inView || reduce) return;
-    const id = window.setInterval(() => setN((v) => (v >= LOG.length + 3 ? 1 : v + 1)), 750);
-    return () => window.clearInterval(id);
-  }, [inView, reduce]);
-  const lines = LOG.slice(0, Math.min(n, LOG.length));
-  return (
-    <div ref={ref} data-ui className="h-[236px] overflow-hidden rounded-xl bg-[#060607] p-4 font-mono text-[11.5px] leading-[1.75] shadow-[inset_0_0_0_1px_var(--line)]">
-      <div className="mb-2 flex gap-1.5" aria-hidden>
-        <span className="size-2 rounded-full bg-white/10" />
-        <span className="size-2 rounded-full bg-white/10" />
-        <span className="size-2 rounded-full bg-white/10" />
-      </div>
-      <AnimatePresence initial={false}>
-        {lines.map((l) => (
-          <motion.div
-            key={l.t}
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-            className={cx("truncate", TONE[l.tone])}
-          >
-            {l.t}
-          </motion.div>
-        ))}
-      </AnimatePresence>
-      <span className="inline-block h-3.5 w-1.5 translate-y-0.5 animate-pulse bg-ink-2" aria-hidden />
-    </div>
   );
 }

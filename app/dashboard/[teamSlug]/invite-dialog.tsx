@@ -85,7 +85,7 @@ export function InviteDialog({ open, onClose, invites }: { open: boolean; onClos
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/[0.03]"
+                  className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-tint/[0.03]"
                 >
                   <Monogram name={u.displayName ?? u.username} color={u.accentColor} size={30} />
                   <span className="min-w-0 flex-1">

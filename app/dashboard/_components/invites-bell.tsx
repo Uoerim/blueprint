@@ -38,7 +38,7 @@ export function InviteList({ invites, compact }: { invites: IncomingInvite[]; co
               key={i.id}
               layout
               exit={{ opacity: 0, x: 20 }}
-              className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-white/[0.03]"
+              className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-tint/[0.03]"
             >
               <Monogram name={i.inviter.username} color={i.inviter.accentColor} size={30} />
               <div className="min-w-0 flex-1 text-[13px] leading-snug">

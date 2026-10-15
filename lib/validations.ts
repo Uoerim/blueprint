@@ -30,6 +30,15 @@ const optionalText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : undefined));
 
+/** Like optionalText, but an empty string means "clear it" (null) on updates. */
+const clearableText = (max: number) =>
+  z
+    .string()
+    .max(max * 2)
+    .transform(sanitize)
+    .pipe(z.string().max(max))
+    .transform((v) => (v ? v : null));
+
 export const id = z.string().regex(/^c[a-z0-9]{20,32}$/, "Invalid id");
 
 export const usernameSchema = z
@@ -98,10 +107,37 @@ export const promoteIdeaSchema = z.strictObject({
 export const createTaskSchema = z.strictObject({
   teamId: id,
   title: text(1, 140),
-  notes: optionalText(2000),
+  notes: optionalText(4000),
   priority: prioritySchema.default("MEDIUM"),
   assigneeId: id.nullable().optional(),
+  projectId: id.nullable().optional(),
 });
+
+export const updateTaskSchema = z
+  .strictObject({
+    teamId: id,
+    itemId: id,
+    title: text(1, 140).optional(),
+    notes: clearableText(4000).optional(),
+    projectId: id.nullable().optional(),
+  })
+  .refine((v) => v.title !== undefined || v.notes !== undefined || v.projectId !== undefined, "Nothing to update");
+
+export const createProjectSchema = z.strictObject({
+  teamId: id,
+  title: text(1, 140),
+  description: optionalText(2000),
+});
+
+export const updateProjectSchema = z
+  .strictObject({
+    teamId: id,
+    itemId: id,
+    title: text(1, 140).optional(),
+    description: clearableText(2000).optional(),
+    notes: clearableText(8000).optional(),
+  })
+  .refine((v) => v.title !== undefined || v.description !== undefined || v.notes !== undefined, "Nothing to update");
 
 export const teamScoped = z.strictObject({ teamId: id, itemId: id });
 

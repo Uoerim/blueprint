@@ -1,0 +1,374 @@
+"use client";
+
+import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
+import { archiveIdea, createProject, updateProject } from "@/app/actions/ideas";
+import { Dialog, Field, inputCls } from "@/components/ui/dialog";
+import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
+import type { IdeaDTO, TaskDTO } from "@/lib/types";
+import { BoardView } from "./board-view";
+import { useWorkspace } from "./workspace";
+
+type Tab = "projects" | "all" | "mine";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "projects", label: "Projects" },
+  { id: "mine", label: "My tasks" },
+  { id: "all", label: "All tasks" },
+];
+
+/** Execution: a list of projects, a page per project, plus cross-project task boards. */
+export function ExecutionView({ projectId }: { projectId: string | null }) {
+  const { ideas } = useWorkspace();
+  const project = projectId ? ideas.find((i) => i.id === projectId && i.status === "PROMOTED") : undefined;
+  if (projectId && project) return <ProjectPage key={project.id} project={project} />;
+  return <ExecutionHome missing={!!projectId && !project} />;
+}
+
+function ExecutionHome({ missing }: { missing: boolean }) {
+  const [tab, setTab] = useState<Tab>("projects");
+  return (
+    <div>
+      {missing && (
+        <p className="mb-4 rounded-xl bg-amber/10 px-4 py-3 text-[14px] text-amber">That project no longer exists or was archived.</p>
+      )}
+      <div className="flex rounded-lg bg-surface p-0.5 shadow-highlight sm:w-fit" role="tablist" aria-label="Execution views">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={cx(
+              "h-8 flex-1 rounded-md px-4 text-[13px] transition-colors sm:flex-none",
+              tab === t.id ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-5">
+        {tab === "projects" && <ProjectList />}
+        {tab === "mine" && <BoardView key="mine" initialFilter="mine" />}
+        {tab === "all" && <BoardView key="all" />}
+      </div>
+    </div>
+  );
+}
+
+/* ── Project list ───────────────────────────────────────────────────────── */
+
+function projectStats(tasks: TaskDTO[], id: string) {
+  const own = tasks.filter((t) => t.idea?.id === id);
+  const done = own.filter((t) => t.status === "DONE").length;
+  const people = [...new Set(own.map((t) => t.assigneeId).filter((v): v is string => !!v))];
+  const focused = own.some((t) => t.isFocused && t.status === "IN_PROGRESS");
+  return { total: own.length, done, open: own.length - done, people, focused };
+}
+
+function ProjectList() {
+  const { ideas, tasks, openProject, member } = useWorkspace();
+  const [creating, setCreating] = useState(false);
+  const projects = ideas.filter((i) => i.status === "PROMOTED");
+  const loose = tasks.filter((t) => !t.idea || !projects.some((p) => p.id === t.idea!.id)).filter((t) => t.status !== "DONE").length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[14px] text-ink-2">
+          {projects.length ? `${projects.length} project${projects.length > 1 ? "s" : ""} in execution` : "No projects yet"}
+          {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} outside a project</span>}
+        </p>
+        <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
+      </div>
+
+      {projects.length ? (
+        <ul className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <AnimatePresence initial={false}>
+            {projects.map((p) => {
+              const s = projectStats(tasks, p.id);
+              const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+              const temp = p.id.startsWith("tmp-");
+              return (
+                <motion.li
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: temp ? 0.6 : 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                >
+                  <button
+                    type="button"
+                    disabled={temp}
+                    onClick={() => openProject(p.id)}
+                    className="card group flex h-full w-full flex-col rounded-2xl p-4 text-left transition-[background-color,transform] hover:bg-surface-2 active:scale-[0.99]"
+                  >
+                    <span className="flex items-start gap-2">
+                      <span className="mt-1 text-violet" aria-hidden>◆</span>
+                      <span className="min-w-0 flex-1 text-[16px] font-medium leading-snug text-ink">{p.title}</span>
+                      {s.focused && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-emerald" title="Someone is in focus" />}
+                    </span>
+                    <span className="mt-1.5 line-clamp-2 min-h-[2.6em] text-[13px] leading-relaxed text-ink-2">
+                      {p.description || <span className="text-ink-3">No description yet.</span>}
+                    </span>
+                    <span className="mt-4 block h-1.5 overflow-hidden rounded-full bg-tint/[0.06]">
+                      <motion.span
+                        className="block h-full rounded-full bg-emerald"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      />
+                    </span>
+                    <span className="mt-3 flex items-center gap-3">
+                      <span className="font-mono text-[12px] tabular-nums text-ink-3">
+                        {s.done}/{s.total} done · {s.open} open
+                      </span>
+                      <span className="ml-auto flex -space-x-1.5">
+                        {s.people.slice(0, 4).map((id) => {
+                          const m = member(id);
+                          return m ? <Monogram key={id} name={m.username} color={m.accentColor} size={22} className="ring-2 ring-surface" /> : null;
+                        })}
+                      </span>
+                    </span>
+                  </button>
+                </motion.li>
+              );
+            })}
+          </AnimatePresence>
+        </ul>
+      ) : (
+        <div className="card mt-4 rounded-2xl px-6 py-14 text-center">
+          <p className="text-[15px] text-ink">Promote an idea from the vault, or start a project here.</p>
+          <p className="mt-1 text-sm text-ink-3">Each project gets its own board, description and notes.</p>
+          <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm, "mt-5")}>New project</button>
+        </div>
+      )}
+
+      <ProjectDialog open={creating} onClose={() => setCreating(false)} />
+    </div>
+  );
+}
+
+/* ── One project ────────────────────────────────────────────────────────── */
+
+function ProjectPage({ project }: { project: IdeaDTO }) {
+  const { tasks, member, openProject, team, viewer, myRole, run, removeIdea } = useWorkspace();
+  const [editing, setEditing] = useState(false);
+  const s = projectStats(tasks, project.id);
+  const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+  const canArchive = project.authorId === viewer.id || myRole !== "MEMBER";
+  const author = member(project.authorId);
+
+  const archive = () => {
+    if (!window.confirm(`Archive "${project.title}"? Its tasks stay on the board, outside any project.`)) return;
+    openProject(null);
+    run(() => archiveIdea({ teamId: team.id, itemId: project.id }), {
+      optimistic: () => removeIdea(project.id),
+      success: "Project archived.",
+    });
+  };
+
+  return (
+    <div>
+      <button type="button" onClick={() => openProject(null)} className={cx(btn.ghost, btn.sm, "-ml-3")}>
+        <span aria-hidden>←</span> All projects
+      </button>
+
+      <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-[clamp(1.4rem,2.6vw,2rem)] font-semibold leading-tight tracking-[-0.03em]">{project.title}</h2>
+          <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">
+            {project.description || <span className="text-ink-3">No description yet. Add one so everyone knows what done looks like.</span>}
+          </p>
+          {author && (
+            <p className="mt-2 text-[13px] text-ink-3">
+              Started by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>
+          {canArchive && (
+            <button type="button" onClick={archive} className={cx(btn.ghost, btn.sm, "hover:text-rose")}>Archive</button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <section aria-label="Progress" className="card rounded-2xl p-4">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-medium">Progress</h3>
+            <span className="font-mono text-[12px] tabular-nums text-ink-3">{pct}%</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-tint/[0.06]">
+            <motion.div className="h-full rounded-full bg-emerald" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
+          </div>
+          <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+            {[
+              ["Open", s.open],
+              ["Done", s.done],
+              ["People", s.people.length],
+            ].map(([k, v]) => (
+              <div key={k} className="rounded-xl bg-surface-2 py-2.5">
+                <dt className="text-[12px] text-ink-3">{k}</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {s.people.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-1.5">
+              {s.people.map((id) => {
+                const m = member(id);
+                return m ? (
+                  <li key={id} className="flex items-center gap-1.5 rounded-lg py-0.5 pl-0.5 pr-2" style={{ backgroundColor: `${m.accentColor}12` }}>
+                    <Monogram name={m.username} color={m.accentColor} size={20} />
+                    <span className="font-mono text-[11px]" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          )}
+        </section>
+        <ProjectNotes project={project} />
+      </div>
+
+      <div className="mt-8">
+        <h3 className="text-sm font-medium text-ink-2">Tasks</h3>
+        <div className="mt-3">
+          <BoardView projectId={project.id} />
+        </div>
+      </div>
+
+      <ProjectDialog open={editing} onClose={() => setEditing(false)} project={project} />
+    </div>
+  );
+}
+
+function ProjectNotes({ project }: { project: IdeaDTO }) {
+  const { team, run, patchIdea } = useWorkspace();
+  const [draft, setDraft] = useState(project.notes ?? "");
+  const [saved, setSaved] = useState(project.notes ?? "");
+  const dirty = draft.trim() !== saved.trim();
+
+  const save = () => {
+    if (!dirty) return;
+    const next = draft.trim();
+    setSaved(next);
+    run(() => updateProject({ teamId: team.id, itemId: project.id, notes: next }), {
+      optimistic: () => patchIdea(project.id, { notes: next || null }),
+      success: "Notes saved.",
+    });
+  };
+
+  return (
+    <section aria-label="Project notes" className="card flex flex-col rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={`notes-${project.id}`} className="text-sm font-medium">Notes</label>
+        <span className="text-[12px] text-ink-3">{dirty ? "Unsaved" : "Shared with the team"}</span>
+      </div>
+      <textarea
+        id={`notes-${project.id}`}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        maxLength={8000}
+        rows={7}
+        placeholder="Decisions, links, open questions. Saved when you click away."
+        className={cx(inputCls, "mt-3 min-h-40 flex-1 resize-y py-2.5 leading-relaxed")}
+      />
+      <div className="mt-3 flex justify-end">
+        <button type="button" onClick={save} disabled={!dirty} className={cx(btn.outline, btn.xs)}>Save notes</button>
+      </div>
+    </section>
+  );
+}
+
+/* ── Create / edit project ──────────────────────────────────────────────── */
+
+function ProjectDialog({ open, onClose, project }: { open: boolean; onClose: () => void; project?: IdeaDTO }) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={project ? "Edit project" : "New project"}
+      description={project ? undefined : "A project holds its own tasks, description and notes."}
+    >
+      {open && <ProjectForm project={project} onClose={onClose} />}
+    </Dialog>
+  );
+}
+
+function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => void }) {
+  const { team, viewer, run, addIdea, patchIdea, openProject } = useWorkspace();
+  const [title, setTitle] = useState(project?.title ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = title.trim();
+    const d = description.trim();
+    if (!t) return;
+    onClose();
+    if (project) {
+      run(() => updateProject({ teamId: team.id, itemId: project.id, title: t, description: d }), {
+        optimistic: () => patchIdea(project.id, { title: t, description: d || null }),
+        success: "Project saved.",
+      });
+      return;
+    }
+    const now = new Date().toISOString();
+    run(() => createProject({ teamId: team.id, title: t, description: d || undefined }), {
+      optimistic: () =>
+        addIdea({
+          id: `tmp-${now}`,
+          title: t,
+          description: d || null,
+          notes: null,
+          tags: [],
+          status: "PROMOTED",
+          sparksCount: 0,
+          sparkedByMe: false,
+          authorId: viewer.id,
+          createdAt: now,
+          taskCount: 0,
+          doneCount: 0,
+        }),
+      success: "Project created.",
+      onOk: (data) => openProject(data.id),
+    });
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <Field label="Name" htmlFor="project-title">
+        <input
+          id="project-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={140}
+          required
+          placeholder="Tilt-controlled arpeggiator"
+          className={cx(inputCls, "h-10")}
+        />
+      </Field>
+      <Field label="Description" htmlFor="project-description" hint="What it is and what done looks like.">
+        <textarea
+          id="project-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={2000}
+          rows={4}
+          className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
+        />
+      </Field>
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
+        <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>
+          {project ? "Save project" : "Create project"}
+        </button>
+      </div>
+    </form>
+  );
+}

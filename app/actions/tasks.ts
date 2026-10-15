@@ -5,7 +5,7 @@ import { z } from "zod";
 import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createTaskSchema, id, prioritySchema, taskStatusSchema, teamScoped } from "@/lib/validations";
+import { createTaskSchema, id, prioritySchema, taskStatusSchema, teamScoped, updateTaskSchema } from "@/lib/validations";
 
 async function assertAssignee(teamId: string, assigneeId: string | null | undefined) {
   if (!assigneeId) return;
@@ -14,6 +14,16 @@ async function assertAssignee(teamId: string, assigneeId: string | null | undefi
     select: { id: true },
   });
   if (!m) throw new ActionError("Assignee must be on this team.");
+}
+
+/** A project is a promoted idea; it must live in this exact team and not be archived. */
+async function assertProject(teamId: string, projectId: string | null | undefined) {
+  if (!projectId) return;
+  const p = await db.idea.findFirst({
+    where: { id: projectId, teamId, status: "PROMOTED" },
+    select: { id: true },
+  });
+  if (!p) throw new ActionError("Project not found.");
 }
 
 function touched(count: number) {
@@ -27,6 +37,7 @@ export async function createTask(input: unknown) {
     const data = createTaskSchema.parse(input);
     await requireMembership(data.teamId, ctx.user.id);
     await assertAssignee(data.teamId, data.assigneeId);
+    await assertProject(data.teamId, data.projectId);
     const task = await db.task.create({
       data: {
         teamId: data.teamId,
@@ -34,6 +45,7 @@ export async function createTask(input: unknown) {
         notes: data.notes,
         priority: data.priority,
         assigneeId: data.assigneeId ?? null,
+        ideaId: data.projectId ?? null,
         createdById: ctx.user.id,
       },
       select: { id: true },
@@ -41,6 +53,23 @@ export async function createTask(input: unknown) {
     await audit(ctx, { teamId: data.teamId, action: "task.created", entityType: "Task", entityId: task.id });
     revalidatePath("/dashboard", "layout");
     return { id: task.id };
+  });
+}
+
+export async function updateTask(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId, title, notes, projectId } = updateTaskSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id);
+    await assertProject(teamId, projectId);
+    const { count } = await db.task.updateMany({
+      where: { id: itemId, teamId },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(notes !== undefined && { notes }),
+        ...(projectId !== undefined && { ideaId: projectId }),
+      },
+    });
+    return touched(count);
   });
 }
 

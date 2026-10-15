@@ -17,7 +17,7 @@ export function TeamSquare({ name, size = 22 }: { name: string; size?: number })
     <span
       aria-hidden
       className="grid shrink-0 place-items-center rounded-[28%] text-[11px] font-semibold"
-      style={{ width: size, height: size, backgroundColor: `hsl(${hue} 60% 55% / 0.16)`, color: `hsl(${hue} 70% 70%)` }}
+      style={{ width: size, height: size, backgroundColor: `hsl(${hue} 60% 55% / 0.16)`, color: `color-mix(in oklab, hsl(${hue} 65% 55%) 78%, var(--readable-mix))` }}
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
@@ -55,8 +55,8 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
                 onClick={close}
                 role="menuitem"
                 className={cx(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-white/[0.07] hover:text-ink",
-                  t.slug === current?.slug && "bg-white/[0.05] text-ink",
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-tint/[0.07] hover:text-ink",
+                  t.slug === current?.slug && "bg-tint/[0.05] text-ink",
                 )}
               >
                 <TeamSquare name={t.name} />
@@ -72,7 +72,7 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
                 setCreating(true);
               }}
             >
-              <span className="grid size-[22px] place-items-center rounded-[28%] bg-white/[0.06] text-ink">+</span>
+              <span className="grid size-[22px] place-items-center rounded-[28%] bg-tint/[0.06] text-ink">+</span>
               Create new team
             </MenuItem>
           </div>

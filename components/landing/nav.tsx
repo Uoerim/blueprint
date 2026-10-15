@@ -3,10 +3,8 @@ import Link from "next/link";
 import { BrandMark, btn, cx } from "@/components/ui/primitives";
 
 const LINKS = [
-  { href: "#philosophy", label: "Philosophy" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#security", label: "Security" },
-  { href: "#open-source", label: "Open Source" },
+  { href: "#tour", label: "What it does" },
+  { href: "#projects", label: "Projects" },
 ];
 
 export function LandingNav() {
@@ -20,7 +18,7 @@ export function LandingNav() {
         <ul className="hidden items-center gap-1 md:flex">
           {LINKS.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink">
+              <a href={l.href} className="rounded-md px-2.5 py-1.5 text-sm text-ink-2 transition-colors hover:bg-tint/[0.05] hover:text-ink">
                 {l.label}
               </a>
             </li>
@@ -32,7 +30,7 @@ export function LandingNav() {
               <button type="button" className={cx(btn.ghost, btn.sm)}>Sign in</button>
             </SignInButton>
             <SignUpButton forceRedirectUrl="/onboarding">
-              <button type="button" className={cx(btn.primary, btn.sm)}>Get started →</button>
+              <button type="button" className={cx(btn.primary, btn.sm)}>Get started</button>
             </SignUpButton>
           </Show>
           <Show when="signed-in">

@@ -9,9 +9,11 @@ export async function generateMetadata({ params }: PageProps<"/dashboard/[teamSl
   return { title: teamSlug.replace(/-/g, " ") };
 }
 
-export default async function TeamPage({ params }: PageProps<"/dashboard/[teamSlug]">) {
+export default async function TeamPage({ params, searchParams }: PageProps<"/dashboard/[teamSlug]">) {
   const user = await requireOnboardedPage();
   const { teamSlug } = await params;
+  const sp = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const team = await getTeamForViewer(teamSlug, user.id);
 
   // Everything below is scoped to the verified team id, never the URL.
@@ -30,6 +32,7 @@ export default async function TeamPage({ params }: PageProps<"/dashboard/[teamSl
         id: true,
         title: true,
         description: true,
+        notes: true,
         tags: true,
         status: true,
         sparksCount: true,
@@ -83,6 +86,7 @@ export default async function TeamPage({ params }: PageProps<"/dashboard/[teamSl
     id: i.id,
     title: i.title,
     description: i.description,
+    notes: i.notes,
     tags: i.tags,
     status: i.status,
     sparksCount: i.sparksCount,
@@ -116,6 +120,8 @@ export default async function TeamPage({ params }: PageProps<"/dashboard/[teamSl
       ideas={ideaDTOs}
       tasks={taskDTOs}
       invites={outgoing}
+      initialView={one(sp.view)}
+      initialProject={one(sp.project)}
     />
   );
 }

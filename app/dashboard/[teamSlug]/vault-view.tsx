@@ -5,7 +5,7 @@ import { useState } from "react";
 import { archiveIdea, createIdea, promoteIdea, toggleSpark } from "@/app/actions/ideas";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
-import { btn, cx, Kbd, Monogram, Pill, PRIORITY_COLORS, TAG_COLORS, readable } from "@/components/ui/primitives";
+import { btn, cx, Monogram, Pill, PRIORITY_COLORS, TAG_COLORS, readable } from "@/components/ui/primitives";
 import { IDEA_TAGS, PRIORITY_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/time";
 import type { IdeaDTO, Priority } from "@/lib/types";
@@ -19,7 +19,7 @@ function parseCapture(raw: string, picked: string[]) {
   return { title, tags: [...new Set([...picked, ...inline])].slice(0, 5) };
 }
 
-export function VaultView({ onPromoted }: { onPromoted: () => void }) {
+export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => void }) {
   const { ideas } = useWorkspace();
   const [sort, setSort] = useState<"hot" | "new">("hot");
   const [promoting, setPromoting] = useState<IdeaDTO | null>(null);
@@ -65,7 +65,7 @@ export function VaultView({ onPromoted }: { onPromoted: () => void }) {
       {!vault.length && (
         <div className="card mt-3 rounded-2xl px-6 py-14 text-center">
           <p className="text-[15px] text-ink">The vault is empty.</p>
-          <p className="mt-1 text-sm text-ink-3">Press <Kbd>⌘</Kbd> <Kbd>K</Kbd> and dump the first thing on your mind.</p>
+          <p className="mt-1 text-sm text-ink-3">Type the first thing on your mind into the box above.</p>
         </div>
       )}
 
@@ -76,12 +76,15 @@ export function VaultView({ onPromoted }: { onPromoted: () => void }) {
             {promoted.map((i) => {
               const pct = i.taskCount ? Math.round((i.doneCount / i.taskCount) * 100) : 0;
               return (
-                <li key={i.id} className="flex items-center gap-4 px-4 py-3">
+                <li key={i.id}>
+                  <button type="button" onClick={() => onOpenProject(i.id)} className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-tint/[0.03]">
                   <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{i.title}</span>
-                  <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-white/[0.06] sm:block">
+                  <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-tint/[0.06] sm:block">
                     <motion.span className="block h-full rounded-full bg-emerald" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
                   </span>
                   <span className="font-mono text-[11px] tabular-nums text-ink-3">{i.doneCount}/{i.taskCount} done</span>
+                  <span className="text-[13px] text-ink-3" aria-hidden>→</span>
+                  </button>
                 </li>
               );
             })}
@@ -89,13 +92,13 @@ export function VaultView({ onPromoted }: { onPromoted: () => void }) {
         </section>
       )}
 
-      <PromoteDrawer idea={promoting} onClose={() => setPromoting(null)} onDone={onPromoted} />
+      <PromoteDrawer idea={promoting} onClose={() => setPromoting(null)} onDone={onOpenProject} />
     </div>
   );
 }
 
 function CaptureBar() {
-  const { team, viewer, run, addIdea, captureRef } = useWorkspace();
+  const { team, viewer, run, addIdea } = useWorkspace();
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
 
@@ -112,6 +115,7 @@ function CaptureBar() {
           id: `tmp-${now}`,
           title,
           description: null,
+          notes: null,
           tags,
           status: "VAULT",
           sparksCount: 0,
@@ -125,13 +129,12 @@ function CaptureBar() {
   };
 
   return (
-    <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_#6366F1,0_0_0_4px_rgba(99,102,241,0.18)]">
+    <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent),0_0_0_4px_rgba(99,102,241,0.18)]">
       <div className="flex items-center gap-2 px-2">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0 text-ink-3">
           <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <input
-          ref={captureRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           maxLength={200}
@@ -139,7 +142,6 @@ function CaptureBar() {
           placeholder="Dump a raw idea… add #feature, #bug, #experiment or #random"
           className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-ink-3 focus:outline-none"
         />
-        <span className="hidden items-center gap-1 sm:flex"><Kbd>⌘</Kbd><Kbd>K</Kbd></span>
         <button type="submit" disabled={!draft.trim()} className={cx(btn.primary, btn.sm)}>Drop it</button>
       </div>
       <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1.5">
@@ -153,7 +155,7 @@ function CaptureBar() {
               aria-pressed={on}
               onClick={() => setPicked((p) => (on ? p.filter((x) => x !== t) : [...p, t]))}
               className="h-7 rounded-md px-2 font-mono text-[11px] transition-[background-color,transform] active:scale-95"
-              style={on ? { color, backgroundColor: `${color}20`, boxShadow: `inset 0 0 0 1px ${color}55` } : { color: "var(--ink-3)", backgroundColor: "rgba(255,255,255,0.04)" }}
+              style={on ? { color, backgroundColor: `${color}20`, boxShadow: `inset 0 0 0 1px ${color}55` } : { color: "var(--ink-3)", backgroundColor: "color-mix(in oklab, var(--tint) 4%, transparent)" }}
             >
               #{t}
             </button>
@@ -232,7 +234,7 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
           aria-label={`Spark, ${idea.sparksCount} sparks`}
           className={cx(
             "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 font-mono text-xs transition-colors",
-            idea.sparkedByMe ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-white/[0.06] hover:text-ink",
+            idea.sparkedByMe ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-tint/[0.06] hover:text-ink",
           )}
         >
           <motion.svg key={String(idea.sparkedByMe)} initial={{ rotate: -40, scale: 0.6 }} animate={{ rotate: 0, scale: 1 }} transition={spring} width="13" height="13" viewBox="0 0 16 16" aria-hidden>
@@ -253,7 +255,7 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
 type Draft = { key: number; title: string; assigneeId: string | null; priority: Priority };
 let keySeq = 0;
 
-function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClose: () => void; onDone: () => void }) {
+function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClose: () => void; onDone: (id: string) => void }) {
   const [rows, setRows] = useState<Draft[]>([]);
   const [lastIdea, setLastIdea] = useState<string | null>(null);
 
@@ -287,7 +289,7 @@ function PromoteForm({
   rows: Draft[];
   setRows: React.Dispatch<React.SetStateAction<Draft[]>>;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (id: string) => void;
 }) {
   const { team, members, member, run, patchIdea } = useWorkspace();
   const [busy, setBusy] = useState(false);
@@ -311,7 +313,7 @@ function PromoteForm({
         success: `Promoted into ${valid.length} task${valid.length > 1 ? "s" : ""}.`,
         onOk: () => {
           onClose();
-          onDone();
+          onDone(idea.id);
         },
       },
     );

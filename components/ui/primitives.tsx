@@ -8,16 +8,16 @@ const base =
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-[background-color,color,transform,box-shadow] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 select-none";
 
 export const btn = {
-  primary: cx(base, "h-10 px-4 bg-ink text-bg hover:bg-white"),
-  accent: cx(base, "h-10 px-4 bg-accent text-white hover:bg-[#7577f5]"),
-  ghost: cx(base, "h-10 px-4 text-ink-2 hover:text-ink hover:bg-white/[0.06]"),
+  primary: cx(base, "h-10 px-4 bg-ink text-bg hover:bg-ink/85"),
+  accent: cx(base, "h-10 px-4 bg-accent text-white hover:bg-accent/85"),
+  ghost: cx(base, "h-10 px-4 text-ink-2 hover:text-ink hover:bg-tint/[0.06]"),
   outline: cx(base, "h-10 px-4 text-ink bg-surface-2 shadow-highlight hover:bg-surface-3"),
   sm: "!h-8 !px-3 !text-[13px]",
   xs: "!h-7 !px-2.5 !text-xs !rounded-md",
 };
 
-/** Lifts an accent toward white so small handle text stays above 4.5:1 on the dark ground. */
-export const readable = (c?: string | null) => (c ? `color-mix(in oklab, ${c} 78%, white)` : undefined);
+/** Pushes an accent toward the ink side of the theme (white on dark, black on light) so small handle text stays legible. */
+export const readable = (c?: string | null) => (c ? `color-mix(in oklab, ${c} 74%, var(--readable-mix))` : undefined);
 
 export function initials(name: string) {
   const clean = name.replace(/^@/, "").replace(/_/g, " ").trim();
@@ -70,14 +70,6 @@ export function Handle({ username, color, className }: { username: string; color
   );
 }
 
-export function Kbd({ children }: { children: ReactNode }) {
-  return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-line-strong bg-surface-2 px-1 font-mono text-[11px] text-ink-3">
-      {children}
-    </kbd>
-  );
-}
-
 export function Pill({
   children,
   color,
@@ -93,7 +85,7 @@ export function Pill({
       style={
         color
           ? { color, backgroundColor: `${color}17`, boxShadow: `inset 0 0 0 1px ${color}33` }
-          : { color: "var(--ink-2)", backgroundColor: "rgba(255,255,255,0.05)" }
+          : { color: "var(--ink-2)", backgroundColor: "color-mix(in oklab, var(--tint) 5%, transparent)" }
       }
     >
       {children}

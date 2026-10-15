@@ -21,6 +21,8 @@ export type IdeaDTO = {
   id: string;
   title: string;
   description: string | null;
+  /** Project scratchpad (only meaningful once promoted). */
+  notes: string | null;
   tags: string[];
   status: "VAULT" | "PROMOTED" | "ARCHIVED";
   sparksCount: number;

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createIdeaSchema, promoteIdeaSchema, teamScoped } from "@/lib/validations";
+import { createIdeaSchema, createProjectSchema, promoteIdeaSchema, teamScoped, updateProjectSchema } from "@/lib/validations";
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
@@ -102,6 +102,46 @@ export async function archiveIdea(input: unknown) {
     }
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status: "ARCHIVED" } });
     await audit(ctx, { teamId, action: "idea.archived", entityType: "Idea", entityId: itemId });
+    revalidatePath("/dashboard", "layout");
+    return null;
+  });
+}
+
+/** Start a project directly (an idea that skips the vault). */
+export async function createProject(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const data = createProjectSchema.parse(input);
+    await requireMembership(data.teamId, ctx.user.id);
+    const project = await db.idea.create({
+      data: {
+        teamId: data.teamId,
+        title: data.title,
+        description: data.description,
+        status: "PROMOTED",
+        createdById: ctx.user.id,
+      },
+      select: { id: true },
+    });
+    await audit(ctx, { teamId: data.teamId, action: "project.created", entityType: "Idea", entityId: project.id });
+    revalidatePath("/dashboard", "layout");
+    return { id: project.id };
+  });
+}
+
+/** Edit a project's title, description or notes. Any member can; it is a shared page. */
+export async function updateProject(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId, title, description, notes } = updateProjectSchema.parse(input);
+    await requireMembership(teamId, ctx.user.id);
+    const { count } = await db.idea.updateMany({
+      where: { id: itemId, teamId, status: "PROMOTED" },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(notes !== undefined && { notes }),
+      },
+    });
+    if (!count) throw new ActionError("Project not found.");
     revalidatePath("/dashboard", "layout");
     return null;
   });

@@ -17,7 +17,68 @@
   --cyan: #06b6d4;
   --violet: #8b5cf6;
   --highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  /* Hover/press overlays and accent lifting follow the theme. */
+  --tint: #ffffff;
+  --readable-mix: #ffffff;
+  --glass: rgba(24, 24, 27, 0.7);
+  --pop: #17171b;
+  --scroll-thumb: #26262c;
+  --scroll-thumb-hover: #34343c;
   color-scheme: dark;
+}
+
+/* Light theme: picked in Settings (data-theme="light"), or "system" on a light OS. */
+:root[data-theme="light"] {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f1f1ef;
+  --surface-3: #e7e7e4;
+  --line: rgba(10, 10, 12, 0.08);
+  --line-strong: rgba(10, 10, 12, 0.14);
+  --ink: #0b0b0d;
+  --ink-2: #44444c;
+  --ink-3: #66666f;
+  --accent: #4f46e5;
+  --emerald: #059669;
+  --amber: #c26a05;
+  --rose: #e11d48;
+  --cyan: #0e7f9b;
+  --violet: #7c3aed;
+  --highlight: 0 0 0 1px rgba(10, 10, 12, 0.07), 0 1px 2px rgba(10, 10, 12, 0.05);
+  --tint: #000000;
+  --readable-mix: #000000;
+  --glass: rgba(247, 247, 245, 0.78);
+  --pop: #ffffff;
+  --scroll-thumb: #d4d4d0;
+  --scroll-thumb-hover: #b9b9b4;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --surface-2: #f1f1ef;
+    --surface-3: #e7e7e4;
+    --line: rgba(10, 10, 12, 0.08);
+    --line-strong: rgba(10, 10, 12, 0.14);
+    --ink: #0b0b0d;
+    --ink-2: #44444c;
+    --ink-3: #66666f;
+    --accent: #4f46e5;
+    --emerald: #059669;
+    --amber: #c26a05;
+    --rose: #e11d48;
+    --cyan: #0e7f9b;
+    --violet: #7c3aed;
+    --highlight: 0 0 0 1px rgba(10, 10, 12, 0.07), 0 1px 2px rgba(10, 10, 12, 0.05);
+    --tint: #000000;
+    --readable-mix: #000000;
+    --glass: rgba(247, 247, 245, 0.78);
+    --pop: #ffffff;
+    --scroll-thumb: #d4d4d0;
+    --scroll-thumb-hover: #b9b9b4;
+    color-scheme: light;
+  }
 }
 
 @theme inline {
@@ -36,6 +97,7 @@
   --color-rose: var(--rose);
   --color-cyan: var(--cyan);
   --color-violet: var(--violet);
+  --color-tint: var(--tint);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --shadow-highlight: var(--highlight);
@@ -65,7 +127,7 @@ body {
 /* No default browser scrollbars. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a31 transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
@@ -75,12 +137,12 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #26262c;
+  background: var(--scroll-thumb);
   border-radius: 999px;
   border: 3px solid var(--bg);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #34343c;
+  background: var(--scroll-thumb-hover);
 }
 
 /* Layered, so a component can opt out with focus-visible:outline-none
@@ -95,8 +157,8 @@ body {
 /* Architectural 32px grid + quiet radial mesh, used behind the hero. */
 .bg-architect {
   background-image:
-    linear-gradient(to right, #ffffff06 1px, transparent 1px),
-    linear-gradient(to bottom, #ffffff06 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in oklab, var(--tint) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--tint) 3%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 .mesh {
@@ -114,14 +176,14 @@ body {
 
   /* Sticky bars: see-through on purpose. */
   .glass {
-    background: rgba(24, 24, 27, 0.7);
+    background: var(--glass);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
   }
 
   /* Menus, popovers and dialogs: must stay readable over busy content. */
   .glass-solid {
-    background: #17171b;
+    background: var(--pop);
   }
 
   .mono-meta {
@@ -140,7 +202,7 @@ body {
     transition: box-shadow 150ms ease, background-color 150ms ease;
   }
   .field:hover {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tint) 20%, transparent);
   }
   .field:focus-within,
   .field:focus {

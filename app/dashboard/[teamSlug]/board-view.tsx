@@ -2,8 +2,8 @@
 
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useState } from "react";
-import { assignTask, createTask, setTaskPriority, setTaskStatus, startFocus } from "@/app/actions/tasks";
-import { inputCls } from "@/components/ui/dialog";
+import { assignTask, createTask, setTaskPriority, setTaskStatus, startFocus, updateTask } from "@/app/actions/tasks";
+import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import { TASK_COLUMNS } from "@/lib/constants";
@@ -15,10 +15,14 @@ const spring = { type: "spring", stiffness: 520, damping: 40 } as const;
 type Filter = { kind: "all" } | { kind: "mine" } | { kind: "unassigned" } | { kind: "member"; id: string };
 const PRIORITY_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
-export function BoardView() {
-  const { tasks, members, viewer } = useWorkspace();
+/** The task board. With projectId it shows only that project's tasks and adds new ones to it. */
+export function BoardView({ projectId, initialFilter = "all" }: { projectId?: string; initialFilter?: "all" | "mine" } = {}) {
+  const { tasks: allTasks, members, viewer } = useWorkspace();
   const [layout, setLayout] = useState<"board" | "list">("board");
-  const [filter, setFilter] = useState<Filter>({ kind: "all" });
+  const [filter, setFilter] = useState<Filter>({ kind: initialFilter });
+  const [editing, setEditing] = useState<string | null>(null);
+  const scoped = !!projectId;
+  const tasks = projectId ? allTasks.filter((t) => t.idea?.id === projectId) : allTasks;
 
   const visible = tasks
     .filter((t) => {
@@ -71,7 +75,7 @@ export function BoardView() {
         </div>
       </div>
 
-      <NewTask />
+      <NewTask projectId={projectId} />
 
       <LayoutGroup>
         {layout === "board" ? (
@@ -91,7 +95,7 @@ export function BoardView() {
                   </header>
                   <ul className="flex flex-col gap-2">
                     <AnimatePresence initial={false} mode="popLayout">
-                      {items.map((t) => <TaskCard key={t.id} task={t} />)}
+                      {items.map((t) => <TaskCard key={t.id} task={t} scoped={scoped} onEdit={() => setEditing(t.id)} />)}
                     </AnimatePresence>
                   </ul>
                   {!items.length && <p className="px-2 py-4 text-xs text-ink-3">Nothing here.</p>}
@@ -113,7 +117,7 @@ export function BoardView() {
                   </header>
                   <ul className="divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-highlight">
                     <AnimatePresence initial={false}>
-                      {items.map((t) => <TaskRow key={t.id} task={t} />)}
+                      {items.map((t) => <TaskRow key={t.id} task={t} scoped={scoped} onEdit={() => setEditing(t.id)} />)}
                     </AnimatePresence>
                   </ul>
                 </section>
@@ -123,20 +127,27 @@ export function BoardView() {
           </div>
         )}
       </LayoutGroup>
+
+      <TaskDialog task={allTasks.find((t) => t.id === editing) ?? null} onClose={() => setEditing(null)} />
     </div>
   );
 }
 
-function NewTask() {
-  const { team, run, addTask } = useWorkspace();
+function NewTask({ projectId }: { projectId?: string }) {
+  const { team, run, addTask, ideas } = useWorkspace();
   const [title, setTitle] = useState("");
+  const [picked, setPicked] = useState("");
+  const projects = ideas.filter((i) => i.status === "PROMOTED" && !i.id.startsWith("tmp-"));
+  const target = projectId ?? (picked || null);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
     setTitle("");
     const now = new Date().toISOString();
-    run(() => createTask({ teamId: team.id, title: t }), {
+    const proj = target ? projects.find((p) => p.id === target) : undefined;
+    run(() => createTask({ teamId: team.id, title: t, projectId: target }), {
       optimistic: () =>
         addTask({
           id: `tmp-${now}`,
@@ -146,7 +157,7 @@ function NewTask() {
           priority: "MEDIUM",
           isFocused: false,
           assigneeId: null,
-          idea: null,
+          idea: proj ? { id: proj.id, title: proj.title } : null,
           completedAt: null,
           createdAt: now,
           updatedAt: now,
@@ -160,22 +171,35 @@ function NewTask() {
         onChange={(e) => setTitle(e.target.value)}
         maxLength={140}
         aria-label="New task title"
-        placeholder="+ New task straight into the backlog"
+        placeholder={projectId ? "+ Add a task to this project" : "+ New task straight into the backlog"}
         className={cx(inputCls, "h-10 bg-surface")}
       />
+      {!projectId && projects.length > 0 && (
+        <select
+          value={picked}
+          onChange={(e) => setPicked(e.target.value)}
+          aria-label="Project for the new task"
+          className={cx(inputCls, "hidden h-10 w-auto max-w-48 shrink-0 bg-surface sm:block")}
+        >
+          <option value="">No project</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.title}</option>
+          ))}
+        </select>
+      )}
       <button type="submit" disabled={!title.trim()} className={cx(btn.outline, "shrink-0")}>Add</button>
     </form>
   );
 }
 
-function StatusGlyph({ status }: { status: TaskStatus }) {
+export function StatusGlyph({ status }: { status: TaskStatus }) {
   const color = { TODO: "#8A8A94", READY: "#06B6D4", IN_PROGRESS: "#F59E0B", DONE: "#10B981" }[status];
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0">
       <circle cx="7" cy="7" r="5.5" fill="none" stroke={color} strokeWidth="1.5" strokeDasharray={status === "TODO" ? "2 2" : undefined} />
       {status === "IN_PROGRESS" && <path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5 Z" fill={color} />}
       {status === "DONE" && <circle cx="7" cy="7" r="5.5" fill={color} />}
-      {status === "DONE" && <path d="m4.5 7.2 1.7 1.7 3.4-3.6" stroke="#09090B" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />}
+      {status === "DONE" && <path d="m4.5 7.2 1.7 1.7 3.4-3.6" stroke="var(--bg)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />}
     </svg>
   );
 }
@@ -302,7 +326,7 @@ function Strike({ on, children, className }: { on: boolean; children: React.Reac
 
 /* ── Kanban card ────────────────────────────────────────────────────────── */
 
-function TaskCard({ task }: { task: TaskDTO }) {
+function TaskCard({ task, scoped, onEdit }: { task: TaskDTO; scoped: boolean; onEdit: () => void }) {
   const c = useTaskControls(task);
   const done = task.status === "DONE";
   const glow = task.isFocused && c.assignee ? c.assignee.accentColor : null;
@@ -315,20 +339,22 @@ function TaskCard({ task }: { task: TaskDTO }) {
       animate={{ opacity: c.temp ? 0.65 : 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       transition={spring}
-      className="group rounded-xl bg-surface p-3 shadow-highlight transition-colors hover:bg-[#16161a]"
+      className="group rounded-xl bg-surface p-3 shadow-highlight transition-colors hover:bg-surface-2"
       style={glow ? { boxShadow: `inset 0 0 0 1px ${glow}66, 0 0 24px -12px ${glow}` } : undefined}
     >
       <div className="flex items-start gap-2">
-        <p className={cx("min-w-0 flex-1 text-[14px] leading-snug", done ? "text-ink-3" : "text-ink")}>
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={c.temp}
+          className={cx("min-w-0 flex-1 text-left text-[14px] leading-snug transition-colors hover:text-accent", done ? "text-ink-3" : "text-ink")}
+        >
           <Strike on={c.striking || done}>{task.title}</Strike>
-        </p>
+          {task.notes && <NotesGlyph />}
+        </button>
         {!c.temp && <MoveMenu task={task} onMove={c.setStatus} />}
       </div>
-      {task.idea && (
-        <p className="mt-1.5 truncate text-[11px] text-ink-3">
-          <span className="text-violet">◆</span> {task.idea.title}
-        </p>
-      )}
+      {task.idea && !scoped && <ProjectChip idea={task.idea} className="mt-1.5" />}
       <div className="mt-3 flex items-center gap-1">
         <AssigneePicker task={task} onPick={c.assign} compact />
         <PriorityPicker value={task.priority} onChange={c.priority} />
@@ -349,7 +375,7 @@ function TaskCard({ task }: { task: TaskDTO }) {
 
 /* ── Compact list row ───────────────────────────────────────────────────── */
 
-function TaskRow({ task }: { task: TaskDTO }) {
+function TaskRow({ task, scoped, onEdit }: { task: TaskDTO; scoped: boolean; onEdit: () => void }) {
   const c = useTaskControls(task);
   const done = task.status === "DONE";
   return (
@@ -358,20 +384,26 @@ function TaskRow({ task }: { task: TaskDTO }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: c.temp ? 0.65 : 1 }}
       exit={{ opacity: 0 }}
-      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-white/[0.02]"
+      className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-tint/[0.02]"
     >
       <button
         type="button"
         aria-label={done ? "Reopen" : "Mark done"}
         onClick={done ? () => c.setStatus("READY") : c.markDone}
-        className="grid size-6 place-items-center rounded-md transition-transform hover:bg-white/[0.06] active:scale-90"
+        className="grid size-6 place-items-center rounded-md transition-transform hover:bg-tint/[0.06] active:scale-90"
       >
         <StatusGlyph status={task.status} />
       </button>
-      <span className={cx("min-w-0 flex-1 truncate text-[14px]", done ? "text-ink-3" : "text-ink")}>
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={c.temp}
+        className={cx("min-w-0 flex-1 truncate text-left text-[14px] transition-colors hover:text-accent", done ? "text-ink-3" : "text-ink")}
+      >
         <Strike on={c.striking || done}>{task.title}</Strike>
-      </span>
-      {task.idea && <span className="hidden max-w-48 truncate text-[11px] text-ink-3 lg:inline">◆ {task.idea.title}</span>}
+        {task.notes && <NotesGlyph />}
+      </button>
+      {task.idea && !scoped && <ProjectChip idea={task.idea} className="hidden max-w-48 lg:flex" />}
       {task.isFocused && c.assignee && (
         <span className="hidden font-mono text-[11px] sm:inline" style={{ color: readable(c.assignee.accentColor) }}>in focus</span>
       )}
@@ -381,5 +413,112 @@ function TaskRow({ task }: { task: TaskDTO }) {
         <button type="button" onClick={c.focus} className={cx(btn.ghost, btn.xs, "hidden sm:inline-flex")}>Start working</button>
       )}
     </motion.li>
+  );
+}
+
+/* ── Project chip, notes marker, task detail ────────────────────────────── */
+
+function ProjectChip({ idea, className }: { idea: { id: string; title: string }; className?: string }) {
+  const { openProject, ideas } = useWorkspace();
+  const live = ideas.some((i) => i.id === idea.id && i.status === "PROMOTED");
+  const label = (
+    <>
+      <span className="text-violet" aria-hidden>◆</span>
+      <span className="truncate">{idea.title}</span>
+    </>
+  );
+  if (!live) return <p className={cx("flex items-center gap-1 text-[11px] text-ink-3", className)}>{label}</p>;
+  return (
+    <button
+      type="button"
+      onClick={() => openProject(idea.id)}
+      className={cx("flex max-w-full items-center gap-1 text-left text-[11px] text-ink-3 transition-colors hover:text-ink", className)}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NotesGlyph() {
+  return (
+    <svg className="ml-1.5 inline-block align-[-1px] text-ink-3" width="11" height="11" viewBox="0 0 12 12" role="img" aria-label="Has notes">
+      <path d="M2.5 3h7M2.5 6h7M2.5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function TaskDialog({ task, onClose }: { task: TaskDTO | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!task} onClose={onClose} title="Task" description="Rename it, write notes, or move it to another project.">
+      {task && <TaskForm key={task.id} task={task} onClose={onClose} />}
+    </Dialog>
+  );
+}
+
+function TaskForm({ task, onClose }: { task: TaskDTO; onClose: () => void }) {
+  const { team, ideas, run, patchTask, member } = useWorkspace();
+  const [title, setTitle] = useState(task.title);
+  const [notes, setNotes] = useState(task.notes ?? "");
+  const [projectId, setProjectId] = useState(task.idea?.id ?? "");
+  const projects = ideas.filter((i) => i.status === "PROMOTED" && !i.id.startsWith("tmp-"));
+  const assignee = member(task.assigneeId);
+  const column = TASK_COLUMNS.find((c) => c.status === task.status)?.label;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) return;
+    const n = notes.trim();
+    const patch: { title?: string; notes?: string; projectId?: string | null } = {};
+    if (t !== task.title) patch.title = t;
+    if (n !== (task.notes ?? "")) patch.notes = n;
+    if ((projectId || null) !== (task.idea?.id ?? null)) patch.projectId = projectId || null;
+    onClose();
+    if (!Object.keys(patch).length) return;
+    const proj = projects.find((p) => p.id === projectId);
+    run(() => updateTask({ teamId: team.id, itemId: task.id, ...patch }), {
+      optimistic: () =>
+        patchTask(task.id, { title: t, notes: n || null, idea: proj ? { id: proj.id, title: proj.title } : null }),
+      success: "Task saved.",
+    });
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-3">
+        <span className="inline-flex items-center gap-1.5"><StatusGlyph status={task.status} /> {column}</span>
+        {assignee ? (
+          <span className="font-mono" style={{ color: readable(assignee.accentColor) }}>@{assignee.username}</span>
+        ) : (
+          <span>Unassigned</span>
+        )}
+      </p>
+      <Field label="Title" htmlFor="task-title">
+        <input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} required className={cx(inputCls, "h-10")} />
+      </Field>
+      <Field label="Notes" htmlFor="task-notes" hint="Links, acceptance criteria, anything the next person needs.">
+        <textarea
+          id="task-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          maxLength={4000}
+          rows={6}
+          placeholder="What does done look like?"
+          className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
+        />
+      </Field>
+      <Field label="Project" htmlFor="task-project">
+        <select id="task-project" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={cx(inputCls, "h-10")}>
+          <option value="">No project</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{p.title}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
+        <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>Save task</button>
+      </div>
+    </form>
   );
 }

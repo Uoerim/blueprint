@@ -109,7 +109,7 @@ export function ShippedView() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i, 10) * 0.03 }}
-                    className="relative flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-white/[0.02]"
+                    className="relative flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-tint/[0.02]"
                   >
                     <span className="absolute -left-[29px] top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-emerald ring-4 ring-bg" aria-hidden />
                     {m ? <Monogram name={m.username} color={m.accentColor} size={26} /> : <span className="size-[26px] rounded-[28%] bg-surface-3" />}
