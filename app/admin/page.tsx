@@ -16,7 +16,8 @@ export default async function AdminOverview() {
   const weekAgo = daysAgo(7);
   const live = { deletedAt: null };
 
-  const [accounts, newThisWeek, suspended, staff, teams, ideas, tasks, shipped, recent, actions] = await Promise.all([
+  // Counts and metadata only: the admin panel never reads or decrypts team content.
+  const [accounts, newThisWeek, suspended, staff, teams, ideas, tasks, shipped, focus, security, recent, actions] = await Promise.all([
     db.user.count({ where: { ...live, onboarded: true } }),
     db.user.count({ where: { ...live, createdAt: { gte: weekAgo } } }),
     db.user.count({ where: { ...live, bannedAt: { not: null } } }),
@@ -25,6 +26,8 @@ export default async function AdminOverview() {
     db.idea.count(),
     db.task.count(),
     db.task.count({ where: { status: "DONE" } }),
+    db.taskAssignee.count({ where: { focusedAt: { not: null }, task: { status: "IN_PROGRESS" } } }),
+    db.auditLog.count({ where: { action: { startsWith: "security." }, createdAt: { gte: daysAgo(1) } } }),
     db.user.findMany({
       where: live,
       orderBy: { createdAt: "desc" },
@@ -47,10 +50,10 @@ export default async function AdminOverview() {
     <>
       <PageTitle
         title="Overview"
-        note="Accounts and usage across Blueprint. Team content is encrypted per team and never shown in the admin panel."
+        note="Platform metadata and aggregate counts only. Team content is encrypted per team and is never read or decrypted by the admin panel."
       />
 
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Accounts" value={accounts} />
         <Stat label="New this week" value={newThisWeek} tone="emerald" />
         <Stat label="Suspended" value={suspended} tone="rose" />
@@ -59,9 +62,11 @@ export default async function AdminOverview() {
         <Stat label="Ideas" value={ideas} />
         <Stat label="Tasks" value={tasks} />
         <Stat label="Tasks shipped" value={shipped} />
+        <Stat label="In focus now" value={focus} tone="emerald" />
+        <Stat label="Security events (24h)" value={security} tone={security ? "rose" : undefined} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
         <section className="card rounded-2xl p-5" aria-labelledby="recent-h">
           <div className="flex items-baseline justify-between">
             <h2 id="recent-h" className="text-[15px] font-semibold">Newest accounts</h2>

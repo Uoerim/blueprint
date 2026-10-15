@@ -33,7 +33,7 @@ export function ProjectDemo() {
 
   return (
     <div data-ui className="card overflow-hidden rounded-2xl">
-      <div className="grid gap-4 border-b border-line p-4 sm:grid-cols-[1.3fr_1fr] sm:p-5">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 border-b border-line p-4 sm:grid-cols-[1.3fr_1fr] sm:p-5">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[12px] text-ink-3"><span className="text-violet">◆</span> Project</p>
           <p className="mt-1 text-lg font-semibold tracking-tight">Tilt arpeggiator</p>
@@ -65,7 +65,7 @@ export function ProjectDemo() {
       </div>
 
       <LayoutGroup>
-        <div className="grid gap-2 p-3 sm:grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 p-3 sm:grid-cols-3">
           {COLS.map((col) => (
             <section key={col} aria-label={col} className="min-h-28 rounded-xl bg-surface-2/60 p-2">
               <p className="flex items-center justify-between px-1 pb-1.5 text-[12px] font-medium text-ink-2">

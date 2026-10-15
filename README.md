@@ -56,7 +56,7 @@ When something ships, it stays on the record with your `@username` on it.
 ### Ideas and projects
 
 - **Idea vault.** One shared list per team. Tag ideas, spark the ones you like, and sort by most sparked or newest.
-- **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour and delete tags. Renaming or deleting one updates every idea that uses it.
+- **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour (any colour, from presets or the full colour spectrum) and delete tags. Renaming or deleting one updates every idea that uses it.
 - **Idea pages.** Open any raw idea to edit it and plan it with tasks and subtasks while it's still in the vault.
 - **Promote to a project.** One click moves an idea, with any tasks it already has, into Execution and opens its project page. Or start a project from scratch.
 - **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks.
@@ -80,11 +80,19 @@ When something ships, it stays on the record with your `@username` on it.
 - **Team settings.** Rename the team, manage members and roles, hand over ownership, manage projects and the archive, clear shipped tasks, leave, or delete the team.
 - **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back.
 
-### Account
+### Account and home
+
+- **Dashboard home.** After signing in you land on a home page with all your teams: search them, star favourites to keep them on top, see how many open tasks are yours in each, and accept invites.
 
 - **Account window.** Appearance (dark, light or system theme) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
 - **Support.** A *Contact support* button in the dashboard and user menu, plus Privacy Policy and Terms pages.
+
+### Phones and installing
+
+- **Built for phones.** Every screen fits a phone without sideways scrolling, buttons are large enough to tap, fields never zoom the page when you type, and the page doesn't bounce past its edges.
+- **Install as an app.** On phones the dashboard offers once to add Blueprint to the home screen (Android shows the real install button; iPhone shows the two taps in Safari). It's also under **Install app** in the profile menu. Installed, it opens full screen with its own icon.
+- **Offline screen.** A tiny service worker shows a friendly "You're offline" screen instead of a browser error. It caches only the logo, never pages or team data.
 
 ### Platform
 
@@ -187,6 +195,7 @@ flowchart LR
 | **Zero-trust team isolation** | Every team-scoped action resolves the session to a Prisma user, re-proves membership and reloads the caller's team permissions from Postgres. URL slugs and client ids are never trusted. | `lib/team-access.ts`, `app/actions/*` |
 | **Team permissions and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered in the database query, so they never reach people who can't see them, and acting on one behaves exactly as if it didn't exist. | `lib/team-permissions.ts`, `lib/task-visibility.ts` |
 | **Anti-IDOR** | Every update and delete is scoped with `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. | `app/actions/*` |
+| **Metadata-only admin panel** | The site admin dashboard is metadata-only by design: it shows counts (`count()` / `_count`), account and team metadata, and operational logs. It never selects, decrypts or renders idea, task or focus text, and a lint rule forbids admin code from importing `lib/crypto.ts`, which is only used inside verified team-member flows. | `app/admin/*`, `eslint.config.mjs` |
 | **Site roles and suspensions** | Staff permissions are re-read from the database on every admin action. Suspended accounts are blocked from every page, action and API route, and banned in Clerk too. Non-staff get a 404 for `/admin`. | `lib/site-roles.ts`, `app/actions/admin.ts` |
 | **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 40/min for writes, 90/min for the live change-check. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
 | **CSRF and origin checks** | Every server action verifies `Origin` against `Host`. Read endpoints reject cross-site `Sec-Fetch-Site`. | `lib/action.ts`, `lib/api.ts` |
@@ -195,7 +204,7 @@ flowchart LR
 | **Typed confirmations** | Destructive actions check the typed project, team or username on the server, not only in the UI. | `app/actions/*` |
 | **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser, and only `img.clerk.com` images are allowed by the CSP. | `app/actions/onboarding.ts`, `proxy.ts` |
 | **Safe errors** | Errors are logged server-side and mapped to generic messages. Stack traces and database codes never reach the browser. | `lib/action.ts` |
-| **Audit log** | Team, membership and staff actions are recorded with the actor and IP. Entries hold ids and action names, never content. | `lib/action.ts`, `/admin/audit` |
+| **Audit log** | Team, membership and staff actions are recorded with the actor and IP, and signed-in callers who hit a rate limit are logged as security events (at most once a minute each, so floods can't flood the database). Entries hold ids, action names and IPs, never content. | `lib/action.ts`, `lib/security-log.ts`, `/admin/audit` |
 
 Found a vulnerability? Please email **support@raqameen.com** instead of opening a public issue.
 
@@ -205,7 +214,7 @@ Blueprint stays live without WebSockets or a third-party realtime service:
 
 1. Every change stamps `activityAt` on the team (or `inboxAt` on the person it notifies).
 2. While a tab is visible it asks `GET /api/pulse` every 4 seconds for those two timestamps. That is one indexed query and well under a kilobyte.
-3. Only when a timestamp moves does the tab re-fetch the page data. Your own actions update instantly.
+3. Only when a timestamp moves does the tab re-fetch the page data. Your own actions update instantly. On the dashboard home it watches the latest change across all your teams.
 
 Hidden tabs stop polling and check again the moment they're shown, and the endpoint has its own per-user rate limit so a few open tabs never crowd out the rest of the app.
 
@@ -347,11 +356,11 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 
 | Page | What it shows |
 | --- | --- |
-| **Overview** | Account, team, idea and task counts, newest accounts and recent staff actions |
-| **Accounts** | Search by username, name or email; filter staff, suspended or deleted accounts |
+| **Overview** | Platform HUD: accounts, new this week, suspended, staff, teams, ideas, tasks, tasks shipped, people in focus right now and security events in the last 24 hours, plus newest accounts and recent staff actions |
+| **Accounts** | Username, colour, email, site role, status, team count and join date; search by username, name or email; filter staff, suspended or deleted accounts |
 | **Account** | Details, teams, activity, and actions: change site role, suspend with a reason, sign out everywhere, delete |
-| **Teams** | Every team with its owner and counts; admins can delete a team |
-| **Audit log** | Staff actions, or every recorded action. Admins also see IP addresses. |
+| **Teams** | Name, slug, owner, member/idea/task counts and created date; admins can delete a team |
+| **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see IP addresses. |
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
 - **Deleting** removes the login, memberships and invites. Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
@@ -364,6 +373,7 @@ app/
   page.tsx                 landing page and product tour
   actions/                 server actions: ideas, tasks, tags, teams, admin, account
   api/pulse/               the live change-check
+  manifest.ts sw (public/) install-as-app manifest and offline service worker
   admin/                   staff panel: overview, accounts, teams, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
   onboarding/ suspended/   username setup, suspended-account page

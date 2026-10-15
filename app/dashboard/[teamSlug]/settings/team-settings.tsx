@@ -20,6 +20,7 @@ import {
   updateTeam,
   updateTeamRole,
 } from "@/app/actions/teams";
+import { ColorPicker, PRESET_COLORS } from "@/components/ui/color-picker";
 import { ConfirmDialog, type ConfirmLevel } from "@/components/ui/confirm-dialog";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
@@ -31,9 +32,7 @@ import {
   GRANTABLE,
   type Grantable,
   PERMISSION_INFO,
-  ROLE_COLORS,
   ROLE_NAME,
-  TAG_PALETTE,
   type TeamPermission,
   type TeamRole,
 } from "@/lib/team-permissions";
@@ -150,7 +149,7 @@ export function TeamSettings({
   ];
 
   return (
-    <div className="mx-auto max-w-[900px] px-4 pb-24 pt-8 sm:px-6">
+    <div className="mx-auto w-full max-w-[900px] px-4 pb-24 pt-8 sm:px-6">
       <Link href={`/dashboard/${team.slug}`} className={cx(btn.ghost, btn.sm, "-ml-3")}>
         <span aria-hidden>←</span> Back to {team.name}
       </Link>
@@ -499,7 +498,7 @@ function BuiltIn({ name, note, color }: { name: string; note: string; color?: st
 function RoleDialog({ team, role, onClose, run }: { team: Team; role: RoleRow | "new" | null; onClose: () => void; run: Run }) {
   const existing = role && role !== "new" ? role : null;
   const [name, setName] = useState(existing?.name ?? "");
-  const [color, setColor] = useState<string>(existing?.color ?? ROLE_COLORS[0]);
+  const [color, setColor] = useState<string>(existing?.color ?? PRESET_COLORS[0].toLowerCase());
   const [picked, setPicked] = useState<Grantable[]>((existing?.permissions.filter((p): p is Grantable => p in PERMISSION_INFO)) ?? [...DEFAULT_MEMBER]);
   const toggle = (p: Grantable) => setPicked((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
 
@@ -508,7 +507,7 @@ function RoleDialog({ team, role, onClose, run }: { team: Team; role: RoleRow | 
     const n = name.trim();
     if (n.length < 2) return;
     const permissions = GRANTABLE.filter((p) => picked.includes(p));
-    const c = color as (typeof ROLE_COLORS)[number];
+    const c = color;
     onClose();
     if (existing) run(() => updateTeamRole({ teamId: team.id, itemId: existing.id, name: n, color: c, permissions }), `${n} saved.`);
     else run(() => createTeamRole({ teamId: team.id, name: n, color: c, permissions }), `${n} created. Give it to members from the list above.`);
@@ -517,25 +516,15 @@ function RoleDialog({ team, role, onClose, run }: { team: Team; role: RoleRow | 
   return (
     <Dialog open={!!role} onClose={onClose} size="lg" title={existing ? `Edit ${existing.name}` : "New role"} description="Choose a name and exactly what people with this role can do.">
       <form onSubmit={submit} className="space-y-5 pt-1">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-4">
           <div>
             <label htmlFor="role-name" className="block text-sm font-medium text-ink">Name</label>
             <input id="role-name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={30} placeholder="e.g. Project lead" className={cx(inputCls, "mt-1.5 h-10")} />
           </div>
           <fieldset>
             <legend className="text-sm font-medium text-ink">Colour</legend>
-            <div className="mt-1.5 flex h-10 items-center gap-1.5">
-              {ROLE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={`Colour ${c}`}
-                  aria-pressed={color === c}
-                  onClick={() => setColor(c)}
-                  className={cx("size-6 rounded-full transition-transform active:scale-90", color === c && "ring-2 ring-ink ring-offset-2 ring-offset-[var(--surface)]")}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+            <div className="mt-1.5 flex min-h-10 items-center">
+              <ColorPicker value={color} onChange={setColor} label="Role colour" />
             </div>
           </fieldset>
         </div>
@@ -543,7 +532,7 @@ function RoleDialog({ team, role, onClose, run }: { team: Team; role: RoleRow | 
           {GROUPS.map((g) => (
             <fieldset key={g}>
               <legend className="text-[12px] font-medium uppercase tracking-wide text-ink-3">{g}</legend>
-              <div className="mt-1.5 grid gap-1 sm:grid-cols-2">
+              <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)] gap-1 sm:grid-cols-2">
                 {GRANTABLE.filter((p) => PERMISSION_INFO[p].group === g).map((p) => (
                   <label key={p} className={cx("flex cursor-pointer items-start gap-2.5 rounded-xl p-2.5 transition-colors", picked.includes(p) ? "bg-surface-2" : "hover:bg-tint/[0.03]")}>
                     <input type="checkbox" checked={picked.includes(p)} onChange={() => toggle(p)} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" />
@@ -576,14 +565,14 @@ const tagName = (v: string) => v.toLowerCase().replace(/^#/, "").replace(/[^a-z0
 function Tags({ team, can, run, confirmIt, tags }: Shared & { tags: TagDTO[] }) {
   const manage = can("tags.manage");
   const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(TAG_PALETTE[0]);
+  const [color, setColor] = useState<string>(PRESET_COLORS[0].toLowerCase());
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     const n = tagName(name);
     if (!n) return;
     setName("");
-    run(() => createTag({ teamId: team.id, name: n, color: color as (typeof TAG_PALETTE)[number] }), `#${n} added.`);
+    run(() => createTag({ teamId: team.id, name: n, color }), `#${n} added.`);
   };
 
   return (
@@ -614,22 +603,7 @@ function Tags({ team, can, run, confirmIt, tags }: Shared & { tags: TagDTO[] }) 
 }
 
 function ColorDots({ value, onChange }: { value: string; onChange: (c: string) => void }) {
-  return (
-    <span className="flex items-center gap-1" role="radiogroup" aria-label="Tag colour">
-      {TAG_PALETTE.map((c) => (
-        <button
-          key={c}
-          type="button"
-          role="radio"
-          aria-checked={value === c}
-          aria-label={`Colour ${c}`}
-          onClick={() => onChange(c)}
-          className={cx("size-5 rounded-full transition-transform active:scale-90", value === c && "ring-2 ring-ink ring-offset-2 ring-offset-[var(--surface)]")}
-          style={{ backgroundColor: c }}
-        />
-      ))}
-    </span>
-  );
+  return <ColorPicker value={value} onChange={onChange} label="Tag colour" />;
 }
 
 function TagRow({ tag, manage, team, run, confirmIt }: { tag: TagDTO; manage: boolean; team: Team; run: Run; confirmIt: (a: Ask) => void }) {
@@ -650,7 +624,7 @@ function TagRow({ tag, manage, team, run, confirmIt }: { tag: TagDTO; manage: bo
           disabled={!name}
           onClick={() => {
             setEditing(false);
-            run(() => updateTag({ teamId: team.id, itemId: tag.id, name, color: color as (typeof TAG_PALETTE)[number] }), `#${name} saved.`);
+            run(() => updateTag({ teamId: team.id, itemId: tag.id, name, color }), `#${name} saved.`);
           }}
           className={cx(btn.primary, btn.xs)}
         >

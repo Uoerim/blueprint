@@ -78,10 +78,6 @@ export const ROLE_RANK: Record<TeamRole, number> = { OWNER: 2, CO_OWNER: 1, MEMB
 
 export const ROLE_NAME: Record<TeamRole, string> = { OWNER: "Owner", CO_OWNER: "Co-owner", MEMBER: "Member" };
 
-/** Fixed palette for custom role colours (validated on the server). */
-export const ROLE_COLORS = ["#8B5CF6", "#6366F1", "#06B6D4", "#10B981", "#F59E0B", "#F43F5E", "#EC4899", "#64748B"] as const;
-/** Tags use the same validated palette. */
-export const TAG_PALETTE = ROLE_COLORS;
 
 /* ── Task-level rules, used identically on both sides ─────────────────────── */
 

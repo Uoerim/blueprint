@@ -187,7 +187,7 @@ export function Workspace(props: {
 
   return (
     <WorkspaceContext value={ctx}>
-      <div className="mx-auto max-w-[1400px] px-3 pb-24 pt-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[1400px] px-3 pb-24 pt-6 sm:px-6">
         {/* Team header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">

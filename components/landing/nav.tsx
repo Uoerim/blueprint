@@ -27,7 +27,7 @@ export function LandingNav() {
         </ul>
         <div className="ml-auto flex items-center gap-2">
           <Show when="signed-out">
-            <SignInButton>
+            <SignInButton forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/onboarding">
               <button type="button" className={cx(btn.ghost, btn.sm)}>Sign in</button>
             </SignInButton>
             <SignUpButton forceRedirectUrl="/onboarding">

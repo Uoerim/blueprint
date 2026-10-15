@@ -7,6 +7,7 @@ import { ActionError, getViewer, isLockedOut, requireOnboarded } from "./auth";
 import { db } from "./db";
 import { rateLimitRequest, type Tier } from "./rate-limit";
 import { getClientIp, isSameOrigin } from "./request";
+import { logRateLimited } from "./security-log";
 
 import type { ActionResult } from "./action-types";
 export type { ActionResult };
@@ -33,6 +34,7 @@ export async function runAction<T>(
 
     const rl = await rateLimitRequest(options.tier, ip, viewer.id);
     if (!rl.success) {
+      await logRateLimited(viewer.id, ip, options.tier);
       const secs = Math.max(1, Math.ceil((rl.reset - Date.now()) / 1000));
       return { ok: false, error: `Slow down — try again in ${secs}s.` };
     }

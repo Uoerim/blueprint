@@ -88,11 +88,11 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <section className="card rounded-2xl p-5" aria-labelledby="info-h">
             <h2 id="info-h" className="text-[15px] font-semibold">Details</h2>
-            <dl className="mt-3 grid gap-x-6 gap-y-3 text-[13px] sm:grid-cols-2">
+            <dl className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-3 text-[13px] sm:grid-cols-2">
               {[
                 ["Email", user.deletedAt ? "Scrubbed" : user.email],
                 ["Account id", user.id],

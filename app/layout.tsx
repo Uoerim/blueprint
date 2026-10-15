@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { ServiceWorker } from "@/components/service-worker";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
@@ -13,9 +14,16 @@ export const metadata: Metadata = {
   title: { default: "Blueprint — where raw ideas become shipped reality", template: "%s · Blueprint" },
   description:
     "A fast, private idea vault and execution board for friends and small squads. Dump ideas, promote them to tasks, see who's in focus, keep what shipped.",
+  applicationName: "Blueprint",
+  // Installed on an iPhone it opens full screen like an app, under the name "Blueprint".
+  appleWebApp: { capable: true, title: "Blueprint", statusBarStyle: "black" },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Pinch-zoom stays allowed for accessibility; inputs are 16px on phones so focusing one never zooms.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
     { media: "(prefers-color-scheme: dark)", color: "#09090b" },
@@ -49,6 +57,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           }}
         >
           {children}
+          <ServiceWorker />
         </ClerkProvider>
       </body>
     </html>

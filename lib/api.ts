@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getViewer, isLockedOut } from "./auth";
 import { rateLimitHeaders, rateLimitRequest, type Tier } from "./rate-limit";
 import { getClientIp } from "./request";
+import { logRateLimited } from "./security-log";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -26,6 +27,9 @@ export async function guardRead(req: Request, tier: Tier) {
   if (isLockedOut(viewer)) return { error: json({ error: "Forbidden" }, 403) } as const;
   const rl = await rateLimitRequest(tier, ip, viewer.id);
   const headers = rateLimitHeaders(rl);
-  if (!rl.success) return { error: json({ error: "Too many requests" }, 429, headers) } as const;
+  if (!rl.success) {
+    await logRateLimited(viewer.id, ip, tier);
+    return { error: json({ error: "Too many requests" }, 429, headers) } as const;
+  }
   return { viewer, headers } as const;
 }

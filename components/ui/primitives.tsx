@@ -12,8 +12,9 @@ export const btn = {
   accent: cx(base, "h-10 px-4 bg-accent text-white hover:bg-accent/85"),
   ghost: cx(base, "h-10 px-4 text-ink-2 hover:text-ink hover:bg-tint/[0.06]"),
   outline: cx(base, "h-10 px-4 text-ink bg-surface-2 shadow-highlight hover:bg-surface-3"),
-  sm: "!h-8 !px-3 !text-[13px]",
-  xs: "!h-7 !px-2.5 !text-xs !rounded-md",
+  // Taller on touch screens so every button is comfortable to tap.
+  sm: "!h-8 !px-3 !text-[13px] pointer-coarse:!h-10",
+  xs: "!h-7 !px-2.5 !text-xs !rounded-md pointer-coarse:!h-9",
 };
 
 /** Pushes an accent toward the ink side of the theme (white on dark, black on light) so small username text stays legible. */
@@ -105,7 +106,7 @@ export function Pill({
       className={cx("inline-flex h-5 items-center rounded-md px-1.5 font-mono text-[11px] tracking-wide", className)}
       style={
         color
-          ? { color, backgroundColor: `${color}17`, boxShadow: `inset 0 0 0 1px ${color}33` }
+          ? { color: `color-mix(in oklab, ${color} 62%, var(--ink))`, backgroundColor: `${color}1f`, boxShadow: `inset 0 0 0 1px ${color}40` }
           : { color: "var(--ink-2)", backgroundColor: "color-mix(in oklab, var(--tint) 5%, transparent)" }
       }
     >

@@ -38,7 +38,7 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
         trigger={
           <>
             {current ? <TeamSquare name={current.name} /> : null}
-            <span className="max-w-[40vw] truncate text-sm font-medium text-ink">{current?.name ?? "Your teams"}</span>
+            <span className="max-w-[34vw] truncate text-sm font-medium text-ink sm:max-w-[40vw]">{current?.name ?? "All teams"}</span>
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className="text-ink-3">
               <path d="M3.5 4.75 6 2.25l2.5 2.5M3.5 7.25 6 9.75l2.5-2.5" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -47,7 +47,21 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
       >
         {(close) => (
           <div>
-            <p className="px-2.5 pb-1 pt-1.5 text-xs text-ink-3">Teams</p>
+            <Link
+              href="/dashboard"
+              onClick={close}
+              role="menuitem"
+              className={cx(
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-tint/[0.07] hover:text-ink",
+                !current && "bg-tint/[0.05] text-ink",
+              )}
+            >
+              <span className="grid size-[22px] place-items-center rounded-[28%] bg-tint/[0.06]" aria-hidden>
+                <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 5.5 6 2l4 3.5V10H7.5V7.5h-3V10H2V5.5Z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" /></svg>
+              </span>
+              All teams
+            </Link>
+            <p className="px-2.5 pb-1 pt-2 text-xs text-ink-3">Teams</p>
             {teams.map((t) => (
               <Link
                 key={t.id}
@@ -61,6 +75,7 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
               >
                 <TeamSquare name={t.name} />
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                {t.favorite && <span className="text-amber" aria-label="Starred">★</span>}
                 <span className="text-[11px] text-ink-3">{ROLE_NAME[t.role]}</span>
               </Link>
             ))}

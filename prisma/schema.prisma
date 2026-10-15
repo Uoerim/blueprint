@@ -86,6 +86,8 @@ model TeamMember {
   /// Optional custom role (members only). Owners and co-owners have fixed permissions.
   customRoleId String?
   customRole   TeamRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  /// Starred by this member: shown first on the dashboard home and in the team switcher.
+  favorite     Boolean   @default(false)
   joinedAt     DateTime  @default(now())
 
   @@unique([teamId, userId])

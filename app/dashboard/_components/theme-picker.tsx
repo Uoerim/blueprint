@@ -44,7 +44,7 @@ export function ThemePicker({ initial }: { initial: Theme }) {
   };
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="grid gap-3 sm:grid-cols-3">
+    <div role="radiogroup" aria-label="Theme" className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-3">
       {OPTIONS.map((o) => {
         const on = theme === o.id;
         return (

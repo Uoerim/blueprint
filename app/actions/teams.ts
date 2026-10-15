@@ -13,6 +13,7 @@ import {
   confirmedTeamSchema,
   createRoleSchema,
   createTeamSchema,
+  favoriteSchema,
   inviteSchema,
   memberCustomRoleSchema,
   memberRoleSchema,
@@ -391,5 +392,16 @@ export async function emptyArchive(input: unknown) {
     await audit(ctx, { teamId, action: "team.archive.emptied", entityType: "Team", entityId: teamId });
     await teamChanged(teamId);
     return { count };
+  });
+}
+
+/** Star or unstar a team for yourself (your own membership only). */
+export async function setFavorite(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, favorite } = favoriteSchema.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    await db.teamMember.update({ where: { id: access.memberId }, data: { favorite } });
+    revalidatePath("/dashboard", "layout");
+    return null;
   });
 }

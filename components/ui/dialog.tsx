@@ -91,7 +91,7 @@ export function Dialog({
             className={cx(
               "glass-solid relative flex flex-col border-line-strong shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]",
               side === "center"
-                ? cx("w-full rounded-2xl border", size === "lg" ? "max-h-[86vh] max-w-2xl" : size === "sm" ? "max-h-[84vh] max-w-md" : "max-h-[76vh] max-w-lg")
+                ? cx("w-full rounded-2xl border", size === "lg" ? "max-h-[86dvh] max-w-2xl" : size === "sm" ? "max-h-[84dvh] max-w-md" : "max-h-[76dvh] max-w-lg")
                 : "h-full w-full max-w-xl border-l",
               className,
             )}

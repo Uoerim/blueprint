@@ -100,7 +100,7 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
 
       <LayoutGroup>
         {layout === "board" ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-4">
             {TASK_COLUMNS.map((col) => {
               const all = visible.filter((t) => t.status === col.status);
               // Done can grow forever; the board shows the latest, Shipped shows all.
@@ -796,7 +796,7 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
         <Field label="Assignees" htmlFor="task-assignees" hint="Changes apply straight away.">
           <div id="task-assignees">
             <AssigneesPicker value={task.assigneeIds} onChange={c.assign} />

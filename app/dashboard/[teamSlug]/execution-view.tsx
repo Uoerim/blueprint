@@ -87,7 +87,7 @@ function ProjectList() {
       </div>
 
       {projects.length ? (
-        <ul className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence initial={false}>
             {projects.map((p) => {
               const s = projectStats(tasks, p.id);
@@ -219,7 +219,7 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <section aria-label="Progress" className="card rounded-2xl p-4">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-medium">Progress</h3>

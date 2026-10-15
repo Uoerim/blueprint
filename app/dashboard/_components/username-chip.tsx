@@ -44,7 +44,14 @@ export function UsernameChip({ username, color, imageUrl }: { username: string; 
       )}
       style={{ color: readable(color) }}
     >
-      <span aria-live="polite">{copied ? "Copied!" : `@${username}`}</span>
+      {/* Both labels share one grid cell, so the chip keeps the username's width and nothing beside it moves. */}
+      <span className="grid">
+        <span className={cx("col-start-1 row-start-1 transition-opacity", copied && "opacity-0")}>@{username}</span>
+        <span aria-hidden className={cx("col-start-1 row-start-1 text-center text-emerald transition-opacity", !copied && "opacity-0")}>
+          Copied!
+        </span>
+      </span>
+      <span className="sr-only" aria-live="polite">{copied ? "Username copied" : ""}</span>
     </button>
   );
 }

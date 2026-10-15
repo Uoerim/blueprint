@@ -52,7 +52,7 @@ function TagPicker({ value, onChange }: { value: string[]; onChange: (v: string[
             disabled={!on && value.length >= 5}
             onClick={() => onChange(on ? value.filter((x) => x !== t.name) : [...value, t.name])}
             className="h-7 rounded-md px-2 font-mono text-[11px] transition-[background-color,transform] active:scale-95 disabled:opacity-40"
-            style={on ? { color: t.color, backgroundColor: `${t.color}20`, boxShadow: `inset 0 0 0 1px ${t.color}55` } : { color: "var(--ink-3)", backgroundColor: "color-mix(in oklab, var(--tint) 4%, transparent)" }}
+            style={on ? { color: `color-mix(in oklab, ${t.color} 62%, var(--ink))`, backgroundColor: `${t.color}24`, boxShadow: `inset 0 0 0 1px ${t.color}55` } : { color: "var(--ink-3)", backgroundColor: "color-mix(in oklab, var(--tint) 4%, transparent)" }}
           >
             #{t.name}
           </button>
@@ -125,7 +125,7 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
         </div>
       </div>
 
-      <motion.ul layout className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+      <motion.ul layout className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence initial={false} mode="popLayout">
           {vault.map((idea) => (
             <IdeaCard key={idea.id} idea={idea} />

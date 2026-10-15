@@ -4,7 +4,8 @@ import { slugSchema } from "@/lib/validations";
 
 /**
  * The live change-check. Returns two timestamps: when anything last changed in
- * the team (only if the caller is a member) and when the caller's notifications
+ * the team (only if the caller is a member; on the home page, any of their
+ * teams) and when the caller's notifications
  * last changed. Tabs compare them and re-fetch only when one moves.
  */
 export async function GET(req: Request) {
@@ -19,6 +20,10 @@ export async function GET(req: Request) {
       select: { activityAt: true },
     });
     team = t ? t.activityAt.getTime() : null;
+  } else {
+    // The dashboard home: the latest change across all of the viewer's teams.
+    const all = await db.team.aggregate({ where: { members: { some: { userId: guard.viewer.id } } }, _max: { activityAt: true } });
+    team = all._max.activityAt?.getTime() ?? null;
   }
   return json({ team, inbox: guard.viewer.inboxAt.getTime() }, 200, guard.headers);
 }

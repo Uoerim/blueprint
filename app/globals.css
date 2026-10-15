@@ -108,9 +108,17 @@ html {
   background: var(--bg);
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
+  /* Phones: no rubber-band bounce past the page, no font inflation on rotate. */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
+  /* Nothing can push the page sideways on a phone. */
+  overflow-x: clip;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
@@ -148,6 +156,12 @@ body {
 /* Layered, so a component can opt out with focus-visible:outline-none
    (inputs draw their own ring on the wrapper instead). */
 @layer base {
+  /* A text field that grows with flex-1 would otherwise keep its ~20-character
+     natural width as a minimum and push phone layouts wider than the screen. */
+  input.flex-1,
+  textarea.flex-1 {
+    width: 0;
+  }
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -248,5 +262,35 @@ body {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* Phones and tablets: iOS zooms into any field under 16px when it's focused,
+   so every form control is at least 16px on small screens. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Touch screens: small icon buttons and menu triggers get a 40px tap area
+   without changing how they look. */
+@media (pointer: coarse) {
+  button[aria-haspopup="menu"] {
+    position: relative;
+  }
+  button[aria-haspopup="menu"]::after,
+  button[role="checkbox"]::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: max(100%, 40px);
+    height: max(100%, 40px);
+    transform: translate(-50%, -50%);
+  }
+  button[role="checkbox"] {
+    position: relative;
   }
 }

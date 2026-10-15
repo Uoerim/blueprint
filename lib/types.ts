@@ -2,7 +2,7 @@ import type { TeamRole } from "./team-permissions";
 
 export type Viewer = { id: string; username: string; accentColor: string; displayName: string | null; imageUrl: string | null };
 
-export type TeamSummary = { id: string; name: string; slug: string; role: TeamRole };
+export type TeamSummary = { id: string; name: string; slug: string; role: TeamRole; favorite: boolean };
 
 export type IncomingInvite = {
   id: string;

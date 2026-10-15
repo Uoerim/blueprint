@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ACCENT_HEXES, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
-import { GRANTABLE, ROLE_COLORS, TAG_PALETTE } from "./team-permissions";
+import { GRANTABLE } from "./team-permissions";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 const HTML_TAGS = /<\/?[a-z][^>]*>/gi;
@@ -41,6 +41,13 @@ const clearableText = (max: number) =>
     .transform((v) => (v ? v : null));
 
 export const id = z.string().regex(/^c[a-z0-9]{20,32}$/, "Invalid id");
+
+/** Any colour, as a 6-digit hex code. Stored lowercase; only ever used in inline styles. */
+export const hexColorSchema = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour")
+  .transform((c) => c.toLowerCase());
 
 export const usernameSchema = z
   .string()
@@ -84,6 +91,7 @@ export const updateTeamSchema = z.strictObject({
 });
 
 export const teamOnly = z.strictObject({ teamId: id });
+export const favoriteSchema = z.strictObject({ teamId: id, favorite: z.boolean() });
 /** Destructive team-wide actions repeat the team (or project) name as a typed confirmation. */
 export const confirmedTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(160) });
 export const deleteIdeaSchema = z.strictObject({
@@ -210,14 +218,14 @@ export const permissionsSchema = z
 export const createRoleSchema = z.strictObject({
   teamId: id,
   name: text(2, 30),
-  color: z.enum(ROLE_COLORS),
+  color: hexColorSchema,
   permissions: permissionsSchema,
 });
 export const updateRoleSchema = z.strictObject({
   teamId: id,
   itemId: id,
   name: text(2, 30),
-  color: z.enum(ROLE_COLORS),
+  color: hexColorSchema,
   permissions: permissionsSchema,
 });
 export const memberRoleSchema = z.strictObject({ teamId: id, itemId: id, role: z.enum(["CO_OWNER", "MEMBER"]) });
@@ -235,5 +243,5 @@ export const updateIdeaSchema = z
   })
   .refine((v) => v.title !== undefined || v.description !== undefined || v.tags !== undefined, "Nothing to update");
 
-export const createTagSchema = z.strictObject({ teamId: id, name: tagSchema, color: z.enum(TAG_PALETTE) });
-export const updateTagSchema = z.strictObject({ teamId: id, itemId: id, name: tagSchema, color: z.enum(TAG_PALETTE) });
+export const createTagSchema = z.strictObject({ teamId: id, name: tagSchema, color: hexColorSchema });
+export const updateTagSchema = z.strictObject({ teamId: id, itemId: id, name: tagSchema, color: hexColorSchema });

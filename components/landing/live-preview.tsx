@@ -178,7 +178,7 @@ export function LivePreview() {
           <span className="hidden shrink-0 font-mono text-[11px] text-ink-3 sm:inline">night-shift</span>
         </div>
 
-        <div className="grid md:grid-cols-[1.1fr_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[1.1fr_1fr]">
           {/* Vault */}
           <section aria-label="Idea vault" className="border-line p-4 md:border-r">
             <div className="mb-3 flex items-baseline justify-between">

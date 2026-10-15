@@ -30,7 +30,7 @@ function PrimaryCta({ label = "Get started, it's free" }: { label?: string }) {
   return (
     <>
       <Show when="signed-out">
-        <SignUpButton forceRedirectUrl="/onboarding">
+        <SignUpButton forceRedirectUrl="/onboarding" signInForceRedirectUrl="/dashboard">
           <button type="button" className={cx(btn.primary, "h-11 px-5")}>{label}</button>
         </SignUpButton>
       </Show>
@@ -94,7 +94,7 @@ function Row({
   flip?: boolean;
 }) {
   return (
-    <div id={id} className="grid items-center gap-8 md:grid-cols-12 md:gap-12">
+    <div id={id} className="grid grid-cols-[minmax(0,1fr)] items-center gap-8 md:grid-cols-12 md:gap-12">
       <Rise className={cx("md:col-span-5", flip && "md:order-2 md:col-start-8")}>
         <p className="font-mono text-[13px] text-accent">{step}</p>
         <h3 className="mt-2 text-[clamp(1.5rem,2.6vw,2.25rem)] font-semibold leading-[1.1] tracking-[-0.03em]">{title}</h3>

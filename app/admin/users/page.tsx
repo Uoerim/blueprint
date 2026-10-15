@@ -49,6 +49,7 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/use
         displayName: true,
         email: true,
         accentColor: true,
+        imageUrl: true,
         siteRole: true,
         onboarded: true,
         bannedAt: true,
@@ -83,12 +84,12 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/use
         ))}
       </nav>
 
-      <Table head={["Account", "Email", "Role", "Status", "Teams", "Joined"]} empty={!users.length}>
+      <Table head={["Account", "Colour", "Email", "Role", "Status", "Teams", "Joined"]} empty={!users.length}>
         {users.map((u) => (
           <tr key={u.id} className="hover:bg-tint/[0.03]">
             <td className="px-4 py-2.5">
               <Link href={`/admin/users/${u.id}`} className="flex items-center gap-2.5">
-                <Monogram name={u.username ?? u.email} color={u.accentColor} size={26} />
+                <Monogram name={u.username ?? u.email} color={u.accentColor} src={u.imageUrl} size={26} />
                 <span className="min-w-0">
                   <span className="block font-mono text-[13px]" style={{ color: readable(u.accentColor) }}>
                     {u.username ? `@${u.username}` : u.deletedAt ? "(deleted)" : "(no username)"}
@@ -97,7 +98,13 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/use
                 </span>
               </Link>
             </td>
-            <td className="max-w-[240px] truncate px-4 py-2.5 text-ink-2">{u.deletedAt ? "—" : u.email}</td>
+            <td className="px-4 py-2.5">
+              <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase text-ink-3">
+                <span className="size-3 rounded-full" style={{ backgroundColor: u.accentColor }} aria-hidden />
+                {u.accentColor}
+              </span>
+            </td>
+            <td className="max-w-[240px] truncate px-4 py-2.5 text-ink-2">{u.deletedAt ? "None" : u.email}</td>
             <td className="px-4 py-2.5"><RolePill role={u.siteRole} /></td>
             <td className="px-4 py-2.5"><StatusPill banned={!!u.bannedAt} deleted={!!u.deletedAt} onboarded={u.onboarded} /></td>
             <td className="px-4 py-2.5 tabular-nums text-ink-2">{u._count.memberships}</td>

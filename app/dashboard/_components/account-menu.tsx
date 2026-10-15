@@ -6,6 +6,7 @@ import { getUsage, type Usage } from "@/app/actions/account";
 import { KOFI_URL } from "@/components/kofi-button";
 import { HelpIcon, SupportDialog } from "@/components/support";
 import type { Theme } from "@/lib/theme";
+import { OPEN_INSTALL } from "./install-prompt";
 import { ThemePicker } from "./theme-picker";
 
 /**
@@ -21,6 +22,7 @@ export function AccountMenu({ theme }: { theme: Theme }) {
           <UserButton.Action label="Appearance" labelIcon={<PaletteIcon />} open="appearance" />
           <UserButton.Action label="Usage" labelIcon={<GaugeIcon />} open="usage" />
           <UserButton.Action label="Contact support" labelIcon={<HelpIcon size={16} />} onClick={() => setSupport(true)} />
+          <UserButton.Action label="Install app" labelIcon={<PhoneIcon />} onClick={() => window.dispatchEvent(new Event(OPEN_INSTALL))} />
         </UserButton.MenuItems>
         <UserButton.UserProfilePage label="Appearance" url="appearance" labelIcon={<PaletteIcon />}>
           <Page title="Appearance" note="Saved on this device. Applies everywhere in Blueprint.">
@@ -125,6 +127,15 @@ function GaugeIcon() {
       <path d="M2.2 11.5a6.25 6.25 0 1 1 11.6 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       <path d="m8 9.5 2.6-3.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="8" cy="9.5" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="4" y="1.5" width="8" height="13" rx="2" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 12.25h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
