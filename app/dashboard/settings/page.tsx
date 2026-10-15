@@ -82,6 +82,11 @@ export default async function SettingsPage() {
         </div>
         <KofiButton className="h-10 shrink-0 self-start sm:self-auto" />
       </section>
+
+      <p className="mt-6 flex gap-5 text-[13px] text-ink-3">
+        <Link href="/privacy" className="transition-colors hover:text-ink">Privacy Policy</Link>
+        <Link href="/terms" className="transition-colors hover:text-ink">Terms of Service</Link>
+      </p>
     </div>
   );
 }

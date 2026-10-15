@@ -1,22 +1,55 @@
+"use client";
+
+import { useState } from "react";
+import { Dialog } from "@/components/ui/dialog";
 import { cx } from "@/components/ui/primitives";
 
 export const KOFI_URL = "https://ko-fi.com/yosifibrahim";
+// Ko-fi's own embed. Allowed by `frame-src` in proxy.ts.
+const KOFI_EMBED = `${KOFI_URL}/?hidefeed=true&widget=true&embed=true&preview=true`;
 
-/** Plain outbound link (no third-party widget script, so the CSP stays strict). */
+/** Opens the Ko-fi donation panel in a dialog, with a plain link as fallback. */
 export function KofiButton({ className, label = "Support on Ko-fi" }: { className?: string; label?: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <a
-      href={KOFI_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cx(
-        "inline-flex h-9 items-center gap-2 rounded-lg bg-[#FF5E5B] px-3.5 text-[13px] font-semibold text-[#1a1a1a] transition-[transform,filter] hover:brightness-95 active:scale-[0.97]",
-        className,
-      )}
-    >
-      <CupIcon />
-      {label}
-    </a>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        className={cx(
+          "inline-flex h-9 items-center gap-2 rounded-lg bg-[#FF5E5B] px-3.5 text-[13px] font-semibold text-[#1a1a1a] transition-[transform,filter] hover:brightness-95 active:scale-[0.97]",
+          className,
+        )}
+      >
+        <CupIcon />
+        {label}
+      </button>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Support Blueprint"
+        description="Blueprint is free with no limits. Tips keep it running."
+        className="max-h-[84vh] max-w-md"
+      >
+        <iframe
+          id="kofiframe"
+          src={KOFI_EMBED}
+          title="yosifibrahim on Ko-fi"
+          height={712}
+          allow="payment"
+          className="block w-full rounded-xl border-none bg-[#f9f9f9] p-1"
+        />
+        <a
+          href={KOFI_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block text-center text-[13px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
+        >
+          Not loading? Open Ko-fi in a new tab
+        </a>
+      </Dialog>
+    </>
   );
 }
 

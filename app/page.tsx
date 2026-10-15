@@ -275,6 +275,8 @@ function Footer() {
       <div className="flex flex-col gap-3 text-sm text-ink-3 sm:flex-row sm:items-baseline sm:justify-between">
         <span>© 2026 Blueprint</span>
         <span className="flex flex-wrap gap-6">
+          <Link className="transition-colors hover:text-ink" href="/privacy">Privacy</Link>
+          <Link className="transition-colors hover:text-ink" href="/terms">Terms</Link>
           <a className="transition-colors hover:text-ink" href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
           <a className="transition-colors hover:text-ink" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer license">License</a>
         </span>

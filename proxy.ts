@@ -36,6 +36,8 @@ export default clerkMiddleware(
         "frame-ancestors": ["none"],
         "font-src": ["self"],
         "img-src": ["self", "data:", "https://img.clerk.com"],
+        // Ko-fi donation embed (components/kofi-button.tsx).
+        "frame-src": ["https://ko-fi.com"],
         ...(process.env.NODE_ENV === "production" && { "upgrade-insecure-requests": [] }),
       },
     },

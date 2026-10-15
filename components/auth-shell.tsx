@@ -13,7 +13,13 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <span className="text-[15px] font-semibold tracking-tight">Blueprint</span>
         </Link>
       </header>
-      <main className="relative flex flex-1 items-center justify-center px-4 pb-20">{children}</main>
+      <main className="relative flex flex-1 items-center justify-center px-4 pb-10">{children}</main>
+      <footer className="relative px-4 pb-8 text-center text-[13px] text-ink-3">
+        By continuing you agree to our{" "}
+        <Link href="/terms" className="text-ink-2 underline underline-offset-2 transition-colors hover:text-ink">Terms of Service</Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="text-ink-2 underline underline-offset-2 transition-colors hover:text-ink">Privacy Policy</Link>.
+      </footer>
     </div>
   );
 }
