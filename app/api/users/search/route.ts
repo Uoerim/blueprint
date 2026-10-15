@@ -3,9 +3,11 @@ import { db } from "@/lib/db";
 import { id, searchQuerySchema } from "@/lib/validations";
 
 /**
- * Prefix search on @username. Only onboarded users, at most 8 results, and
- * only public profile fields — no emails, no Clerk ids. Requires a team the
- * caller belongs to, so the directory can't be scraped anonymously.
+ * Prefix search on @username for inviting people. Signed-in callers only,
+ * rate limited, at most 8 results, and only public profile fields: no emails,
+ * no Clerk ids. With `teamId` (a team the caller belongs to) each result says
+ * whether they're already a member or invited; without it (creating a new team)
+ * every result is simply invitable.
  */
 export async function GET(req: Request) {
   const guard = await guardRead(req, "search");
@@ -13,14 +15,19 @@ export async function GET(req: Request) {
 
   const params = new URL(req.url).searchParams;
   const q = searchQuerySchema.safeParse(params.get("q") ?? "");
-  const teamId = id.safeParse(params.get("teamId") ?? "");
-  if (!q.success || !teamId.success) return json({ users: [] }, 200, guard.headers);
+  if (!q.success) return json({ users: [] }, 200, guard.headers);
 
-  const membership = await db.teamMember.findUnique({
-    where: { teamId_userId: { teamId: teamId.data, userId: guard.viewer.id } },
-    select: { id: true },
-  });
-  if (!membership) return json({ error: "Not found" }, 404, guard.headers);
+  const rawTeam = params.get("teamId");
+  const teamId = rawTeam ? id.safeParse(rawTeam) : null;
+  if (teamId && !teamId.success) return json({ users: [] }, 200, guard.headers);
+  if (teamId?.success) {
+    const membership = await db.teamMember.findUnique({
+      where: { teamId_userId: { teamId: teamId.data, userId: guard.viewer.id } },
+      select: { id: true },
+    });
+    if (!membership) return json({ error: "Not found" }, 404, guard.headers);
+  }
+  const team = teamId?.success ? teamId.data : null;
 
   const users = await db.user.findMany({
     where: {
@@ -35,8 +42,11 @@ export async function GET(req: Request) {
       username: true,
       displayName: true,
       accentColor: true,
-      memberships: { where: { teamId: teamId.data }, select: { id: true } },
-      invitesRecv: { where: { teamId: teamId.data, status: "PENDING" }, select: { id: true } },
+      imageUrl: true,
+      ...(team && {
+        memberships: { where: { teamId: team }, select: { id: true } },
+        invitesRecv: { where: { teamId: team, status: "PENDING" as const }, select: { id: true } },
+      }),
     },
     orderBy: { username: "asc" },
     take: 8,
@@ -49,7 +59,12 @@ export async function GET(req: Request) {
         username: u.username,
         displayName: u.displayName,
         accentColor: u.accentColor,
-        state: u.memberships.length ? "member" : u.invitesRecv.length ? "invited" : "none",
+        imageUrl: u.imageUrl,
+        state: "memberships" in u && (u.memberships as unknown[]).length
+          ? "member"
+          : "invitesRecv" in u && (u.invitesRecv as unknown[]).length
+            ? "invited"
+            : "none",
       })),
     },
     200,

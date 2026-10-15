@@ -40,7 +40,7 @@ export function InviteList({ invites, compact }: { invites: IncomingInvite[]; co
               exit={{ opacity: 0, x: 20 }}
               className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-tint/[0.03]"
             >
-              <Monogram name={i.inviter.username} color={i.inviter.accentColor} size={30} />
+              <Monogram name={i.inviter.username} color={i.inviter.accentColor} src={i.inviter.imageUrl} size={30} />
               <div className="min-w-0 flex-1 text-[13px] leading-snug">
                 <p className="text-ink">
                   <span className="font-mono text-xs" style={{ color: readable(i.inviter.accentColor) }}>@{i.inviter.username}</span>{" "}

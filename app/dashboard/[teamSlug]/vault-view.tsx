@@ -2,29 +2,85 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { archiveIdea, createIdea, deleteIdea, promoteIdea, toggleSpark } from "@/app/actions/ideas";
+import { archiveIdea, createIdea, deleteIdea, promoteIdea, toggleSpark, updateIdea } from "@/app/actions/ideas";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Dialog, inputCls } from "@/components/ui/dialog";
+import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
-import { btn, cx, Monogram, Pill, PRIORITY_COLORS, TAG_COLORS, readable } from "@/components/ui/primitives";
-import { IDEA_TAGS, PRIORITY_LABEL } from "@/lib/constants";
+import { btn, cx, Monogram, Pill, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
+import { PRIORITY_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/time";
-import type { IdeaDTO, Priority } from "@/lib/types";
-import { AssigneesPicker } from "./board-view";
+import type { IdeaDTO, Priority, TagDTO } from "@/lib/types";
+import { BoardView } from "./board-view";
 import { useWorkspace } from "./workspace";
 
 const spring = { type: "spring", stiffness: 480, damping: 36 } as const;
+const dots = (
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+    <circle cx="3" cy="7" r="1.2" fill="currentColor" />
+    <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+    <circle cx="11" cy="7" r="1.2" fill="currentColor" />
+  </svg>
+);
 
-function parseCapture(raw: string, picked: string[]) {
-  const inline = [...raw.matchAll(/#([a-z0-9-]{1,24})/gi)].map((m) => m[1]!.toLowerCase());
-  const title = raw.replace(/(^|\s)#[a-z0-9-]+/gi, " ").replace(/\s+/g, " ").trim();
+/** Inline #tags are kept only when the team has that tag. */
+function parseCapture(raw: string, picked: string[], known: TagDTO[]) {
+  const names = new Set(known.map((t) => t.name));
+  const inline = [...raw.matchAll(/#([a-z0-9-]{1,24})/gi)].map((m) => m[1]!.toLowerCase()).filter((t) => names.has(t));
+  const title = raw.replace(/(^|\s)#[a-z0-9-]+/gi, (m) => (names.has(m.trim().slice(1).toLowerCase()) ? " " : m)).replace(/\s+/g, " ").trim();
   return { title, tags: [...new Set([...picked, ...inline])].slice(0, 5) };
 }
 
-export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => void }) {
-  const { ideas, can } = useWorkspace();
+export function TagPill({ name }: { name: string }) {
+  const { tags } = useWorkspace();
+  const tag = tags.find((t) => t.name === name);
+  return <Pill color={tag?.color}>#{name}</Pill>;
+}
+
+/** Toggle team tags on and off (up to 5). */
+function TagPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const { tags } = useWorkspace();
+  if (!tags.length) return <p className="text-[12px] text-ink-3">This team has no tags yet. Owners can add them in team settings.</p>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {tags.map((t) => {
+        const on = value.includes(t.name);
+        return (
+          <button
+            key={t.id}
+            type="button"
+            aria-pressed={on}
+            disabled={!on && value.length >= 5}
+            onClick={() => onChange(on ? value.filter((x) => x !== t.name) : [...value, t.name])}
+            className="h-7 rounded-md px-2 font-mono text-[11px] transition-[background-color,transform] active:scale-95 disabled:opacity-40"
+            style={on ? { color: t.color, backgroundColor: `${t.color}20`, boxShadow: `inset 0 0 0 1px ${t.color}55` } : { color: "var(--ink-3)", backgroundColor: "color-mix(in oklab, var(--tint) 4%, transparent)" }}
+          >
+            #{t.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Promote straight away and open the new project page to plan its tasks there. */
+function usePromote() {
+  const { team, run, patchIdea, openProject } = useWorkspace();
+  return (idea: IdeaDTO) =>
+    run(() => promoteIdea({ teamId: team.id, ideaId: idea.id }), {
+      optimistic: () => {
+        patchIdea(idea.id, { status: "PROMOTED" });
+        openProject(idea.id);
+      },
+      success: "Moved to Execution. Add its tasks here.",
+    });
+}
+
+export function VaultView({ ideaId }: { ideaId: string | null }) {
+  const { ideas, can, openIdea, openProject } = useWorkspace();
   const [sort, setSort] = useState<"hot" | "new">("hot");
-  const [promoting, setPromoting] = useState<IdeaDTO | null>(null);
+  const open = ideaId ? ideas.find((i) => i.id === ideaId && i.status === "VAULT") : undefined;
+
+  if (open) return <IdeaPage idea={open} />;
 
   const vault = ideas
     .filter((i) => i.status === "VAULT")
@@ -37,6 +93,12 @@ export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => vo
 
   return (
     <div>
+      {ideaId && (
+        <p className="mb-3 rounded-xl bg-amber/10 px-4 py-2.5 text-[13px] text-amber">
+          That idea isn&apos;t in the vault any more. It may have been promoted, archived or deleted.{" "}
+          <button type="button" onClick={() => openIdea(null)} className="underline underline-offset-2">Back to the vault</button>
+        </p>
+      )}
       {can("ideas.create") ? (
         <CaptureBar />
       ) : (
@@ -66,7 +128,7 @@ export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => vo
       <motion.ul layout className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence initial={false} mode="popLayout">
           {vault.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} onPromote={() => setPromoting(idea)} />
+            <IdeaCard key={idea.id} idea={idea} />
           ))}
         </AnimatePresence>
       </motion.ul>
@@ -85,13 +147,13 @@ export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => vo
               const pct = i.taskCount ? Math.round((i.doneCount / i.taskCount) * 100) : 0;
               return (
                 <li key={i.id}>
-                  <button type="button" onClick={() => onOpenProject(i.id)} className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-tint/[0.03]">
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{i.title}</span>
-                  <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-tint/[0.06] sm:block">
-                    <motion.span className="block h-full rounded-full bg-emerald" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
-                  </span>
-                  <span className="font-mono text-[11px] tabular-nums text-ink-3">{i.doneCount}/{i.taskCount} done</span>
-                  <span className="text-[13px] text-ink-3" aria-hidden>→</span>
+                  <button type="button" onClick={() => openProject(i.id)} className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-tint/[0.03]">
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{i.title}</span>
+                    <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-tint/[0.06] sm:block">
+                      <motion.span className="block h-full rounded-full bg-emerald" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
+                    </span>
+                    <span className="font-mono text-[11px] tabular-nums text-ink-3">{i.doneCount}/{i.taskCount} done</span>
+                    <span className="text-[13px] text-ink-3" aria-hidden>→</span>
                   </button>
                 </li>
               );
@@ -99,31 +161,29 @@ export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => vo
           </ul>
         </section>
       )}
-
-      <PromoteDrawer idea={promoting} onClose={() => setPromoting(null)} onDone={onOpenProject} />
     </div>
   );
 }
 
 function CaptureBar() {
-  const { team, viewer, run, addIdea } = useWorkspace();
+  const { team, viewer, run, addIdea, tags } = useWorkspace();
   const [draft, setDraft] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { title, tags } = parseCapture(draft, picked);
+    const { title, tags: chosen } = parseCapture(draft, picked, tags);
     if (!title) return;
     const now = new Date().toISOString();
     setDraft("");
     setPicked([]);
-    run(() => createIdea({ teamId: team.id, title, tags }), {
+    run(() => createIdea({ teamId: team.id, title, tags: chosen }), {
       optimistic: () =>
         addIdea({
           id: `tmp-${now}`,
           title,
           description: null,
-          tags,
+          tags: chosen,
           status: "VAULT",
           sparksCount: 0,
           sparkedByMe: false,
@@ -135,6 +195,7 @@ function CaptureBar() {
     });
   };
 
+  const hint = tags.slice(0, 3).map((t) => `#${t.name}`).join(", ");
   return (
     <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent),0_0_0_4px_rgba(99,102,241,0.18)]">
       <div className="flex items-center gap-2 px-2">
@@ -146,46 +207,109 @@ function CaptureBar() {
           onChange={(e) => setDraft(e.target.value)}
           maxLength={200}
           aria-label="Capture a raw idea"
-          placeholder="Dump a raw idea… add #feature, #bug, #experiment or #random"
+          placeholder={hint ? `Dump a raw idea… add ${hint}` : "Dump a raw idea…"}
           className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-ink-3 focus:outline-none"
         />
         <button type="submit" disabled={!draft.trim()} className={cx(btn.primary, btn.sm)}>Drop it</button>
       </div>
-      <div className="flex flex-wrap gap-1.5 px-2 pb-1 pt-1.5">
-        {IDEA_TAGS.map((t) => {
-          const on = picked.includes(t);
-          const color = TAG_COLORS[t]!;
-          return (
-            <button
-              key={t}
-              type="button"
-              aria-pressed={on}
-              onClick={() => setPicked((p) => (on ? p.filter((x) => x !== t) : [...p, t]))}
-              className="h-7 rounded-md px-2 font-mono text-[11px] transition-[background-color,transform] active:scale-95"
-              style={on ? { color, backgroundColor: `${color}20`, boxShadow: `inset 0 0 0 1px ${color}55` } : { color: "var(--ink-3)", backgroundColor: "color-mix(in oklab, var(--tint) 4%, transparent)" }}
-            >
-              #{t}
-            </button>
-          );
-        })}
-      </div>
+      {tags.length > 0 && (
+        <div className="px-2 pb-1 pt-1.5">
+          <TagPicker value={picked} onChange={setPicked} />
+        </div>
+      )}
     </form>
   );
 }
 
-function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void }) {
-  const { member, viewer, can, team, run, patchIdea, removeIdea } = useWorkspace();
-  const author = member(idea.authorId);
-  const temp = idea.id.startsWith("tmp-");
-  const canArchive = idea.authorId === viewer.id || can("ideas.manage");
-  const canPromote = can("projects.create") && can("tasks.create");
-  const [deleting, setDeleting] = useState(false);
-
+function SparkButton({ idea, disabled }: { idea: IdeaDTO; disabled?: boolean }) {
+  const { team, run, patchIdea } = useWorkspace();
   const spark = () =>
     run(() => toggleSpark({ teamId: team.id, itemId: idea.id }), {
       optimistic: () =>
         patchIdea(idea.id, { sparkedByMe: !idea.sparkedByMe, sparksCount: idea.sparksCount + (idea.sparkedByMe ? -1 : 1) }),
     });
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.85 }}
+      disabled={disabled}
+      onClick={spark}
+      aria-pressed={idea.sparkedByMe}
+      aria-label={`Spark, ${idea.sparksCount} sparks`}
+      className={cx(
+        "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 font-mono text-xs transition-colors",
+        idea.sparkedByMe ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-tint/[0.06] hover:text-ink",
+      )}
+    >
+      <motion.svg key={String(idea.sparkedByMe)} initial={{ rotate: -40, scale: 0.6 }} animate={{ rotate: 0, scale: 1 }} transition={spring} width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+        <path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" />
+      </motion.svg>
+      {idea.sparksCount}
+    </motion.button>
+  );
+}
+
+/** Archive / delete for one idea, shared by the card and the idea page. */
+function IdeaMenu({ idea, onGone, triggerClassName }: { idea: IdeaDTO; onGone?: () => void; triggerClassName?: string }) {
+  const { team, run, removeIdea } = useWorkspace();
+  const [deleting, setDeleting] = useState(false);
+  return (
+    <>
+      <Popover label="Idea actions" align="end" triggerClassName={triggerClassName ?? "size-7 justify-center text-ink-3 hover:text-ink"} trigger={dots}>
+        {(close) => (
+          <>
+            <MenuItem
+              onSelect={() => {
+                close();
+                onGone?.();
+                run(() => archiveIdea({ teamId: team.id, itemId: idea.id }), {
+                  optimistic: () => removeIdea(idea.id),
+                  success: "Idea archived. Restore it from team settings.",
+                });
+              }}
+            >
+              Archive idea
+            </MenuItem>
+            <MenuItem
+              onSelect={() => {
+                close();
+                setDeleting(true);
+              }}
+            >
+              <span className="text-rose">Delete idea</span>
+            </MenuItem>
+          </>
+        )}
+      </Popover>
+      <ConfirmDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        title="Delete idea?"
+        description={
+          idea.taskCount
+            ? <>&ldquo;{idea.title}&rdquo; has {idea.taskCount} task{idea.taskCount === 1 ? "" : "s"}, so only the team owner can delete it. Archive it instead to hide it.</>
+            : <>&ldquo;{idea.title}&rdquo; and its sparks will be deleted for everyone. To hide it but keep it, archive it instead.</>
+        }
+        confirmLabel="Delete idea"
+        level={{ kind: "ack" }}
+        onConfirm={() => {
+          onGone?.();
+          run(() => deleteIdea({ teamId: team.id, itemId: idea.id }), {
+            optimistic: () => removeIdea(idea.id),
+            success: "Idea deleted.",
+          });
+        }}
+      />
+    </>
+  );
+}
+
+function IdeaCard({ idea }: { idea: IdeaDTO }) {
+  const { member, viewer, can, openIdea } = useWorkspace();
+  const promote = usePromote();
+  const author = member(idea.authorId);
+  const temp = idea.id.startsWith("tmp-");
+  const canManage = idea.authorId === viewer.id || can("ideas.manage");
 
   return (
     <motion.li
@@ -197,87 +321,38 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
       className="card group flex flex-col rounded-2xl p-4 transition-colors hover:bg-surface-2"
     >
       <div className="flex items-start gap-3">
-        <p className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-ink">{idea.title}</p>
-        {canArchive && !temp && (
-          <Popover
-            label="Idea actions"
-            align="end"
-            triggerClassName="size-7 justify-center text-ink-3 opacity-60 group-hover:opacity-100 hover:text-ink"
-            trigger={<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><circle cx="3" cy="7" r="1.2" fill="currentColor" /><circle cx="7" cy="7" r="1.2" fill="currentColor" /><circle cx="11" cy="7" r="1.2" fill="currentColor" /></svg>}
-          >
-            {(close) => (
-              <>
-                <MenuItem
-                  onSelect={() => {
-                    close();
-                    run(() => archiveIdea({ teamId: team.id, itemId: idea.id }), {
-                      optimistic: () => removeIdea(idea.id),
-                      success: "Idea archived. Restore it from team settings.",
-                    });
-                  }}
-                >
-                  Archive idea
-                </MenuItem>
-                <MenuItem
-                  onSelect={() => {
-                    close();
-                    setDeleting(true);
-                  }}
-                >
-                  <span className="text-rose">Delete idea</span>
-                </MenuItem>
-              </>
-            )}
-          </Popover>
-        )}
-        <ConfirmDialog
-          open={deleting}
-          onClose={() => setDeleting(false)}
-          title="Delete idea?"
-          description={<>&ldquo;{idea.title}&rdquo; and its sparks will be deleted for everyone. To hide it but keep it, archive it instead.</>}
-          confirmLabel="Delete idea"
-          level={{ kind: "ack" }}
-          onConfirm={() =>
-            run(() => deleteIdea({ teamId: team.id, itemId: idea.id }), {
-              optimistic: () => removeIdea(idea.id),
-              success: "Idea deleted.",
-            })
-          }
-        />
+        <button
+          type="button"
+          disabled={temp}
+          onClick={() => openIdea(idea.id)}
+          className="min-w-0 flex-1 text-left text-[15px] font-medium leading-snug text-ink transition-colors hover:text-accent"
+        >
+          {idea.title}
+        </button>
+        {canManage && !temp && <IdeaMenu idea={idea} triggerClassName="size-7 justify-center text-ink-3 opacity-60 group-hover:opacity-100 hover:text-ink" />}
       </div>
       {idea.description && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-2">{idea.description}</p>}
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {idea.tags.map((t) => (
-          <Pill key={t} color={TAG_COLORS[t]}>#{t}</Pill>
+          <TagPill key={t} name={t} />
         ))}
+        {idea.taskCount > 0 && (
+          <span className="font-mono text-[11px] text-ink-3">
+            {idea.doneCount}/{idea.taskCount} tasks
+          </span>
+        )}
       </div>
       <div className="mt-auto flex items-center gap-2 pt-4">
-        {author && <Monogram name={author.username} color={author.accentColor} size={20} />}
+        {author && <Monogram name={author.username} color={author.accentColor} src={author.imageUrl} size={20} />}
         <span className="min-w-0 truncate font-mono text-[11px]" style={{ color: readable(author?.accentColor) }}>
           @{author?.username ?? "former member"}
         </span>
         <span className="mono-meta shrink-0 !text-[11px]" suppressHydrationWarning>{timeAgo(idea.createdAt)}</span>
         <span className="flex-1" />
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.85 }}
-          disabled={temp}
-          onClick={spark}
-          aria-pressed={idea.sparkedByMe}
-          aria-label={`Spark, ${idea.sparksCount} sparks`}
-          className={cx(
-            "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 font-mono text-xs transition-colors",
-            idea.sparkedByMe ? "bg-amber/15 text-amber" : "text-ink-3 hover:bg-tint/[0.06] hover:text-ink",
-          )}
-        >
-          <motion.svg key={String(idea.sparkedByMe)} initial={{ rotate: -40, scale: 0.6 }} animate={{ rotate: 0, scale: 1 }} transition={spring} width="13" height="13" viewBox="0 0 16 16" aria-hidden>
-            <path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" />
-          </motion.svg>
-          {idea.sparksCount}
-        </motion.button>
-        {canPromote && (
-          <button type="button" disabled={temp} onClick={onPromote} className={cx(btn.outline, btn.sm)}>
-            Promote to execution →
+        <SparkButton idea={idea} disabled={temp} />
+        {can("projects.create") && (
+          <button type="button" disabled={temp} onClick={() => promote(idea)} className={cx(btn.outline, btn.sm)}>
+            Promote →
           </button>
         )}
       </div>
@@ -285,136 +360,110 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
   );
 }
 
-/* ── Promote drawer ─────────────────────────────────────────────────────── */
+/* ── One raw idea ───────────────────────────────────────────────────────── */
 
-type Draft = { key: number; title: string; assigneeIds: string[]; priority: Priority };
-let keySeq = 0;
-
-function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClose: () => void; onDone: (id: string) => void }) {
-  const [rows, setRows] = useState<Draft[]>([]);
-  const [lastIdea, setLastIdea] = useState<string | null>(null);
-
-  // Reset the rows whenever a different idea opens the drawer.
-  if (idea && idea.id !== lastIdea) {
-    setLastIdea(idea.id);
-    setRows([{ key: ++keySeq, title: idea.title.slice(0, 140), assigneeIds: [], priority: "MEDIUM" }]);
-  }
+function IdeaPage({ idea }: { idea: IdeaDTO }) {
+  const { member, viewer, can, openIdea } = useWorkspace();
+  const promote = usePromote();
+  const [editing, setEditing] = useState(false);
+  const author = member(idea.authorId);
+  const canManage = idea.authorId === viewer.id || can("ideas.manage");
 
   return (
-    <Dialog
-      open={!!idea}
-      onClose={onClose}
-      side="right"
-      title="Promote to execution"
-      description="Break the idea into concrete tasks. Each one can have several people and a priority."
-    >
-      {idea && <PromoteForm idea={idea} rows={rows} setRows={setRows} onClose={onClose} onDone={onDone} />}
+    <div>
+      <button type="button" onClick={() => openIdea(null)} className={cx(btn.ghost, btn.sm, "-ml-3")}>
+        <span aria-hidden>←</span> Idea vault
+      </button>
+
+      <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[12px] text-ink-3">
+            <span className="text-amber" aria-hidden>✦</span> Raw idea, still in the vault
+          </p>
+          <h2 className="mt-1 text-[clamp(1.4rem,2.6vw,2rem)] font-semibold leading-tight tracking-[-0.03em]">{idea.title}</h2>
+          <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">
+            {idea.description || <span className="text-ink-3">No description yet.</span>}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {idea.tags.map((t) => (
+              <TagPill key={t} name={t} />
+            ))}
+            {author && (
+              <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
+                by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <SparkButton idea={idea} />
+          {canManage && <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit</button>}
+          {can("projects.create") && (
+            <button type="button" onClick={() => promote(idea)} className={cx(btn.primary, btn.sm)}>
+              Promote to execution →
+            </button>
+          )}
+          {canManage && <IdeaMenu idea={idea} onGone={() => openIdea(null)} />}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h3 className="text-sm font-medium text-ink-2">Tasks</h3>
+        <p className="mt-0.5 text-[13px] text-ink-3">Plan it while it&apos;s still an idea. Its tasks and subtasks move to Execution with it when you promote it.</p>
+        <div className="mt-3">
+          <BoardView projectId={idea.id} />
+        </div>
+      </div>
+
+      <IdeaDialog idea={editing ? idea : null} onClose={() => setEditing(false)} />
+    </div>
+  );
+}
+
+/** Edit an idea's title, description and tags. */
+export function IdeaDialog({ idea, onClose }: { idea: IdeaDTO | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!idea} onClose={onClose} title="Edit idea">
+      {idea && <IdeaForm key={idea.id} idea={idea} onClose={onClose} />}
     </Dialog>
   );
 }
 
-function PromoteForm({
-  idea,
-  rows,
-  setRows,
-  onClose,
-  onDone,
-}: {
-  idea: IdeaDTO;
-  rows: Draft[];
-  setRows: React.Dispatch<React.SetStateAction<Draft[]>>;
-  onClose: () => void;
-  onDone: (id: string) => void;
-}) {
+function IdeaForm({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
   const { team, run, patchIdea } = useWorkspace();
-  const [busy, setBusy] = useState(false);
-  const update = (key: number, patch: Partial<Draft>) =>
-    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const valid = rows.filter((r) => r.title.trim());
+  const [title, setTitle] = useState(idea.title);
+  const [description, setDescription] = useState(idea.description ?? "");
+  const [tags, setTags] = useState<string[]>(idea.tags);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid.length) return;
-    setBusy(true);
-    run(
-      () =>
-        promoteIdea({
-          teamId: team.id,
-          ideaId: idea.id,
-          tasks: valid.map((r) => ({ title: r.title.trim(), assigneeIds: r.assigneeIds, priority: r.priority })),
-        }),
-      {
-        optimistic: () => patchIdea(idea.id, { status: "PROMOTED", taskCount: valid.length }),
-        success: `Promoted into ${valid.length} task${valid.length > 1 ? "s" : ""}.`,
-        onOk: () => {
-          onClose();
-          onDone(idea.id);
-        },
-      },
-    );
-    window.setTimeout(() => setBusy(false), 600);
+    const t = title.trim();
+    if (!t) return;
+    const d = description.trim();
+    onClose();
+    run(() => updateIdea({ teamId: team.id, itemId: idea.id, title: t, description: d, tags }), {
+      optimistic: () => patchIdea(idea.id, { title: t, description: d || null, tags }),
+      success: "Saved.",
+    });
   };
 
   return (
-    <form onSubmit={submit} className="flex h-full flex-col">
-      <div className="rounded-xl bg-surface-2 p-4 shadow-highlight">
-        <p className="text-[15px] font-medium text-ink">{idea.title}</p>
-        {idea.description && <p className="mt-1 text-sm text-ink-2">{idea.description}</p>}
-        <p className="mono-meta mt-2">{idea.sparksCount} sparks</p>
+    <form onSubmit={submit} className="space-y-4 pt-1">
+      <Field label="Title" htmlFor="idea-title">
+        <input id="idea-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} required className={cx(inputCls, "h-10")} />
+      </Field>
+      <Field label="Description" htmlFor="idea-desc">
+        <textarea id="idea-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={4} className={cx(inputCls, "resize-y py-2.5 leading-relaxed")} />
+      </Field>
+      <div>
+        <p className="text-sm font-medium text-ink">Tags</p>
+        <div className="mt-1.5">
+          <TagPicker value={tags} onChange={setTags} />
+        </div>
       </div>
-
-      <ul className="mt-5 space-y-2">
-        <AnimatePresence initial={false}>
-          {rows.map((r, i) => {
-            return (
-              <motion.li
-                key={r.key}
-                layout
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={spring}
-                className="rounded-xl bg-surface p-2 shadow-highlight"
-              >
-                <input
-                  value={r.title}
-                  autoFocus={i === rows.length - 1}
-                  maxLength={140}
-                  onChange={(e) => update(r.key, { title: e.target.value })}
-                  aria-label={`Task ${i + 1} title`}
-                  placeholder="What needs doing?"
-                  className={cx(inputCls, "h-10")}
-                />
-                <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
-                  <AssigneesPicker value={r.assigneeIds} onChange={(ids) => update(r.key, { assigneeIds: ids })} label={`Task ${i + 1} assignees`} compact />
-                  <PriorityPicker value={r.priority} onChange={(p) => update(r.key, { priority: p })} />
-                  <span className="flex-1" />
-                  {rows.length > 1 && (
-                    <button type="button" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} className={cx(btn.ghost, btn.xs)}>
-                      Remove
-                    </button>
-                  )}
-                </div>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </ul>
-      {rows.length < 12 && (
-        <button
-          type="button"
-          onClick={() => setRows((rs) => [...rs, { key: ++keySeq, title: "", assigneeIds: [], priority: "MEDIUM" }])}
-          className={cx(btn.ghost, btn.sm, "mt-2 self-start")}
-        >
-          + Add task
-        </button>
-      )}
-
-      <div className="mt-auto flex justify-end gap-2 pt-6">
-        <button type="button" onClick={onClose} className={btn.ghost}>Cancel</button>
-        <button type="submit" disabled={busy || !valid.length} className={btn.accent}>
-          Promote {valid.length} task{valid.length === 1 ? "" : "s"} →
-        </button>
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
+        <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>Save</button>
       </div>
     </form>
   );

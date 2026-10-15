@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
+import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
@@ -12,13 +12,22 @@ import {
   deleteIdeaSchema,
   promoteIdeaSchema,
   teamScoped,
-  updateProjectSchema,
+  updateIdeaSchema,
 } from "@/lib/validations";
+
+/** Ideas may only carry tags the team has defined. */
+async function assertTags(teamId: string, tags: readonly string[]) {
+  const unique = [...new Set(tags)];
+  if (!unique.length) return;
+  const n = await db.teamTag.count({ where: { teamId, name: { in: unique } } });
+  if (n !== unique.length) throw new ActionError("Use one of the team's tags. Owners can add more in team settings.");
+}
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = createIdeaSchema.parse(input);
     await requireTeamAccess(data.teamId, ctx.user.id, "ideas.create");
+    await assertTags(data.teamId, data.tags);
     const idea = await db.idea.create({
       data: {
         teamId: data.teamId,
@@ -30,7 +39,7 @@ export async function createIdea(input: unknown) {
       select: { id: true },
     });
     await audit(ctx, { teamId: data.teamId, action: "idea.created", entityType: "Idea", entityId: idea.id });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(data.teamId);
     return { id: idea.id };
   });
 }
@@ -55,7 +64,7 @@ export async function toggleSpark(input: unknown) {
       });
       return !has;
     });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return { sparked };
   });
 }
@@ -64,7 +73,7 @@ export async function promoteIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = promoteIdeaSchema.parse(input);
     const access = await requireTeamAccess(data.teamId, ctx.user.id, "projects.create");
-    assertCan(access, "tasks.create");
+    if (data.tasks.length) assertCan(access, "tasks.create");
 
     const idea = await db.idea.findFirst({
       where: { id: data.ideaId, teamId: data.teamId, status: { not: "ARCHIVED" } },
@@ -91,7 +100,7 @@ export async function promoteIdea(input: unknown) {
       db.idea.updateMany({ where: { id: idea.id, teamId: data.teamId }, data: { status: "PROMOTED" } }),
     ]);
     await audit(ctx, { teamId: data.teamId, action: "idea.promoted", entityType: "Idea", entityId: idea.id });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(data.teamId);
     return { created: data.tasks.length };
   });
 }
@@ -121,7 +130,7 @@ export async function archiveIdea(input: unknown) {
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status: "ARCHIVED" } });
     await db.taskAssignee.updateMany({ where: { teamId, task: { ideaId: itemId }, focusedAt: { not: null } }, data: { focusedAt: null } });
     await audit(ctx, { teamId, action: "idea.archived", entityType: "Idea", entityId: itemId });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return null;
   });
 }
@@ -142,27 +151,30 @@ export async function createProject(input: unknown) {
       select: { id: true },
     });
     await audit(ctx, { teamId: data.teamId, action: "project.created", entityType: "Idea", entityId: project.id });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(data.teamId);
     return { id: project.id };
   });
 }
 
-/** Edit a project's name or description: its author, or anyone with projects.edit. */
-export async function updateProject(input: unknown) {
+/** Edit an idea or project: its author, or anyone with ideas.manage (vault) / projects.edit (projects). */
+export async function updateIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title, description } = updateProjectSchema.parse(input);
+    const { teamId, itemId, title, description, tags } = updateIdeaSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const idea = await loadIdea(teamId, itemId);
-    if (idea.status !== "PROMOTED") throw new ActionError("Project not found.");
-    if (idea.createdById !== access.userId && !access.can("projects.edit")) forbid("edit this project");
+    if (idea.status === "ARCHIVED") throw new ActionError("Restore it before editing.");
+    const own = idea.createdById === access.userId;
+    if (!own && !access.can(idea.status === "PROMOTED" ? "projects.edit" : "ideas.manage")) forbid("edit this");
+    if (tags) await assertTags(teamId, tags);
     await db.idea.updateMany({
-      where: { id: itemId, teamId, status: "PROMOTED" },
+      where: { id: itemId, teamId, status: { not: "ARCHIVED" } },
       data: {
         ...(title !== undefined && { title: encryptText(title, teamId) }),
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
+        ...(tags !== undefined && { tags: [...new Set(tags)] }),
       },
     });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return null;
   });
 }
@@ -179,7 +191,7 @@ export async function restoreIdea(input: unknown) {
     const status = idea.isProject ? "PROMOTED" : "VAULT";
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status } });
     await audit(ctx, { teamId, action: "idea.restored", entityType: "Idea", entityId: itemId });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return { status };
   });
 }
@@ -207,7 +219,7 @@ export async function deleteIdea(input: unknown) {
       db.idea.deleteMany({ where: { id: itemId, teamId } }),
     ]);
     await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return null;
   });
 }

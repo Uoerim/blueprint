@@ -50,6 +50,7 @@ export async function suspendUser(input: unknown) {
     await db.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason } });
     // Unassign live focus so the team doesn't see a ghost "working on" badge.
     await db.taskAssignee.updateMany({ where: { userId: target.id, focusedAt: { not: null } }, data: { focusedAt: null } });
+    await db.team.updateMany({ where: { members: { some: { userId: target.id } } }, data: { activityAt: new Date() } });
     const clerk = await clerkBan(target.clerkId);
     await audit(ctx, { action: "admin.user.suspended", entityType: "User", entityId: target.id });
     done();
@@ -106,6 +107,7 @@ export async function deleteUser(input: unknown) {
       throw new ActionError("Type the username exactly to confirm.");
     }
     if (!(await clerkDelete(target.clerkId))) throw new ActionError("Clerk didn't delete the login. Nothing was changed.");
+    const teamIds = (await db.teamMember.findMany({ where: { userId: target.id }, select: { teamId: true } })).map((m) => m.teamId);
 
     await db.$transaction(async (tx) => {
       const owned = await tx.teamMember.findMany({ where: { userId: target.id, role: "OWNER" }, select: { teamId: true } });
@@ -141,6 +143,7 @@ export async function deleteUser(input: unknown) {
         },
       });
     });
+    await db.team.updateMany({ where: { id: { in: teamIds } }, data: { activityAt: new Date() } });
     await audit(ctx, { action: "admin.user.deleted", entityType: "User", entityId: target.id });
     return done();
   });

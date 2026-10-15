@@ -22,6 +22,10 @@ model User {
   email              String            @unique
   username           String?           @unique
   displayName        String?
+  /// Clerk profile picture, only when the person uploaded one (otherwise initials are shown).
+  imageUrl           String?
+  /// Bumped whenever something lands in this person's notifications (invites).
+  inboxAt            DateTime          @default(now())
   accentColor        String            @default("#6366F1")
   onboarded          Boolean           @default(false)
   /// Site-wide staff role (separate from per-team roles). See lib/site-roles.ts.
@@ -67,6 +71,9 @@ model Team {
   ideas       Idea[]
   tasks       Task[]
   roles       TeamRole[]
+  tags        TeamTag[]
+  /// Bumped on every change inside the team; the live change-check compares it.
+  activityAt  DateTime     @default(now())
 }
 
 model TeamMember {
@@ -88,6 +95,19 @@ model TeamMember {
 
 /// A custom team role made by the owner or a co-owner: a name, a colour and a
 /// set of permissions from lib/team-permissions.ts.
+/// A team's idea tags. Ideas store tag names; renaming or deleting a tag updates them.
+model TeamTag {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  color     String
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, name])
+  @@index([teamId])
+}
+
 model TeamRole {
   id          String       @id @default(cuid())
   teamId      String
@@ -207,6 +227,7 @@ model Subtask {
   taskId      String
   task        Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
   title       String
+  description String?
   done        Boolean           @default(false)
   position    Int               @default(0)
   createdById String

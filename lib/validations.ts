@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ACCENT_HEXES, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
-import { GRANTABLE, ROLE_COLORS } from "./team-permissions";
+import { GRANTABLE, ROLE_COLORS, TAG_PALETTE } from "./team-permissions";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 const HTML_TAGS = /<\/?[a-z][^>]*>/gi;
@@ -53,7 +53,6 @@ export const accentSchema = z.enum(ACCENT_HEXES);
 
 export const onboardingSchema = z.strictObject({
   username: usernameSchema,
-  accentColor: accentSchema,
 });
 
 export const searchQuerySchema = z
@@ -74,6 +73,8 @@ export const createTeamSchema = z.strictObject({
   name: text(2, 50),
   slug: slugSchema.optional().or(z.literal("").transform(() => undefined)),
   description: optionalText(2000),
+  /** People to invite straight away (up to 20). */
+  inviteeIds: z.array(id).max(20).default([]).transform((ids) => [...new Set(ids)]),
 });
 
 export const updateTeamSchema = z.strictObject({
@@ -125,7 +126,8 @@ export const taskDraftSchema = z.strictObject({
 export const promoteIdeaSchema = z.strictObject({
   teamId: id,
   ideaId: id,
-  tasks: z.array(taskDraftSchema).min(1).max(12),
+  // Promoting can come with tasks, or with none and the tasks get added on the project page.
+  tasks: z.array(taskDraftSchema).max(12).default([]),
 });
 
 export const createTaskSchema = z.strictObject({
@@ -158,9 +160,12 @@ export const createSubtaskSchema = z.strictObject({
   teamId: id,
   taskId: id,
   title: text(1, 140),
+  description: optionalText(2000),
   assigneeIds: assigneeIdsSchema.default([]),
 });
-export const renameSubtaskSchema = z.strictObject({ teamId: id, itemId: id, title: text(1, 140) });
+export const updateSubtaskSchema = z
+  .strictObject({ teamId: id, itemId: id, title: text(1, 140).optional(), description: clearableText(2000).optional() })
+  .refine((v) => v.title !== undefined || v.description !== undefined, "Nothing to update");
 export const toggleSubtaskSchema = z.strictObject({ teamId: id, itemId: id, done: z.boolean() });
 export const subtaskAssigneesSchema = taskAssigneesSchema;
 
@@ -169,15 +174,6 @@ export const createProjectSchema = z.strictObject({
   title: text(1, 140),
   description: optionalText(2000),
 });
-
-export const updateProjectSchema = z
-  .strictObject({
-    teamId: id,
-    itemId: id,
-    title: text(1, 140).optional(),
-    description: clearableText(2000).optional(),
-  })
-  .refine((v) => v.title !== undefined || v.description !== undefined, "Nothing to update");
 
 export const teamScoped = z.strictObject({ teamId: id, itemId: id });
 
@@ -226,3 +222,18 @@ export const updateRoleSchema = z.strictObject({
 });
 export const memberRoleSchema = z.strictObject({ teamId: id, itemId: id, role: z.enum(["CO_OWNER", "MEMBER"]) });
 export const memberCustomRoleSchema = z.strictObject({ teamId: id, itemId: id, roleId: id.nullable() });
+
+/* ── Ideas and tags ─────────────────────────────────────────────────────── */
+
+export const updateIdeaSchema = z
+  .strictObject({
+    teamId: id,
+    itemId: id,
+    title: text(1, 140).optional(),
+    description: clearableText(2000).optional(),
+    tags: z.array(tagSchema).max(5).optional(),
+  })
+  .refine((v) => v.title !== undefined || v.description !== undefined || v.tags !== undefined, "Nothing to update");
+
+export const createTagSchema = z.strictObject({ teamId: id, name: tagSchema, color: z.enum(TAG_PALETTE) });
+export const updateTagSchema = z.strictObject({ teamId: id, itemId: id, name: tagSchema, color: z.enum(TAG_PALETTE) });

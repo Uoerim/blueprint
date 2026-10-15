@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { archiveIdea, deleteIdea, restoreIdea } from "@/app/actions/ideas";
+import { createTag, deleteTag, updateTag } from "@/app/actions/tags";
 import {
   cancelInvite,
   clearShipped,
@@ -32,17 +33,19 @@ import {
   PERMISSION_INFO,
   ROLE_COLORS,
   ROLE_NAME,
+  TAG_PALETTE,
   type TeamPermission,
   type TeamRole,
 } from "@/lib/team-permissions";
 import { timeAgo } from "@/lib/time";
-import type { OutgoingInvite } from "@/lib/types";
+import type { OutgoingInvite, TagDTO } from "@/lib/types";
 
 type Member = {
   userId: string;
   username: string;
   displayName: string | null;
   accentColor: string;
+  imageUrl: string | null;
   role: TeamRole;
   customRole: { id: string; name: string; color: string } | null;
   joinedAt: string;
@@ -100,6 +103,7 @@ export function TeamSettings({
   projects,
   archived,
   shippedCount,
+  tags,
 }: {
   team: Team;
   viewerId: string;
@@ -111,6 +115,7 @@ export function TeamSettings({
   projects: ManagedIdea[];
   archived: ManagedIdea[];
   shippedCount: number;
+  tags: TagDTO[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,6 +143,7 @@ export function TeamSettings({
     ["general", "General"],
     ["members", "Members"],
     ["roles", "Roles"],
+    ["tags", "Tags"],
     ["projects", "Projects"],
     ["archive", "Archive"],
     ["danger", myRole === "OWNER" || can("team.cleanup") ? "Danger zone" : "Leave"],
@@ -165,6 +171,7 @@ export function TeamSettings({
       <General team={team} canEdit={can("team.edit")} pending={pending} run={run} />
       <Members {...shared} members={members} invites={invites} roles={roles} />
       <Roles {...shared} roles={roles} />
+      <Tags {...shared} tags={tags} />
       <Projects {...shared} projects={projects} />
       <Archive {...shared} archived={archived} />
       <Danger {...shared} archivedCount={archived.length} shippedCount={shippedCount} onGone={() => router.push("/dashboard")} />
@@ -296,7 +303,7 @@ function Members({ team, viewerId, myRole, can, run, confirmIt, members, invites
           const removable = !isMe && m.role !== "OWNER" && (m.role === "CO_OWNER" ? can("members.coOwner") : can("members.manage"));
           return (
             <li key={m.userId} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-tint/[0.03]">
-              <Monogram name={m.displayName ?? m.username} color={m.accentColor} size={34} />
+              <Monogram name={m.displayName ?? m.username} color={m.accentColor} src={m.imageUrl} size={34} />
               <span className="min-w-0 flex-1">
                 <span className="block font-mono text-[13px]" style={{ color: readable(m.accentColor) }}>
                   @{m.username} {isMe && <span className="text-ink-3">(you)</span>}
@@ -397,7 +404,7 @@ function Members({ team, viewerId, myRole, can, run, confirmIt, members, invites
           <ul className="-mx-2 mt-2 space-y-0.5">
             {invites.map((i) => (
               <li key={i.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                <Monogram name={i.username} color={i.accentColor} size={30} />
+                <Monogram name={i.username} color={i.accentColor} src={i.imageUrl} size={30} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-mono text-[13px]" style={{ color: readable(i.accentColor) }}>@{i.username}</span>
                   <span className="block text-xs text-ink-3" suppressHydrationWarning>invited {timeAgo(i.createdAt)}</span>
@@ -559,6 +566,125 @@ function RoleDialog({ team, role, onClose, run }: { team: Team; role: RoleRow | 
         </div>
       </form>
     </Dialog>
+  );
+}
+
+/* ── Tags ───────────────────────────────────────────────────────────────── */
+
+const tagName = (v: string) => v.toLowerCase().replace(/^#/, "").replace(/[^a-z0-9-]/g, "").slice(0, 24);
+
+function Tags({ team, can, run, confirmIt, tags }: Shared & { tags: TagDTO[] }) {
+  const manage = can("tags.manage");
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<string>(TAG_PALETTE[0]);
+
+  const add = (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = tagName(name);
+    if (!n) return;
+    setName("");
+    run(() => createTag({ teamId: team.id, name: n, color: color as (typeof TAG_PALETTE)[number] }), `#${n} added.`);
+  };
+
+  return (
+    <Card id="tags" title={`Tags · ${tags.length}`} note={manage ? "The tags people can put on ideas. Renaming or deleting a tag updates every idea that uses it." : "The tags people can put on ideas."}>
+      <ul className="-mx-2 space-y-0.5">
+        {tags.map((t) => (
+          <TagRow key={t.id} tag={t} manage={manage} team={team} run={run} confirmIt={confirmIt} />
+        ))}
+        {!tags.length && <li className="px-2 text-[14px] text-ink-3">No tags yet.</li>}
+      </ul>
+      {manage && (
+        <form onSubmit={add} className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+          <span className="font-mono text-sm text-ink-3">#</span>
+          <input
+            value={name}
+            onChange={(e) => setName(tagName(e.target.value))}
+            maxLength={24}
+            aria-label="New tag name"
+            placeholder="new-tag"
+            className={cx(inputCls, "h-9 w-44 font-mono")}
+          />
+          <ColorDots value={color} onChange={setColor} />
+          <button type="submit" disabled={!name} className={cx(btn.primary, btn.sm)}>Add tag</button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
+function ColorDots({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <span className="flex items-center gap-1" role="radiogroup" aria-label="Tag colour">
+      {TAG_PALETTE.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={value === c}
+          aria-label={`Colour ${c}`}
+          onClick={() => onChange(c)}
+          className={cx("size-5 rounded-full transition-transform active:scale-90", value === c && "ring-2 ring-ink ring-offset-2 ring-offset-[var(--surface)]")}
+          style={{ backgroundColor: c }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function TagRow({ tag, manage, team, run, confirmIt }: { tag: TagDTO; manage: boolean; team: Team; run: Run; confirmIt: (a: Ask) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(tag.name);
+  const [color, setColor] = useState(tag.color);
+
+  if (editing) {
+    return (
+      <li className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 px-2 py-2">
+        <span className="font-mono text-sm text-ink-3">#</span>
+        <input value={name} onChange={(e) => setName(tagName(e.target.value))} maxLength={24} aria-label="Tag name" className={cx(inputCls, "h-8 w-40 font-mono")} />
+        <ColorDots value={color} onChange={setColor} />
+        <span className="flex-1" />
+        <button type="button" onClick={() => { setEditing(false); setName(tag.name); setColor(tag.color); }} className={cx(btn.ghost, btn.xs)}>Cancel</button>
+        <button
+          type="button"
+          disabled={!name}
+          onClick={() => {
+            setEditing(false);
+            run(() => updateTag({ teamId: team.id, itemId: tag.id, name, color: color as (typeof TAG_PALETTE)[number] }), `#${name} saved.`);
+          }}
+          className={cx(btn.primary, btn.xs)}
+        >
+          Save
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-tint/[0.03]">
+      <Pill color={tag.color}>#{tag.name}</Pill>
+      <span className="flex-1" />
+      {manage && (
+        <>
+          <button type="button" onClick={() => setEditing(true)} className={cx(btn.ghost, btn.xs)}>Edit</button>
+          <button
+            type="button"
+            onClick={() =>
+              confirmIt({
+                title: `Delete #${tag.name}?`,
+                description: <>The tag is removed from every idea that has it. The ideas themselves stay.</>,
+                confirmLabel: "Delete tag",
+                level: { kind: "ack" },
+                onConfirm: () => run(() => deleteTag({ teamId: team.id, itemId: tag.id }), `#${tag.name} deleted.`),
+              })
+            }
+            className={cx(btn.ghost, btn.xs, "text-rose hover:text-rose")}
+          >
+            Delete
+          </button>
+        </>
+      )}
+    </li>
   );
 }
 

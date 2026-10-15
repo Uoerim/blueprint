@@ -37,3 +37,18 @@ export const TASK_COLUMNS = [
 ] as const;
 
 export const PRIORITY_LABEL = { LOW: "Low", MEDIUM: "Med", HIGH: "High" } as const;
+
+/** Everyone gets a stable colour from their username (used for initials when there's no profile picture). */
+export function accentFor(username: string): string {
+  let h = 0;
+  for (const ch of username) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return ACCENT_HEXES[h % ACCENT_HEXES.length]!;
+}
+
+/** Tags every new team starts with. Owners and co-owners can rename, recolour, add and remove them. */
+export const DEFAULT_TAGS = [
+  { name: "feature", color: "#6366F1" },
+  { name: "bug", color: "#F43F5E" },
+  { name: "experiment", color: "#06B6D4" },
+  { name: "random", color: "#F59E0B" },
+] as const;

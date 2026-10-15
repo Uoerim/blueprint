@@ -29,13 +29,13 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
   const perms = permissionsFor(me.role, me.customRole?.permissions);
   const taskWhere = visibleTasks(team.id, user.id, perms.includes("tasks.viewPrivate"));
 
-  const [members, ideas, tasks, invites] = await Promise.all([
+  const [members, ideas, tasks, invites, tags] = await Promise.all([
     db.teamMember.findMany({
       where: { teamId: team.id },
       select: {
         role: true,
         customRole: { select: { id: true, name: true, color: true } },
-        user: { select: { id: true, username: true, displayName: true, accentColor: true } },
+        user: { select: { id: true, username: true, displayName: true, accentColor: true, imageUrl: true } },
       },
       orderBy: { joinedAt: "asc" },
     }),
@@ -74,7 +74,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         idea: { select: { id: true, title: true } },
         assignees: { select: { userId: true, focusedAt: true }, orderBy: { assignedAt: "asc" } },
         subtasks: {
-          select: { id: true, title: true, done: true, completedAt: true, assignees: { select: { userId: true } } },
+          select: { id: true, title: true, description: true, done: true, completedAt: true, assignees: { select: { userId: true } } },
           orderBy: { position: "asc" },
         },
       },
@@ -84,10 +84,11 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     perms.includes("members.invite")
       ? db.teamInvite.findMany({
           where: { teamId: team.id, status: "PENDING" },
-          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
+          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true, imageUrl: true } } },
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
+    db.teamTag.findMany({ where: { teamId: team.id }, select: { id: true, name: true, color: true }, orderBy: { createdAt: "asc" } }),
   ]);
 
   const viewer: Viewer = {
@@ -95,12 +96,14 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     username: user.username!,
     accentColor: user.accentColor,
     displayName: user.displayName,
+    imageUrl: user.imageUrl,
   };
   const memberDTOs: MemberDTO[] = members.map((m) => ({
     userId: m.user.id,
     username: m.user.username ?? "unknown",
     displayName: m.user.displayName,
     accentColor: m.user.accentColor,
+    imageUrl: m.user.imageUrl,
     role: m.role,
     customRole: m.role === "MEMBER" ? m.customRole : null,
   }));
@@ -133,6 +136,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     subtasks: t.subtasks.map((s) => ({
       id: s.id,
       title: decryptText(s.title, team.id),
+      description: decryptOptional(s.description, team.id),
       done: s.done,
       assigneeIds: s.assignees.map((a) => a.userId),
       completedAt: s.completedAt?.toISOString() ?? null,
@@ -147,6 +151,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     id: i.id,
     username: i.invitee.username ?? "unknown",
     accentColor: i.invitee.accentColor,
+    imageUrl: i.invitee.imageUrl,
     createdAt: i.createdAt.toISOString(),
   }));
 
@@ -161,7 +166,9 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
       ideas={ideaDTOs}
       tasks={taskDTOs}
       invites={outgoing}
+      tags={tags}
       initialView={one(sp.view)}
+      initialIdea={one(sp.idea)}
       initialProject={one(sp.project)}
       initialInvite={one(sp.invite) === "1"}
     />

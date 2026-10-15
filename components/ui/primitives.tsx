@@ -26,19 +26,40 @@ export function initials(name: string) {
 }
 
 /** Geometric monogram badge in the person's accent colour (no photos, ever). */
+/** A person's avatar: their profile picture when they have one, otherwise initials in their colour. */
 export function Monogram({
   name,
   color,
+  src,
   size = 28,
   className,
   title,
 }: {
   name: string;
   color: string;
+  src?: string | null;
   size?: number;
   className?: string;
   title?: string;
 }) {
+  if (src) {
+    return (
+      // A plain <img>: Clerk serves already-sized avatars, and Next image optimisation would cost a quota per face.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={title ?? ""}
+        title={title ?? name}
+        aria-hidden={title ? undefined : true}
+        width={size}
+        height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className={cx("inline-block shrink-0 rounded-[28%] bg-surface-3 object-cover", className)}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   const style: CSSProperties = {
     width: size,
     height: size,

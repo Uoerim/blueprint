@@ -11,7 +11,7 @@ import { ROLE_NAME } from "@/lib/team-permissions";
 import type { OutgoingInvite } from "@/lib/types";
 import { useWorkspace } from "./workspace";
 
-type Result = { id: string; username: string; displayName: string | null; accentColor: string; state: "member" | "invited" | "none" };
+type Result = { id: string; username: string; displayName: string | null; accentColor: string; imageUrl: string | null; state: "member" | "invited" | "none" };
 
 const ROLE_COLOR = { OWNER: "#F59E0B", CO_OWNER: "#06B6D4", MEMBER: undefined } as const;
 
@@ -86,7 +86,7 @@ export function InviteDialog({ open, onClose, invites }: { open: boolean; onClos
                   transition={{ delay: i * 0.03 }}
                   className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-tint/[0.03]"
                 >
-                  <Monogram name={u.displayName ?? u.username} color={u.accentColor} size={30} />
+                  <Monogram name={u.displayName ?? u.username} color={u.accentColor} src={u.imageUrl} size={30} />
                   <span className="min-w-0 flex-1">
                     <span className="block font-mono text-[13px]" style={{ color: readable(u.accentColor) }}>@{u.username}</span>
                     {u.displayName && <span className="block truncate text-xs text-ink-3">{u.displayName}</span>}
@@ -113,7 +113,7 @@ export function InviteDialog({ open, onClose, invites }: { open: boolean; onClos
         <ul className="mt-2 space-y-0.5">
           {members.map((m) => (
             <li key={m.userId} className="flex items-center gap-3 rounded-xl px-2 py-2">
-              <Monogram name={m.displayName ?? m.username} color={m.accentColor} size={30} />
+              <Monogram name={m.displayName ?? m.username} color={m.accentColor} src={m.imageUrl} size={30} />
               <span className="min-w-0 flex-1">
                 <span className="block font-mono text-[13px]" style={{ color: readable(m.accentColor) }}>
                   @{m.username} {m.userId === viewer.id && <span className="text-ink-3">(you)</span>}
@@ -135,7 +135,7 @@ export function InviteDialog({ open, onClose, invites }: { open: boolean; onClos
             <ul className="mt-2 space-y-0.5">
               {invites.map((i) => (
                 <li key={i.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                  <Monogram name={i.username} color={i.accentColor} size={30} />
+                  <Monogram name={i.username} color={i.accentColor} src={i.imageUrl} size={30} />
                   <span className="min-w-0 flex-1">
                     <span className="block font-mono text-[13px]" style={{ color: readable(i.accentColor) }}>@{i.username}</span>
                     <span className="block text-xs text-ink-3" suppressHydrationWarning>invited {timeAgo(i.createdAt)}</span>

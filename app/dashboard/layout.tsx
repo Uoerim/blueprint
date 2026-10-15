@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { KofiButton } from "@/components/kofi-button";
 import { SupportButton } from "@/components/support";
-import { BrandMark, Monogram, readable } from "@/components/ui/primitives";
+import { BrandMark } from "@/components/ui/primitives";
 import { requireOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/site-roles";
@@ -11,7 +11,9 @@ import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
 import { AccountMenu } from "./_components/account-menu";
 import { InvitesBell } from "./_components/invites-bell";
+import { LivePulse } from "./_components/live-pulse";
 import { TeamSwitcher } from "./_components/team-switcher";
+import { UsernameChip } from "./_components/username-chip";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const user = await requireOnboardedPage();
@@ -28,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         id: true,
         createdAt: true,
         team: { select: { name: true, slug: true } },
-        inviter: { select: { username: true, accentColor: true } },
+        inviter: { select: { username: true, accentColor: true, imageUrl: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -40,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     id: i.id,
     createdAt: i.createdAt.toISOString(),
     team: i.team,
-    inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor },
+    inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor, imageUrl: i.inviter.imageUrl },
   }));
 
   return (
@@ -67,15 +69,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <KofiButton label="Ko-fi" className="hidden h-8 px-2.5 md:inline-flex" />
             <SupportButton />
             <InvitesBell invites={incoming} />
-            <span className="hidden items-center gap-2 rounded-lg py-1 pl-1 pr-2.5 sm:flex" style={{ backgroundColor: `${user.accentColor}12` }}>
-              <Monogram name={user.username!} color={user.accentColor} size={22} />
-              <span className="font-mono text-xs" style={{ color: readable(user.accentColor) }}>@{user.username}</span>
-            </span>
+            <UsernameChip username={user.username!} color={user.accentColor} imageUrl={user.imageUrl} />
             <AccountMenu theme={theme} />
           </div>
         </div>
       </header>
       <div className="flex-1">{children}</div>
+      <LivePulse />
     </div>
   );
 }

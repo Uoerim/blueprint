@@ -22,7 +22,7 @@ export default async function DashboardIndex() {
       id: true,
       createdAt: true,
       team: { select: { name: true, slug: true } },
-      inviter: { select: { username: true, accentColor: true } },
+      inviter: { select: { username: true, accentColor: true, imageUrl: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -49,7 +49,7 @@ export default async function DashboardIndex() {
                 id: i.id,
                 createdAt: i.createdAt.toISOString(),
                 team: i.team,
-                inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor },
+                inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor, imageUrl: i.inviter.imageUrl },
               }))}
             />
           </div>

@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { audit, runAction } from "@/lib/action";
+import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
@@ -20,12 +20,12 @@ import {
   createTaskSchema,
   id,
   prioritySchema,
-  renameSubtaskSchema,
   subtaskAssigneesSchema,
   taskAssigneesSchema,
   taskStatusSchema,
   teamScoped,
   toggleSubtaskSchema,
+  updateSubtaskSchema,
   updateTaskSchema,
 } from "@/lib/validations";
 
@@ -88,14 +88,18 @@ const deny = (msg = "You don't have permission to change this task.") => {
 };
 
 /** A project is a promoted idea in this exact team. */
+/** Tasks belong to a project, or to a raw idea that is still in the vault, in this exact team. */
 async function assertProject(teamId: string, projectId: string | null | undefined) {
   if (!projectId) return;
-  const p = await db.idea.findFirst({ where: { id: projectId, teamId, status: "PROMOTED" }, select: { id: true } });
-  if (!p) throw new ActionError("Project not found.");
+  const p = await db.idea.findFirst({
+    where: { id: projectId, teamId, status: { in: ["VAULT", "PROMOTED"] } },
+    select: { id: true },
+  });
+  if (!p) throw new ActionError("Project or idea not found.");
 }
 
-const done = () => {
-  revalidatePath("/dashboard", "layout");
+const done = async (teamId: string) => {
+  await teamChanged(teamId);
   return null;
 };
 
@@ -122,7 +126,7 @@ export async function createTask(input: unknown) {
       select: { id: true },
     });
     await audit(ctx, { teamId: data.teamId, action: "task.created", entityType: "Task", entityId: task.id });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(data.teamId);
     return { id: task.id };
   });
 }
@@ -145,7 +149,7 @@ export async function updateTask(input: unknown) {
         ...(visibility !== undefined && { visibility }),
       },
     });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -156,7 +160,7 @@ export async function setTaskPriority(input: unknown) {
     const { facts } = await loadTask(access, itemId);
     if (!canEditTask(facts)) deny();
     await db.task.updateMany({ where: { id: itemId, teamId }, data: { priority } });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -172,7 +176,7 @@ export async function setTaskAssignees(input: unknown) {
       db.taskAssignee.deleteMany({ where: { taskId: itemId, userId: { notIn: next } } }),
       db.taskAssignee.createMany({ data: next.map((userId) => ({ taskId: itemId, userId, teamId })), skipDuplicates: true }),
     ]);
-    return done();
+    return done(teamId);
   });
 }
 
@@ -196,7 +200,7 @@ export async function setTaskStatus(input: unknown) {
         : []),
     ]);
     if (status === "DONE") await audit(ctx, { teamId, action: "task.done", entityType: "Task", entityId: itemId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -223,7 +227,7 @@ export async function startFocus(input: unknown) {
       db.task.updateMany({ where: { id: itemId, teamId }, data: { status: "IN_PROGRESS", completedAt: null, completedById: null } }),
     ]);
     await audit(ctx, { teamId, action: "task.focus", entityType: "Task", entityId: itemId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -232,7 +236,7 @@ export async function stopFocus(input: unknown) {
     const { teamId, itemId } = teamScoped.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     await db.taskAssignee.updateMany({ where: { taskId: itemId, teamId, userId: access.userId }, data: { focusedAt: null } });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -244,7 +248,7 @@ export async function deleteTask(input: unknown) {
     if (!canDeleteTask(facts)) deny("You don't have permission to delete this task.");
     await db.task.deleteMany({ where: { id: itemId, teamId } });
     await audit(ctx, { teamId, action: "task.deleted", entityType: "Task", entityId: itemId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -252,7 +256,7 @@ export async function deleteTask(input: unknown) {
 
 export async function createSubtask(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, taskId, title, assigneeIds } = createSubtaskSchema.parse(input);
+    const { teamId, taskId, title, description, assigneeIds } = createSubtaskSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const { facts } = await loadTask(access, taskId);
     if (!canEditTask(facts)) deny();
@@ -264,25 +268,32 @@ export async function createSubtask(input: unknown) {
         teamId,
         taskId,
         title: encryptText(title, teamId),
+        description: encryptOptional(description, teamId),
         position: (agg._max.position ?? -1) + 1,
         createdById: access.userId,
         assignees: { create: assignees.map((userId) => ({ userId })) },
       },
       select: { id: true },
     });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return { id: sub.id };
   });
 }
 
-export async function renameSubtask(input: unknown) {
+export async function updateSubtask(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title } = renameSubtaskSchema.parse(input);
+    const { teamId, itemId, title, description } = updateSubtaskSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const sub = await loadSubtask(access, itemId);
     if (!canEditTask(sub.facts)) deny();
-    await db.subtask.updateMany({ where: { id: itemId, teamId }, data: { title: encryptText(title, teamId) } });
-    return done();
+    await db.subtask.updateMany({
+      where: { id: itemId, teamId },
+      data: {
+        ...(title !== undefined && { title: encryptText(title, teamId) }),
+        ...(description !== undefined && { description: encryptOptional(description, teamId) }),
+      },
+    });
+    return done(teamId);
   });
 }
 
@@ -293,7 +304,7 @@ export async function toggleSubtask(input: unknown) {
     const sub = await loadSubtask(access, itemId);
     if (!canToggleSubtask(sub.facts, sub.assigneeIds)) deny("Only people assigned to this subtask can tick it.");
     await db.subtask.updateMany({ where: { id: itemId, teamId }, data: { done: isDone, completedAt: isDone ? new Date() : null } });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -308,7 +319,7 @@ export async function setSubtaskAssignees(input: unknown) {
       db.subtaskAssignee.deleteMany({ where: { subtaskId: itemId, userId: { notIn: next } } }),
       db.subtaskAssignee.createMany({ data: next.map((userId) => ({ subtaskId: itemId, userId })), skipDuplicates: true }),
     ]);
-    return done();
+    return done(teamId);
   });
 }
 
@@ -319,6 +330,6 @@ export async function deleteSubtask(input: unknown) {
     const sub = await loadSubtask(access, itemId);
     if (!canEditTask(sub.facts)) deny();
     await db.subtask.deleteMany({ where: { id: itemId, teamId } });
-    return done();
+    return done(teamId);
   });
 }

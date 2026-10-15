@@ -113,7 +113,7 @@ export function ShippedView() {
                     className="relative flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-tint/[0.02]"
                   >
                     <span className="absolute -left-[29px] top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-emerald ring-4 ring-bg" aria-hidden />
-                    {m ? <Monogram name={m.username} color={m.accentColor} size={26} /> : <span className="size-[26px] rounded-[28%] bg-surface-3" />}
+                    {m ? <Monogram name={m.username} color={m.accentColor} src={m.imageUrl} size={26} /> : <span className="size-[26px] rounded-[28%] bg-surface-3" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14px] text-ink">
                         <span className="font-mono text-xs" style={{ color: readable(m?.accentColor) }}>@{m?.username ?? "someone"}</span>{" "}

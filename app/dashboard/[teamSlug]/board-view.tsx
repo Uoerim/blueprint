@@ -7,13 +7,13 @@ import {
   createTask,
   deleteSubtask,
   deleteTask,
-  renameSubtask,
   setSubtaskAssignees,
   setTaskAssignees,
   setTaskPriority,
   setTaskStatus,
   startFocus,
   toggleSubtask,
+  updateSubtask,
   updateTask,
 } from "@/app/actions/tasks";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -162,7 +162,7 @@ function NewTask({ projectId }: { projectId?: string }) {
   const [picked, setPicked] = useState("");
   const [assignees, setAssignees] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<Visibility>("TEAM");
-  const projects = ideas.filter((i) => i.status === "PROMOTED" && !i.id.startsWith("tmp-"));
+  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !i.id.startsWith("tmp-"));
   const target = projectId ?? (picked || null);
 
   const submit = (e: React.FormEvent) => {
@@ -218,7 +218,7 @@ function NewTask({ projectId }: { projectId?: string }) {
         >
           <option value="">No project</option>
           {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.title}</option>
+            <option key={p.id} value={p.id}>{p.status === "VAULT" ? `Idea: ${p.title}` : p.title}</option>
           ))}
         </select>
       )}
@@ -349,7 +349,7 @@ export function AvatarStack({ ids, size = 20, max = 3 }: { ids: string[]; size?:
   return (
     <span className="flex items-center -space-x-1" title={people.map((p) => `@${p.username}`).join(", ")}>
       {people.slice(0, max).map((p) => (
-        <Monogram key={p.userId} name={p.username} color={p.accentColor} size={size} className="ring-2 ring-surface" />
+        <Monogram key={p.userId} name={p.username} color={p.accentColor} src={p.imageUrl} size={size} className="ring-2 ring-surface" />
       ))}
       {people.length > max && (
         <span className="grid place-items-center rounded-[28%] bg-surface-3 text-[10px] text-ink-2 ring-2 ring-surface" style={{ width: size, height: size }}>
@@ -403,7 +403,7 @@ export function AssigneesPicker({
                 >
                   {on && <svg width="10" height="10" viewBox="0 0 10 10"><path d="m2 5.2 2 2 4-4.4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </span>
-                <Monogram name={m.username} color={m.accentColor} size={20} />
+                <Monogram name={m.username} color={m.accentColor} src={m.imageUrl} size={20} />
                 <span className="font-mono text-xs" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
               </MenuItem>
             );
@@ -578,19 +578,20 @@ function TaskRow({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; onO
 /* ── Project chip and glyphs ────────────────────────────────────────────── */
 
 function ProjectChip({ idea, className }: { idea: { id: string; title: string }; className?: string }) {
-  const { openProject, ideas } = useWorkspace();
-  const live = ideas.some((i) => i.id === idea.id && i.status === "PROMOTED");
+  const { openProject, openIdea, ideas } = useWorkspace();
+  const status = ideas.find((i) => i.id === idea.id)?.status;
   const label = (
     <>
-      <span className="text-violet" aria-hidden>◆</span>
+      {status === "VAULT" ? <span className="text-amber" aria-hidden>✦</span> : <span className="text-violet" aria-hidden>◆</span>}
       <span className="truncate">{idea.title}</span>
     </>
   );
-  if (!live) return <p className={cx("flex items-center gap-1 text-[11px] text-ink-3", className)}>{label}</p>;
+  if (status !== "PROMOTED" && status !== "VAULT") return <p className={cx("flex items-center gap-1 text-[11px] text-ink-3", className)}>{label}</p>;
   return (
     <button
       type="button"
-      onClick={() => openProject(idea.id)}
+      title={status === "VAULT" ? "Raw idea" : "Project"}
+      onClick={() => (status === "VAULT" ? openIdea(idea.id) : openProject(idea.id))}
       className={cx("flex max-w-full items-center gap-1 text-left text-[11px] text-ink-3 transition-colors hover:text-ink", className)}
     >
       {label}
@@ -738,7 +739,7 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
   const [projectId, setProjectId] = useState(task.idea?.id ?? "");
   const [priority, setPriority] = useState(task.priority);
   const [visibility, setVisibility] = useState<Visibility>(task.visibility);
-  const projects = ideas.filter((i) => i.status === "PROMOTED" && !i.id.startsWith("tmp-"));
+  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !i.id.startsWith("tmp-"));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -808,9 +809,9 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
         </Field>
         <Field label="Project" htmlFor="task-project">
           <select id="task-project" value={projectId} onChange={(e) => setProjectId(e.target.value)} className={cx(inputCls, "h-10")}>
-            <option value="">No project</option>
+            <option value="">No project or idea</option>
             {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.title}</option>
+              <option key={p.id} value={p.id}>{p.status === "VAULT" ? `Idea: ${p.title}` : p.title}</option>
             ))}
           </select>
         </Field>
@@ -855,7 +856,7 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
     run(() => createSubtask({ teamId: team.id, taskId: task.id, title: t, assigneeIds: people }), {
       optimistic: () =>
         patchTask(task.id, {
-          subtasks: [...task.subtasks, { id: `tmp-${Date.now()}`, title: t, done: false, assigneeIds: people, completedAt: null }],
+          subtasks: [...task.subtasks, { id: `tmp-${Date.now()}`, title: t, description: null, done: false, assigneeIds: people, completedAt: null }],
         }),
     });
   };
@@ -885,8 +886,10 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
                 optimistic: () => patchSub(s.id, { done: !s.done, completedAt: s.done ? null : new Date().toISOString() }),
               })
             }
-            onRename={(title) =>
-              run(() => renameSubtask({ teamId: team.id, itemId: s.id, title }), { optimistic: () => patchSub(s.id, { title }) })
+            onUpdate={(patch) =>
+              run(() => updateSubtask({ teamId: team.id, itemId: s.id, ...patch }), {
+                optimistic: () => patchSub(s.id, { ...patch, ...(patch.description !== undefined && { description: patch.description || null }) }),
+              })
             }
             onAssign={(ids) =>
               run(() => setSubtaskAssignees({ teamId: team.id, itemId: s.id, userIds: ids }), { optimistic: () => patchSub(s.id, { assigneeIds: ids }) })
@@ -922,7 +925,7 @@ function SubtaskRow({
   canEdit,
   canToggle,
   onToggle,
-  onRename,
+  onUpdate,
   onAssign,
   onDelete,
 }: {
@@ -930,59 +933,100 @@ function SubtaskRow({
   canEdit: boolean;
   canToggle: boolean;
   onToggle: () => void;
-  onRename: (title: string) => void;
+  onUpdate: (patch: { title?: string; description?: string }) => void;
   onAssign: (ids: string[]) => void;
   onDelete: () => void;
 }) {
   const [title, setTitle] = useState(sub.title);
+  const [description, setDescription] = useState(sub.description ?? "");
+  const [open, setOpen] = useState(false);
   const temp = sub.id.startsWith("tmp-");
-  const commit = () => {
+  const commitTitle = () => {
     const t = title.trim();
     if (!t) return setTitle(sub.title);
-    if (t !== sub.title) onRename(t);
+    if (t !== sub.title) onUpdate({ title: t });
   };
+  const commitDescription = () => {
+    const d = description.trim();
+    if (d !== (sub.description ?? "")) onUpdate({ description: d });
+  };
+  const hasDetails = !!sub.description;
 
   return (
-    <li className="group flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-tint/[0.03]">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={sub.done}
-        aria-label={sub.done ? `Mark "${sub.title}" not done` : `Mark "${sub.title}" done`}
-        disabled={!canToggle}
-        onClick={onToggle}
-        className={cx(
-          "grid size-[18px] shrink-0 place-items-center rounded-md border transition-colors disabled:cursor-not-allowed",
-          sub.done ? "border-emerald bg-emerald text-bg" : "border-line-strong hover:border-ink-3",
-          !canToggle && "opacity-50",
-        )}
-      >
-        {sub.done && <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><path d="m2 5.2 2 2 4-4.4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-      </button>
-      {canEdit && !temp ? (
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), (e.target as HTMLInputElement).blur())}
-          maxLength={140}
-          aria-label="Subtask title"
-          className={cx("h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] outline-none focus:bg-surface-2", sub.done ? "text-ink-3 line-through" : "text-ink")}
-        />
-      ) : (
-        <span className={cx("min-w-0 flex-1 px-1.5 text-[14px]", sub.done ? "text-ink-3 line-through" : "text-ink")}>{sub.title}</span>
-      )}
-      {canEdit && !temp ? <AssigneesPicker value={sub.assigneeIds} onChange={onAssign} label="Subtask assignees" compact /> : sub.assigneeIds.length > 0 && <AvatarStack ids={sub.assigneeIds} size={18} />}
-      {canEdit && !temp && (
+    <li className="group rounded-lg px-1.5 py-1 transition-colors hover:bg-tint/[0.03]">
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onDelete}
-          aria-label={`Delete subtask "${sub.title}"`}
-          className="grid size-7 place-items-center rounded-md text-ink-3 opacity-60 transition-[opacity,color] hover:text-rose group-hover:opacity-100"
+          role="checkbox"
+          aria-checked={sub.done}
+          aria-label={sub.done ? `Mark "${sub.title}" not done` : `Mark "${sub.title}" done`}
+          disabled={!canToggle}
+          onClick={onToggle}
+          className={cx(
+            "grid size-[18px] shrink-0 place-items-center rounded-md border transition-colors disabled:cursor-not-allowed",
+            sub.done ? "border-emerald bg-emerald text-bg" : "border-line-strong hover:border-ink-3",
+            !canToggle && "opacity-50",
+          )}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="m3 3 6 6M9 3 3 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+          {sub.done && <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><path d="m2 5.2 2 2 4-4.4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
         </button>
+        {canEdit && !temp ? (
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), (e.target as HTMLInputElement).blur())}
+            maxLength={140}
+            aria-label="Subtask title"
+            className={cx("h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] outline-none focus:bg-surface-2", sub.done ? "text-ink-3 line-through" : "text-ink")}
+          />
+        ) : (
+          <span className={cx("min-w-0 flex-1 px-1.5 text-[14px]", sub.done ? "text-ink-3 line-through" : "text-ink")}>{sub.title}</span>
+        )}
+        {!temp && (canEdit || hasDetails) && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? "Hide description" : canEdit ? "Description" : "Show description"}
+            title="Description"
+            className={cx("grid size-7 place-items-center rounded-md transition-colors hover:text-ink", hasDetails ? "text-ink-2" : "text-ink-3 opacity-60 group-hover:opacity-100")}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2.5 3h7M2.5 6h7M2.5 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+          </button>
+        )}
+        {canEdit && !temp ? <AssigneesPicker value={sub.assigneeIds} onChange={onAssign} label="Subtask assignees" compact /> : sub.assigneeIds.length > 0 && <AvatarStack ids={sub.assigneeIds} size={18} />}
+        {canEdit && !temp && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete subtask "${sub.title}"`}
+            className="grid size-7 place-items-center rounded-md text-ink-3 opacity-60 transition-[opacity,color] hover:text-rose group-hover:opacity-100"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="m3 3 6 6M9 3 3 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="pb-1 pl-[30px] pr-1 pt-0.5">
+          {canEdit ? (
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={commitDescription}
+              maxLength={2000}
+              rows={2}
+              autoFocus={!hasDetails}
+              aria-label={`Description for "${sub.title}"`}
+              placeholder="Details for this step. Saved when you click away."
+              className={cx(inputCls, "resize-y py-2 text-[13px] leading-relaxed")}
+            />
+          ) : (
+            <p className="whitespace-pre-line text-[13px] leading-relaxed text-ink-2">{sub.description}</p>
+          )}
+        </div>
       )}
+      {!open && hasDetails && <p className="truncate pb-0.5 pl-[30px] text-[12px] text-ink-3">{sub.description}</p>}
     </li>
   );
 }

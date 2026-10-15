@@ -55,24 +55,27 @@ When something ships, it stays on the record with your `@username` on it.
 
 ### Ideas and projects
 
-- **Idea vault.** One shared list per team. Tag ideas `#feature`, `#bug`, `#experiment` or `#random`, spark the ones you like, and sort by most sparked or newest.
-- **Promote to a project.** Break an idea into up to twelve tasks at once, each with its people and a priority. Or start a project from scratch.
+- **Idea vault.** One shared list per team. Tag ideas, spark the ones you like, and sort by most sparked or newest.
+- **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour and delete tags. Renaming or deleting one updates every idea that uses it.
+- **Idea pages.** Open any raw idea to edit it and plan it with tasks and subtasks while it's still in the vault.
+- **Promote to a project.** One click moves an idea, with any tasks it already has, into Execution and opens its project page. Or start a project from scratch.
 - **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks.
 - **Archive and restore.** Archive ideas or projects to tidy up, and bring them back any time from team settings.
 
 ### Getting work done
 
 - **Execution board.** Kanban (`Backlog → Ready → In progress → Done`) or a compact list, filtered to *My tasks*, *All tasks*, unassigned, or any teammate.
-- **Rich tasks.** Every task has a title, a description, notes, a priority and a project, plus a checklist of **subtasks**.
+- **Rich tasks.** Every task has a title, a description, notes, a priority and a project, plus a checklist of **subtasks**, each with its own description.
 - **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
 - **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
-- **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task. It refreshes every 15 seconds while the tab is open.
+- **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task.
+- **Live everything.** Boards, tasks, subtasks, focus, ideas, sparks, tags, members, roles and the notification bell update on their own within a few seconds. See [Live updates](#live-updates).
 - **Shipped.** A timeline of everything finished and who finished it, with weekly and all-time counts.
 
 ### Teams
 
-- **Usernames.** Everyone picks a unique `@username` when they join, with a live availability check.
-- **Unlimited teams.** Create as many as you like and invite people by searching their `@username`. Invites arrive in a bell with one-click accept.
+- **Usernames and pictures.** Everyone picks a unique `@username` when they join, with a live availability check. Your Google or GitHub profile picture is used everywhere; initials only appear when you don't have one. Click your username in the header to copy it.
+- **Unlimited teams.** Create as many as you like and invite people by `@username`, either while creating the team or any time after. Invites arrive live in a bell with one-click accept.
 - **Team roles.** Owner, co-owners and plain members, plus **custom roles** you design permission by permission. See [Team roles](#team-roles).
 - **Team settings.** Rename the team, manage members and roles, hand over ownership, manage projects and the archive, clear shipped tasks, leave, or delete the team.
 - **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back.
@@ -93,12 +96,12 @@ When something ships, it stays on the record with your `@username` on it.
 
 1. **Sign up** with Google or GitHub, then choose your `@username` and colour.
 2. **Create a team** and invite people with **Invite teammates**, searching by `@username`.
-3. **Capture ideas** in the **Idea vault**. Add tags, and spark the ones you believe in.
-4. **Promote** a good idea into a project with tasks, or start a project from **Execution → New project**.
+3. **Capture ideas** in the **Idea vault**. Add tags, and spark the ones you believe in. Open an idea to plan it with tasks before committing to it.
+4. **Promote** a good idea with one click. It moves to Execution and opens its project page, ready for tasks. Or start a project from **Execution → New project**.
 5. **Plan the work.** Add tasks with the quick-add bar: pick who's on it and whether everyone or only assignees can see it. Open a task to write its description and notes and break it into subtasks.
 6. **Work the board.** Assignees press **Start working** so the team knows, tick subtasks as they go, and press **Mark done** when it ships.
 7. **Look back** in **Shipped** to see everything the team finished and who finished it.
-8. **Set up roles** in **Settings → Roles**: create custom roles and give them to members from the member list.
+8. **Set up roles and tags** in **Settings**: create custom roles and give them to members, and shape the team's tags.
 
 ## Roles and permissions
 
@@ -119,6 +122,7 @@ Permissions a custom role can grant:
 | --- | --- | --- |
 | Ideas | Capture ideas | Add ideas to the vault |
 | | Manage all ideas | Edit, archive and delete anyone's ideas |
+| | Manage tags | Add, rename, recolour and delete the team's tags |
 | Projects | Create projects | Start projects and promote ideas |
 | | Edit projects | Change any project's name and description |
 | | Archive projects | Archive and restore projects |
@@ -154,7 +158,7 @@ Idea and task text is encrypted in the application before it's written to Postgr
 | Encrypted (AES-256-GCM) | Stays plain, so Postgres can index, sort and filter |
 | --- | --- |
 | Idea and project titles and descriptions | Tags, sparks, statuses, priorities, visibility |
-| Task titles, descriptions and notes; subtask titles | Team, author and assignee ids, roles, timestamps |
+| Task titles, descriptions and notes; subtask titles and descriptions | Team, author and assignee ids, roles, timestamps |
 
 - **One key per team.** Each team's key is derived with HKDF-SHA256 from the master `ENCRYPTION_KEY` and the team id. A key for one team can't decrypt another team's rows.
 - **Fresh IV on every write.** Values are stored as `enc:v1:<iv>:<authTag>:<ciphertext>` with a random 12-byte IV, so identical text never looks the same twice. The GCM auth tag rejects any altered or moved ciphertext.
@@ -184,15 +188,26 @@ flowchart LR
 | **Team permissions and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered in the database query, so they never reach people who can't see them, and acting on one behaves exactly as if it didn't exist. | `lib/team-permissions.ts`, `lib/task-visibility.ts` |
 | **Anti-IDOR** | Every update and delete is scoped with `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. | `app/actions/*` |
 | **Site roles and suspensions** | Staff permissions are re-read from the database on every admin action. Suspended accounts are blocked from every page, action and API route, and banned in Clerk too. Non-staff get a 404 for `/admin`. | `lib/site-roles.ts`, `app/actions/admin.ts` |
-| **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 20/min for writes. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
+| **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 40/min for writes, 90/min for the live change-check. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
 | **CSRF and origin checks** | Every server action verifies `Origin` against `Host`. Read endpoints reject cross-site `Sec-Fetch-Site`. | `lib/action.ts`, `lib/api.ts` |
 | **Strict validation** | Zod `.strict()` schemas on every input. Control characters, bidi overrides and HTML are stripped. Parameterised queries only. 64 KB action body limit. | `lib/validations.ts` |
 | **Hardened headers** | Per-request nonce CSP with `strict-dynamic`, `object-src 'none'` and `frame-ancestors 'none'`; HSTS preload; `X-Frame-Options: DENY`; `nosniff`; strict referrer and permissions policies. | `proxy.ts`, `next.config.ts` |
 | **Typed confirmations** | Destructive actions check the typed project, team or username on the server, not only in the UI. | `app/actions/*` |
+| **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser, and only `img.clerk.com` images are allowed by the CSP. | `app/actions/onboarding.ts`, `proxy.ts` |
 | **Safe errors** | Errors are logged server-side and mapped to generic messages. Stack traces and database codes never reach the browser. | `lib/action.ts` |
 | **Audit log** | Team, membership and staff actions are recorded with the actor and IP. Entries hold ids and action names, never content. | `lib/action.ts`, `/admin/audit` |
 
 Found a vulnerability? Please email **support@raqameen.com** instead of opening a public issue.
+
+### Live updates
+
+Blueprint stays live without WebSockets or a third-party realtime service:
+
+1. Every change stamps `activityAt` on the team (or `inboxAt` on the person it notifies).
+2. While a tab is visible it asks `GET /api/pulse` every 4 seconds for those two timestamps. That is one indexed query and well under a kilobyte.
+3. Only when a timestamp moves does the tab re-fetch the page data. Your own actions update instantly.
+
+Hidden tabs stop polling and check again the moment they're shown, and the endpoint has its own per-user rate limit so a few open tabs never crowd out the rest of the app.
 
 ## Tech stack
 
@@ -347,7 +362,8 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 ```text
 app/
   page.tsx                 landing page and product tour
-  actions/                 server actions: ideas, tasks, teams, admin, account
+  actions/                 server actions: ideas, tasks, tags, teams, admin, account
+  api/pulse/               the live change-check
   admin/                   staff panel: overview, accounts, teams, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
   onboarding/ suspended/   username setup, suspended-account page
@@ -357,6 +373,7 @@ components/
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
   crypto.ts                per-team AES-256-GCM field encryption
+  activity.ts              change stamps for live updates (see /api/pulse)
   auth.ts site-roles.ts    sessions, suspensions, site staff permissions
   team-permissions.ts      team roles, custom role permissions, task rules
   team-access.ts           per-action team membership and permission checks

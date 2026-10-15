@@ -27,7 +27,7 @@ export const getViewer = cache(async (): Promise<User | null> => {
   const displayName = [cu.firstName, cu.lastName].filter(Boolean).join(" ").slice(0, 80) || null;
 
   try {
-    return await db.user.create({ data: { clerkId, email, displayName } });
+    return await db.user.create({ data: { clerkId, email, displayName, imageUrl: cu.hasImage ? cu.imageUrl : null } });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       // Same request raced us, or the Clerk user was re-created with a

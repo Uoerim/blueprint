@@ -17,7 +17,7 @@ import { stopFocus } from "@/app/actions/tasks";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { ActionResult } from "@/lib/action-types";
 import type { TeamPermission } from "@/lib/team-permissions";
-import type { IdeaDTO, MemberDTO, OutgoingInvite, TaskDTO, Viewer } from "@/lib/types";
+import type { IdeaDTO, MemberDTO, OutgoingInvite, TagDTO, TaskDTO, Viewer } from "@/lib/types";
 import { ExecutionView } from "./execution-view";
 import { InviteDialog } from "./invite-dialog";
 import { ShippedView } from "./shipped-view";
@@ -46,6 +46,9 @@ type Ctx = {
   removeIdea: (id: string) => void;
   /** Open one project's page inside Execution (null = back to the list). */
   openProject: (id: string | null) => void;
+  /** Open one raw idea's page inside the vault (null = back to the vault). */
+  openIdea: (id: string | null) => void;
+  tags: TagDTO[];
 };
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -63,13 +66,15 @@ const VIEWS: { id: View; label: string }[] = [
 ];
 const isView = (v: string | undefined): v is View => v === "vault" || v === "board" || v === "shipped";
 
-/** Mirror the open view/project in the address bar so a project page can be shared or reloaded. */
-function syncUrl(view: View, project: string | null) {
+/** Mirror the open view, project or idea in the address bar so a page can be shared or reloaded. */
+function syncUrl(view: View, open: string | null) {
   const url = new URL(window.location.href);
   url.searchParams.delete("view");
   url.searchParams.delete("project");
+  url.searchParams.delete("idea");
   if (view !== "vault") url.searchParams.set("view", view);
-  if (view === "board" && project) url.searchParams.set("project", project);
+  if (view === "board" && open) url.searchParams.set("project", open);
+  if (view === "vault" && open) url.searchParams.set("idea", open);
   window.history.replaceState(null, "", url);
 }
 
@@ -82,8 +87,10 @@ export function Workspace(props: {
   ideas: IdeaDTO[];
   tasks: TaskDTO[];
   invites: OutgoingInvite[];
+  tags: TagDTO[];
   initialView?: string;
   initialProject?: string;
+  initialIdea?: string;
   initialInvite?: boolean;
 }) {
   const router = useRouter();
@@ -91,15 +98,25 @@ export function Workspace(props: {
     props.initialProject ? "board" : isView(props.initialView) ? props.initialView : "vault",
   );
   const [project, setProject] = useState<string | null>(props.initialProject ?? null);
+  const [idea, setIdea] = useState<string | null>(props.initialProject ? null : (props.initialIdea ?? null));
   const setView = (v: View) => {
     setViewState(v);
     setProject(null);
+    setIdea(null);
     syncUrl(v, null);
   };
   const openProject = (id: string | null) => {
     setViewState("board");
     setProject(id);
+    setIdea(null);
     syncUrl("board", id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const openIdea = (id: string | null) => {
+    setViewState("vault");
+    setIdea(id);
+    setProject(null);
+    syncUrl("vault", id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const [inviteOpen, setInviteOpen] = useState(!!props.initialInvite);
@@ -111,7 +128,7 @@ export function Workspace(props: {
     window.history.replaceState(null, "", url);
   }, [props.initialInvite]);
   const [toast, setToast] = useState<{ id: number; text: string; tone: "ok" | "error" } | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const [tasks, applyTask] = useOptimistic(props.tasks, (state: TaskDTO[], op: TaskOp) => {
     if (op.type === "add") return [op.task, ...state];
@@ -146,6 +163,8 @@ export function Workspace(props: {
     tasks,
     ideas,
     openProject,
+    openIdea,
+    tags: props.tags,
     run: (fn, opts) =>
       startTransition(async () => {
         opts?.optimistic?.();
@@ -164,18 +183,7 @@ export function Workspace(props: {
     removeIdea: (id) => applyIdea({ type: "remove", id }),
   };
 
-  // "Live" focus: refresh server state every 15s while the tab is visible.
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible" && !pending) router.refresh();
-    }, 15_000);
-    const onVis = () => document.visibilityState === "visible" && router.refresh();
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [router, pending]);
+  // Live updates come from <LivePulse /> in the dashboard layout.
 
   return (
     <WorkspaceContext value={ctx}>
@@ -196,7 +204,7 @@ export function Workspace(props: {
               aria-label={`${props.members.length} members — manage`}
             >
               {props.members.slice(0, 5).map((m) => (
-                <Monogram key={m.userId} name={m.username} color={m.accentColor} size={26} className="ring-2 ring-bg" />
+                <Monogram key={m.userId} name={m.username} color={m.accentColor} src={m.imageUrl} size={26} className="ring-2 ring-bg" />
               ))}
               {props.members.length > 5 && (
                 <span className="grid size-[26px] place-items-center rounded-[28%] bg-surface-3 text-[11px] text-ink-2 ring-2 ring-bg">
@@ -256,7 +264,7 @@ export function Workspace(props: {
         </div>
 
         <div className="pt-6">
-          {view === "vault" && <VaultView onOpenProject={openProject} />}
+          {view === "vault" && <VaultView ideaId={idea} />}
           {view === "board" && <ExecutionView projectId={project} />}
           {view === "shipped" && <ShippedView />}
         </div>
@@ -347,7 +355,7 @@ function FocusDock() {
                   style={{ backgroundColor: `${m.accentColor}12`, boxShadow: `inset 0 0 0 1px ${m.accentColor}40, 0 0 28px -10px ${m.accentColor}` }}
                 >
                   <span className="relative">
-                    <Monogram name={m.username} color={m.accentColor} size={30} />
+                    <Monogram name={m.username} color={m.accentColor} src={m.imageUrl} size={30} />
                     <span className="absolute -right-0.5 -top-0.5 flex size-2" style={{ color: readable(m.accentColor) }}>
                       <span className="pulse-ring relative size-2 rounded-full" style={{ backgroundColor: m.accentColor }} />
                     </span>

@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { audit, runAction } from "@/lib/action";
+import { inboxChanged, teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
+import { DEFAULT_TAGS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { assertCan, requireTeamAccess, type TeamAccess } from "@/lib/team-access";
 import { permissionsFor } from "@/lib/team-permissions";
@@ -27,8 +29,8 @@ const isUniqueViolation = (e: unknown) =>
 
 const MAX_ROLES = 20;
 
-const done = () => {
-  revalidatePath("/dashboard", "layout");
+const done = async (teamId: string) => {
+  await teamChanged(teamId);
   return null;
 };
 
@@ -64,6 +66,23 @@ function assertWithinPower(access: TeamAccess, permissions: readonly string[]) {
   }
 }
 
+/** Invites chosen while creating a team: only real, active accounts, never yourself. */
+async function inviteOnCreate(ownerId: string, teamId: string, inviteeIds: string[]) {
+  const ids = inviteeIds.filter((id) => id !== ownerId);
+  if (!ids.length) return 0;
+  const people = await db.user.findMany({
+    where: { id: { in: ids }, onboarded: true, bannedAt: null, deletedAt: null },
+    select: { id: true },
+  });
+  if (!people.length) return 0;
+  await db.teamInvite.createMany({
+    data: people.map((p) => ({ teamId, inviterId: ownerId, inviteeId: p.id })),
+    skipDuplicates: true,
+  });
+  await inboxChanged(people.map((p) => p.id));
+  return people.length;
+}
+
 export async function createTeam(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = createTeamSchema.parse(input);
@@ -81,12 +100,14 @@ export async function createTeam(input: unknown) {
             description: data.description,
             createdById: ctx.user.id,
             members: { create: { userId: ctx.user.id, role: "OWNER" } },
+            tags: { create: DEFAULT_TAGS.map((t) => ({ name: t.name, color: t.color })) },
           },
           select: { id: true, slug: true },
         });
         await audit(ctx, { teamId: team.id, action: "team.created", entityType: "Team", entityId: team.id });
+        const invited = await inviteOnCreate(ctx.user.id, team.id, data.inviteeIds);
         revalidatePath("/dashboard", "layout");
-        return { slug: team.slug };
+        return { slug: team.slug, invited };
       } catch (e) {
         if (!isUniqueViolation(e)) throw e;
       }
@@ -123,7 +144,8 @@ export async function sendInvite(input: unknown) {
       if (isUniqueViolation(e)) throw new ActionError(`@${invitee.username} already has a pending invite.`);
       throw e;
     }
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
+    await inboxChanged([inviteeId]);
     return { username: invitee.username };
   });
 }
@@ -132,6 +154,7 @@ export async function cancelInvite(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
+    const invite = await db.teamInvite.findFirst({ where: { id: itemId, teamId }, select: { inviteeId: true } });
     const { count } = await db.teamInvite.deleteMany({
       where: {
         id: itemId,
@@ -142,7 +165,8 @@ export async function cancelInvite(input: unknown) {
     });
     if (!count) throw new ActionError("Invite not found.");
     await audit(ctx, { teamId, action: "invite.cancelled", entityType: "TeamInvite", entityId: itemId });
-    return done();
+    if (invite) await inboxChanged([invite.inviteeId]);
+    return done(teamId);
   });
 }
 
@@ -180,7 +204,8 @@ export async function respondInvite(input: unknown) {
       entityType: "TeamInvite",
       entityId: invite.id,
     });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(invite.teamId);
+    await inboxChanged([ctx.user.id]);
     return { slug: accept ? invite.team.slug : null };
   });
 }
@@ -199,7 +224,7 @@ export async function removeMember(input: unknown) {
     }
     await db.$transaction([...unassignAll(teamId, userId), db.teamMember.delete({ where: { id: target.id } })]);
     await audit(ctx, { teamId, action: "member.removed", entityType: "TeamMember", entityId: target.id });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -213,7 +238,7 @@ export async function setMemberRole(input: unknown) {
     if (target.role === "OWNER") throw new ActionError("Transfer ownership instead.");
     await db.teamMember.update({ where: { id: target.id }, data: { role, customRoleId: null } });
     await audit(ctx, { teamId, action: `member.role.${role}`, entityType: "TeamMember", entityId: target.id });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -233,7 +258,7 @@ export async function setMemberCustomRole(input: unknown) {
     }
     await db.teamMember.update({ where: { id: target.id }, data: { customRoleId: roleId } });
     await audit(ctx, { teamId, action: "member.custom_role", entityType: "TeamMember", entityId: target.id });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -249,7 +274,7 @@ export async function createTeamRole(input: unknown) {
     try {
       const role = await db.teamRole.create({ data: { teamId, name, color, permissions }, select: { id: true } });
       await audit(ctx, { teamId, action: "role.created", entityType: "TeamRole", entityId: role.id });
-      revalidatePath("/dashboard", "layout");
+      await teamChanged(teamId);
       return { id: role.id };
     } catch (e) {
       if (isUniqueViolation(e)) throw new ActionError(`There's already a role called "${name}".`);
@@ -270,7 +295,7 @@ export async function updateTeamRole(input: unknown) {
       throw e;
     }
     await audit(ctx, { teamId, action: "role.updated", entityType: "TeamRole", entityId: itemId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -282,7 +307,7 @@ export async function deleteTeamRole(input: unknown) {
     const { count } = await db.teamRole.deleteMany({ where: { id: itemId, teamId } });
     if (!count) throw new ActionError("Role not found.");
     await audit(ctx, { teamId, action: "role.deleted", entityType: "TeamRole", entityId: itemId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -294,7 +319,7 @@ export async function updateTeam(input: unknown) {
     await requireTeamAccess(teamId, ctx.user.id, "team.edit");
     await db.team.update({ where: { id: teamId }, data: { name, description } });
     await audit(ctx, { teamId, action: "team.updated", entityType: "Team", entityId: teamId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -311,7 +336,7 @@ export async function transferOwnership(input: unknown) {
       db.team.update({ where: { id: teamId }, data: { createdById: userId } }),
     ]);
     await audit(ctx, { teamId, action: "team.ownership.transferred", entityType: "TeamMember", entityId: target.id });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -322,7 +347,7 @@ export async function leaveTeam(input: unknown) {
     if (access.role === "OWNER") throw new ActionError("Hand ownership to someone else first, or delete the team.");
     await db.$transaction([...unassignAll(teamId, access.userId), db.teamMember.delete({ where: { id: access.memberId } })]);
     await audit(ctx, { teamId, action: "member.left", entityType: "TeamMember", entityId: access.memberId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -334,7 +359,7 @@ export async function deleteTeam(input: unknown) {
     // Members, invites, roles, ideas, tasks and subtasks cascade with the team.
     await db.team.delete({ where: { id: teamId } });
     await audit(ctx, { teamId: null, action: "team.deleted", entityType: "Team", entityId: teamId });
-    return done();
+    return done(teamId);
   });
 }
 
@@ -346,7 +371,7 @@ export async function clearShipped(input: unknown) {
     await assertTeamName(teamId, confirm);
     const { count } = await db.task.deleteMany({ where: { teamId, status: "DONE" } });
     await audit(ctx, { teamId, action: "team.shipped.cleared", entityType: "Team", entityId: teamId });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return { count };
   });
 }
@@ -364,7 +389,7 @@ export async function emptyArchive(input: unknown) {
       where: { teamId, status: "ARCHIVED", ...(!access.can("projects.delete") && { tasks: { none: {} } }) },
     });
     await audit(ctx, { teamId, action: "team.archive.emptied", entityType: "Team", entityId: teamId });
-    revalidatePath("/dashboard", "layout");
+    await teamChanged(teamId);
     return { count };
   });
 }

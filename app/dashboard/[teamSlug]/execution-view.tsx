@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { archiveIdea, createProject, deleteIdea, updateProject } from "@/app/actions/ideas";
+import { archiveIdea, createProject, deleteIdea, updateIdea } from "@/app/actions/ideas";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
@@ -72,14 +72,14 @@ function ProjectList() {
   const { ideas, tasks, openProject, member, can } = useWorkspace();
   const [creating, setCreating] = useState(false);
   const projects = ideas.filter((i) => i.status === "PROMOTED");
-  const loose = tasks.filter((t) => !t.idea || !projects.some((p) => p.id === t.idea!.id)).filter((t) => t.status !== "DONE").length;
+  const loose = tasks.filter((t) => !t.idea && t.status !== "DONE").length;
 
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-[14px] text-ink-2">
           {projects.length ? `${projects.length} project${projects.length > 1 ? "s" : ""} in execution` : "No projects yet"}
-          {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} outside a project</span>}
+          {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} with no project or idea</span>}
         </p>
         {can("projects.create") && (
           <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
@@ -131,7 +131,7 @@ function ProjectList() {
                       <span className="ml-auto flex -space-x-1.5">
                         {s.people.slice(0, 4).map((id) => {
                           const m = member(id);
-                          return m ? <Monogram key={id} name={m.username} color={m.accentColor} size={22} className="ring-2 ring-surface" /> : null;
+                          return m ? <Monogram key={id} name={m.username} color={m.accentColor} src={m.imageUrl} size={22} className="ring-2 ring-surface" /> : null;
                         })}
                       </span>
                     </span>
@@ -305,7 +305,7 @@ function ProjectPeople({ projectId, people }: { projectId: string; people: strin
             const working = own.find((t) => t.status === "IN_PROGRESS" && t.focus.some((f) => f.userId === id));
             return (
               <li key={id} className="flex items-center gap-3 rounded-xl px-2 py-1.5">
-                <Monogram name={m.username} color={m.accentColor} size={26} />
+                <Monogram name={m.username} color={m.accentColor} src={m.imageUrl} size={26} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-mono text-[12px]" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
                   <span className="block truncate text-[12px] text-ink-3">
@@ -351,7 +351,7 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
     if (!t) return;
     onClose();
     if (project) {
-      run(() => updateProject({ teamId: team.id, itemId: project.id, title: t, description: d }), {
+      run(() => updateIdea({ teamId: team.id, itemId: project.id, title: t, description: d }), {
         optimistic: () => patchIdea(project.id, { title: t, description: d || null }),
         success: "Project saved.",
       });

@@ -1,11 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { completeOnboarding } from "@/app/actions/onboarding";
 import { btn, cx, Monogram } from "@/components/ui/primitives";
-import { ACCENTS } from "@/lib/constants";
+import { accentFor } from "@/lib/constants";
 
 type Check =
   | { state: "idle" }
@@ -19,7 +20,10 @@ const normalize = (v: string) => v.toLowerCase().replace(/^@/, "").replace(/[^a-
 export function OnboardingForm({ suggestion }: { suggestion: string }) {
   const router = useRouter();
   const [username, setUsername] = useState(suggestion);
-  const [accent, setAccent] = useState<string>(ACCENTS[0].hex);
+  const { user } = useUser();
+  // Your profile picture if you uploaded one; otherwise initials in a colour picked from your username.
+  const avatar = user?.hasImage ? user.imageUrl : null;
+  const accent = accentFor(username || "you");
   // Results are keyed by the username they answer, so a stale reply never shows.
   const [result, setResult] = useState<{ for: string; check: Check } | null>(null);
   const check: Check =
@@ -62,7 +66,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
     e.preventDefault();
     setError(null);
     start(async () => {
-      const res = await completeOnboarding({ username, accentColor: accent });
+      const res = await completeOnboarding({ username });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -72,7 +76,6 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
     });
   };
 
-  const accentName = ACCENTS.find((a) => a.hex === accent)?.name;
   const canSubmit = check.state === "available" && !pending;
 
   return (
@@ -84,8 +87,8 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
       className="glass-solid w-full max-w-[440px] rounded-2xl border border-line-strong p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] sm:p-8"
     >
       <div className="flex items-center gap-3">
-        <motion.div key={accent + username.slice(0, 2)} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 25 }}>
-          <Monogram name={username || "you"} color={accent} size={44} />
+        <motion.div key={avatar ?? username.slice(0, 2)} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 25 }}>
+          <Monogram name={username || "you"} color={accent} src={avatar} size={44} />
         </motion.div>
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Choose your username</h1>
@@ -137,27 +140,6 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
         </AnimatePresence>
       </div>
 
-      <fieldset className="mt-6">
-        <legend className="text-sm font-medium text-ink">Signature colour</legend>
-        <div className="mt-3 flex flex-wrap gap-2.5" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map((a) => (
-            <button
-              key={a.hex}
-              type="button"
-              role="radio"
-              aria-checked={accent === a.hex}
-              aria-label={a.name}
-              title={a.name}
-              onClick={() => setAccent(a.hex)}
-              className="grid size-9 place-items-center rounded-[30%] transition-transform hover:scale-110 active:scale-95"
-              style={{ boxShadow: accent === a.hex ? `0 0 0 2px var(--bg), 0 0 0 4px ${a.hex}` : undefined }}
-            >
-              <span className="size-6 rounded-[28%]" style={{ backgroundColor: a.hex }} />
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-[13px] text-ink-3">{accentName}</p>
-      </fieldset>
 
       {error && (
         <p role="alert" className="mt-5 rounded-lg bg-rose/10 px-3 py-2 text-sm text-rose">

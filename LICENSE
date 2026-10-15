@@ -1,3 +1,6 @@
+Blueprint
+SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 Copyright (c) 2026 Yosuf Mohamed Ali Ibrahim (Raqameen)
 
 Required Notice: Copyright (c) 2026 Yosuf Mohamed Ali Ibrahim (Raqameen) (https://github.com/Uoerim/blueprint)
@@ -25,130 +28,187 @@ or email support@raqameen.com.
 
 Third-party dependencies remain under their own licenses.
 
---------------------------------------------------------------------------------
+==============================================================================
 
-# PolyForm Noncommercial License 1.0.0
+PolyForm Noncommercial License 1.0.0
+====================================
 
-<https://polyformproject.org/licenses/noncommercial/1.0.0>
+https://polyformproject.org/licenses/noncommercial/1.0.0
 
-## Acceptance
+Acceptance
+----------
 
-In order to get any license under these terms, you must agree to them as both strict obligations and conditions to all your licenses.
+In order to get any license under these terms, you must agree to them as both
+strict obligations and conditions to all your licenses.
 
-## Copyright License
+Copyright License
+-----------------
 
-The licensor grants you a copyright license for the software to do everything you might do with the software that would otherwise infringe the licensor's copyright in it for any permitted purpose.  However, you may only distribute the software according to [Distribution License](#distribution-license) and make changes or new works based on the software according to [Changes and New Works License](#changes-and-new-works-license).
+The licensor grants you a copyright license for the software to do everything
+you might do with the software that would otherwise infringe the licensor's
+copyright in it for any permitted purpose.  However, you may only distribute
+the software according to Distribution License and make changes or new works
+based on the software according to Changes and New Works License.
 
-## Distribution License
+Distribution License
+--------------------
 
-The licensor grants you an additional copyright license to distribute copies of the software.  Your license to distribute covers distributing the software with changes and new works permitted by [Changes and New Works License](#changes-and-new-works-license).
+The licensor grants you an additional copyright license to distribute copies
+of the software.  Your license to distribute covers distributing the software
+with changes and new works permitted by Changes and New Works License.
 
-## Notices
+Notices
+-------
 
-You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms or the URL for them above, as well as copies of any plain-text lines beginning with `Required Notice:` that the licensor provided with the software.  For example:
+You must ensure that anyone who gets a copy of any part of the software from
+you also gets a copy of these terms or the URL for them above, as well as
+copies of any plain-text lines beginning with "Required Notice:" that the
+licensor provided with the software.  For example:
 
-> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+    Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
 
-## Changes and New Works License
+Changes and New Works License
+-----------------------------
 
-The licensor grants you an additional copyright license to make changes and new works based on the software for any permitted purpose.
+The licensor grants you an additional copyright license to make changes and
+new works based on the software for any permitted purpose.
 
-## Patent License
+Patent License
+--------------
 
-The licensor grants you a patent license for the software that covers patent claims the licensor can license, or becomes able to license, that you would infringe by using the software.
+The licensor grants you a patent license for the software that covers patent
+claims the licensor can license, or becomes able to license, that you would
+infringe by using the software.
 
-## Noncommercial Purposes
+Noncommercial Purposes
+----------------------
 
 Any noncommercial purpose is a permitted purpose.
 
-## Personal Uses
+Personal Uses
+-------------
 
-Personal use for research, experiment, and testing for the benefit of public knowledge, personal study, private entertainment, hobby projects, amateur pursuits, or religious observance, without any anticipated commercial application, is use for a permitted purpose.
+Personal use for research, experiment, and testing for the benefit of public
+knowledge, personal study, private entertainment, hobby projects, amateur
+pursuits, or religious observance, without any anticipated commercial
+application, is use for a permitted purpose.
 
-## Noncommercial Organizations
+Noncommercial Organizations
+---------------------------
 
-Use by any charitable organization, educational institution, public research organization, public safety or health organization, environmental protection organization, or government institution is use for a permitted purpose regardless of the source of funding or obligations resulting from the funding.
+Use by any charitable organization, educational institution, public research
+organization, public safety or health organization, environmental protection
+organization, or government institution is use for a permitted purpose
+regardless of the source of funding or obligations resulting from the funding.
 
-## Fair Use
+Fair Use
+--------
 
-You may have "fair use" rights for the software under the law. These terms do not limit them.
+You may have "fair use" rights for the software under the law. These terms do
+not limit them.
 
-## No Other Rights
+No Other Rights
+---------------
 
-These terms do not allow you to sublicense or transfer any of your licenses to anyone else, or prevent the licensor from granting licenses to anyone else.  These terms do not imply any other licenses.
+These terms do not allow you to sublicense or transfer any of your licenses to
+anyone else, or prevent the licensor from granting licenses to anyone else.
+These terms do not imply any other licenses.
 
-## Patent Defense
+Patent Defense
+--------------
 
-If you make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
+If you make any written claim that the software infringes or contributes to
+infringement of any patent, your patent license for the software granted under
+these terms ends immediately. If your company makes such a claim, your patent
+license ends immediately for work on behalf of your company.
 
-## Violations
+Violations
+----------
 
-The first time you are notified in writing that you have violated any of these terms, or done anything with the software not covered by your licenses, your licenses can nonetheless continue if you come into full compliance with these terms, and take practical steps to correct past violations, within 32 days of receiving notice.  Otherwise, all your licenses end immediately.
+The first time you are notified in writing that you have violated any of these
+terms, or done anything with the software not covered by your licenses, your
+licenses can nonetheless continue if you come into full compliance with these
+terms, and take practical steps to correct past violations, within 32 days of
+receiving notice.  Otherwise, all your licenses end immediately.
 
-## No Liability
+No Liability
+------------
 
-***As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.***
+As far as the law allows, the software comes as is, without any warranty or
+condition, and the licensor will not be liable to you for any damages arising
+out of these terms or the use or nature of the software, under any kind of
+legal claim.
 
-## Definitions
+Definitions
+-----------
 
-The **licensor** is the individual or entity offering these terms, and the **software** is the software the licensor makes available under these terms.
+The licensor is the individual or entity offering these terms, and the
+software is the software the licensor makes available under these terms.
 
-**You** refers to the individual or entity agreeing to these terms.
+You refers to the individual or entity agreeing to these terms.
 
-**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization.  **Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
+Your company is any legal entity, sole proprietorship, or other kind of
+organization that you work for, plus all organizations that have control over,
+are under the control of, or are under common control with that organization.
+Control means ownership of substantially all the assets of an entity, or the
+power to direct its management and policies by vote, contract, or otherwise.
+Control can be direct or indirect.
 
-**Your licenses** are all the licenses granted to you for the software under these terms.
+Your licenses are all the licenses granted to you for the software under these
+terms.
 
-**Use** means anything you do with the software requiring one of your licenses.
+Use means anything you do with the software requiring one of your licenses.
 
---------------------------------------------------------------------------------
+==============================================================================
 
-# Appendix: Inbound Contributor License Grant
+Appendix: Inbound Contributor License Grant
+===========================================
 
 This appendix is a separate agreement between each contributor and the
 licensor. It is not part of the PolyForm Noncommercial License 1.0.0 and does
 not change the terms on which anyone else receives the software.
 
-1. **Who and what.** "Owner" means Yosuf Mohamed Ali Ibrahim (Raqameen), the
+1. Who and what. "Owner" means Yosuf Mohamed Ali Ibrahim (Raqameen), the
    licensor of Blueprint, and any successor to the project. "Contribution"
    means any code, documentation, design, or other material that you
    intentionally submit to the Blueprint project, including through a pull
-   request, patch, issue, or suggested change, at https://github.com/Uoerim/blueprint
-   or any other official Blueprint channel.
+   request, patch, issue, or suggested change, at
+   https://github.com/Uoerim/blueprint or any other official Blueprint
+   channel.
 
-2. **Acceptance.** By submitting a Contribution, you agree to this grant for
-   that Contribution. No separate signature is required.
+2. Acceptance. By submitting a Contribution, you agree to this grant for that
+   Contribution. No separate signature is required.
 
-3. **Copyright grant.** You grant the Owner a perpetual, worldwide,
-   non-exclusive, royalty-free, irrevocable license to use, reproduce, modify,
-   prepare derivative works of, publicly display, publicly perform,
-   distribute, sublicense, and relicense your Contribution and derivative
-   works of it, for both commercial and noncommercial purposes. This
-   includes, without limitation, the right to use your Contribution in the
-   official hosted instance at blueprint.raqameen.com and other official
-   Raqameen domains, including where that instance is monetized through paid
-   tiers, paid ad removal, or advertising, and the right to release the
-   project under different license terms in the future.
+3. Copyright grant. You grant the Owner a perpetual, worldwide, non-exclusive,
+   royalty-free, irrevocable license to use, reproduce, modify, prepare
+   derivative works of, publicly display, publicly perform, distribute,
+   sublicense, and relicense your Contribution and derivative works of it, for
+   both commercial and noncommercial purposes. This includes, without
+   limitation, the right to use your Contribution in the official hosted
+   instance at blueprint.raqameen.com and other official Raqameen domains,
+   including where that instance is monetized through paid tiers, paid ad
+   removal, or advertising, and the right to release the project under
+   different license terms in the future.
 
-4. **Patent grant.** You grant the Owner a perpetual, worldwide,
-   non-exclusive, royalty-free, irrevocable patent license to make, have made,
-   use, sell, offer to sell, import, and otherwise transfer your Contribution,
-   for patent claims you can license that are necessarily infringed by your
-   Contribution alone or by its combination with the project.
+4. Patent grant. You grant the Owner a perpetual, worldwide, non-exclusive,
+   royalty-free, irrevocable patent license to make, have made, use, sell,
+   offer to sell, import, and otherwise transfer your Contribution, for patent
+   claims you can license that are necessarily infringed by your Contribution
+   alone or by its combination with the project.
 
-5. **Your rights.** You keep the copyright in your Contribution, and you may
-   use it in any other way you like. The Owner is not required to use your
+5. Your rights. You keep the copyright in your Contribution, and you may use
+   it in any other way you like. The Owner is not required to use your
    Contribution, and you are not owed payment for it.
 
-6. **Your promises.** You confirm that the Contribution is your original
-   work, or that you otherwise have the right to submit it under this grant,
-   and that, if your employer or anyone else has rights in it, you have their
-   permission to make this grant. If any part comes from a third party, you
-   will identify it and its license in your submission.
+6. Your promises. You confirm that the Contribution is your original work, or
+   that you otherwise have the right to submit it under this grant, and that,
+   if your employer or anyone else has rights in it, you have their permission
+   to make this grant. If any part comes from a third party, you will identify
+   it and its license in your submission.
 
-7. **Outbound license.** The Owner will make Contributions accepted into the
+7. Outbound license. The Owner will make Contributions accepted into the
    public repository available under the license that applies to the
    repository at the time, currently the PolyForm Noncommercial License 1.0.0.
 
-8. **No warranty.** Unless required by law, you provide your Contribution
-   "as is", without warranties or conditions of any kind.
+8. No warranty. Unless required by law, you provide your Contribution "as is",
+   without warranties or conditions of any kind.

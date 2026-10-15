@@ -9,9 +9,11 @@ const PROTECTED_PAGES = /^\/(dashboard|onboarding|admin)(\/|$)/;
 
 export default clerkMiddleware(
   async (auth, req) => {
-    // Tier 1: global sliding window per IP, before any auth work.
+    // Tier 1: global sliding window per IP, before any auth work. The live
+    // change-check (/api/pulse) has its own per-user tier instead, so a few open
+    // tabs can't starve the rest of the app.
     const ip = getClientIp(req.headers);
-    const rl = await rateLimitRequest("global", ip);
+    const rl = await rateLimitRequest(req.nextUrl.pathname === "/api/pulse" ? "pulse" : "global", ip);
     if (!rl.success) {
       return new NextResponse("Too Many Requests", {
         status: 429,

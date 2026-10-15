@@ -17,6 +17,7 @@ export type TeamRole = "OWNER" | "CO_OWNER" | "MEMBER";
 export const GRANTABLE = [
   "ideas.create",
   "ideas.manage",
+  "tags.manage",
   "projects.create",
   "projects.edit",
   "projects.archive",
@@ -43,6 +44,7 @@ export type TeamPermission = Grantable | Reserved;
 export const PERMISSION_INFO: Record<Grantable, { label: string; note: string; group: string }> = {
   "ideas.create": { group: "Ideas", label: "Capture ideas", note: "Add ideas to the vault." },
   "ideas.manage": { group: "Ideas", label: "Manage all ideas", note: "Edit, archive and delete anyone's ideas." },
+  "tags.manage": { group: "Ideas", label: "Manage tags", note: "Add, rename, recolour and delete the team's tags." },
   "projects.create": { group: "Projects", label: "Create projects", note: "Start projects and promote ideas into them." },
   "projects.edit": { group: "Projects", label: "Edit projects", note: "Change any project's name and description." },
   "projects.archive": { group: "Projects", label: "Archive projects", note: "Archive and restore projects." },
@@ -78,6 +80,8 @@ export const ROLE_NAME: Record<TeamRole, string> = { OWNER: "Owner", CO_OWNER: "
 
 /** Fixed palette for custom role colours (validated on the server). */
 export const ROLE_COLORS = ["#8B5CF6", "#6366F1", "#06B6D4", "#10B981", "#F59E0B", "#F43F5E", "#EC4899", "#64748B"] as const;
+/** Tags use the same validated palette. */
+export const TAG_PALETTE = ROLE_COLORS;
 
 /* ── Task-level rules, used identically on both sides ─────────────────────── */
 

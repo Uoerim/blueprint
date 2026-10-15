@@ -25,21 +25,21 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
   const has = (p: (typeof perms)[number]) => perms.includes(p);
   const taskWhere = visibleTasks(team.id, user.id, has("tasks.viewPrivate"));
 
-  const [members, invites, roles, ideas, shippedCount] = await Promise.all([
+  const [members, invites, roles, ideas, shippedCount, tags] = await Promise.all([
     db.teamMember.findMany({
       where: { teamId: team.id },
       select: {
         role: true,
         joinedAt: true,
         customRole: { select: { id: true, name: true, color: true } },
-        user: { select: { id: true, username: true, displayName: true, accentColor: true } },
+        user: { select: { id: true, username: true, displayName: true, accentColor: true, imageUrl: true } },
       },
       orderBy: { joinedAt: "asc" },
     }),
     has("members.invite")
       ? db.teamInvite.findMany({
           where: { teamId: team.id, status: "PENDING" },
-          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
+          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true, imageUrl: true } } },
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
@@ -63,6 +63,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
       take: 500,
     }),
     has("team.cleanup") ? db.task.count({ where: { teamId: team.id, status: "DONE" } }) : Promise.resolve(0),
+    db.teamTag.findMany({ where: { teamId: team.id }, select: { id: true, name: true, color: true }, orderBy: { createdAt: "asc" } }),
   ]);
 
   const managed = (status: "PROMOTED" | "ARCHIVED"): ManagedIdea[] =>
@@ -90,6 +91,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
         username: m.user.username ?? "unknown",
         displayName: m.user.displayName,
         accentColor: m.user.accentColor,
+        imageUrl: m.user.imageUrl,
         role: m.role,
         customRole: m.role === "MEMBER" ? m.customRole : null,
         joinedAt: m.joinedAt.toISOString(),
@@ -98,12 +100,14 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
         id: i.id,
         username: i.invitee.username ?? "unknown",
         accentColor: i.invitee.accentColor,
+        imageUrl: i.invitee.imageUrl,
         createdAt: i.createdAt.toISOString(),
       }))}
       roles={roles.map((r) => ({ id: r.id, name: r.name, color: r.color, permissions: r.permissions, members: r._count.members }))}
       projects={managed("PROMOTED")}
       archived={managed("ARCHIVED")}
       shippedCount={shippedCount}
+      tags={tags}
     />
   );
 }

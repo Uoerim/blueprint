@@ -10,6 +10,7 @@
  */
 import type { Priority, TaskStatus } from "@prisma/client";
 import { encryptOptional, encryptText } from "../lib/crypto";
+import { DEFAULT_TAGS } from "../lib/constants";
 import { createPrisma } from "../lib/prisma";
 
 const db = createPrisma();
@@ -63,6 +64,7 @@ async function main() {
       slug: "night-shift",
       description: "Four friends shipping a pocket synth app after work.",
       createdById: u.ada,
+      tags: { create: DEFAULT_TAGS.map((t) => ({ name: t.name, color: t.color })) },
       members: {
         create: [
           { userId: u.ada, role: "OWNER" },
@@ -148,6 +150,7 @@ async function main() {
       slug: "garden-club",
       description: "Shared allotment, shared spreadsheet, now shared ideas.",
       createdById: u.juno,
+      tags: { create: DEFAULT_TAGS.map((t) => ({ name: t.name, color: t.color })) },
       members: {
         create: [
           { userId: u.juno, role: "OWNER" },

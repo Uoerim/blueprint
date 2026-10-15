@@ -10,13 +10,16 @@ import { LRUCache } from "lru-cache";
  * over the REST API, giving one shared window across every instance.
  */
 
-export type Tier = "global" | "search" | "write" | "auth";
+export type Tier = "global" | "search" | "write" | "auth" | "pulse";
 
 export const TIERS: Record<Tier, { limit: number; windowMs: number }> = {
   global: { limit: 100, windowMs: 60_000 },
   search: { limit: 30, windowMs: 60_000 },
-  write: { limit: 20, windowMs: 60_000 },
+  // Ticking subtasks and moving cards adds up quickly in a real work session.
+  write: { limit: 40, windowMs: 60_000 },
   auth: { limit: 10, windowMs: 60_000 },
+  // The live change-check: one tiny request every ~4s per open tab, a few tabs at once.
+  pulse: { limit: 90, windowMs: 60_000 },
 };
 
 export type RateLimitResult = {
