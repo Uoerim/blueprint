@@ -200,8 +200,8 @@ function Tour() {
         flip
         step="02 · Projects"
         title="Turn a good idea into a project."
-        body="Promote an idea and split it into tasks, each with an owner and a priority. Or start a project from scratch whenever you need one."
-        points={["Break an idea into up to twelve tasks at once", "Pick who owns each task and how urgent it is", "Every task remembers the project it belongs to"]}
+        body="Promote an idea and split it into tasks, each with the people on it and a priority. Or start a project from scratch whenever you need one."
+        points={["Break an idea into up to twelve tasks at once", "Assign one person or several to every task", "Every task remembers the project it belongs to"]}
       >
         <div className="card rounded-2xl p-4 sm:p-6">
           <PipelineDemo />
@@ -212,8 +212,8 @@ function Tour() {
         id="projects"
         step="03 · Project pages"
         title="Every project gets its own page."
-        body="Open a project to see only its tasks on a board, its progress, a description of what done looks like, and shared notes the whole team can edit."
-        points={["Add tasks straight into the project", "Notes and a description on every project and task", "Progress bar and the people working on it"]}
+        body="Open a project to see its description, its progress, who is on it, and a board with only its tasks. Every task has a description, notes and a checklist of subtasks."
+        points={["Subtasks, each with their own people", "Private tasks only their assignees can see", "Progress and who is working on what"]}
       >
         <ProjectDemo />
         <p className="mt-3 text-[13px] text-ink-3">Click a task to move it along, or add your own.</p>
@@ -235,7 +235,7 @@ function Tour() {
         step="05 · Your team"
         title="Invite friends by their @username."
         body="Everyone picks a unique username when they join. Search it, send an invite, and they accept with one click. Make as many teams as you like."
-        points={["Unlimited teams and members", "Owners and admins manage roles", "Each team's ideas and tasks stay private to it"]}
+        points={["Unlimited teams and members", "Owner, co-owners and custom roles you design", "Each team's ideas and tasks stay private to it"]}
       >
         <div className="card rounded-2xl p-4 sm:p-5">
           <InviteDemo />

@@ -17,29 +17,31 @@ generator client {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  clerkId       String       @unique
-  email         String       @unique
-  username      String?      @unique
-  displayName   String?
-  accentColor   String       @default("#6366F1")
-  onboarded     Boolean      @default(false)
+  id                 String            @id @default(cuid())
+  clerkId            String            @unique
+  email              String            @unique
+  username           String?           @unique
+  displayName        String?
+  accentColor        String            @default("#6366F1")
+  onboarded          Boolean           @default(false)
   /// Site-wide staff role (separate from per-team roles). See lib/site-roles.ts.
-  siteRole      SiteRole     @default(USER)
+  siteRole           SiteRole          @default(USER)
   /// Set when staff suspend the account; blocks every page, action and API call.
-  bannedAt      DateTime?
-  banReason     String?
+  bannedAt           DateTime?
+  banReason          String?
   /// Set when an admin deletes the account: personal fields are scrubbed and the row is kept as a tombstone.
-  deletedAt     DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  teamsOwned    Team[]       @relation("TeamOwner")
-  memberships   TeamMember[]
-  invitesSent   TeamInvite[] @relation("Inviter")
-  invitesRecv   TeamInvite[] @relation("Invitee")
-  ideasCreated  Idea[]
-  tasksCreated  Task[]
-  tasksAssigned Task[]       @relation("TaskAssignee")
+  deletedAt          DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  teamsOwned         Team[]            @relation("TeamOwner")
+  memberships        TeamMember[]
+  invitesSent        TeamInvite[]      @relation("Inviter")
+  invitesRecv        TeamInvite[]      @relation("Invitee")
+  ideasCreated       Idea[]
+  tasksCreated       Task[]
+  tasksDone          Task[]            @relation("TaskCompletedBy")
+  taskAssignments    TaskAssignee[]
+  subtaskAssignments SubtaskAssignee[]
 
   @@index([siteRole])
 }
@@ -64,24 +66,46 @@ model Team {
   invites     TeamInvite[]
   ideas       Idea[]
   tasks       Task[]
+  roles       TeamRole[]
 }
 
 model TeamMember {
-  id       String   @id @default(cuid())
-  teamId   String
-  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role     Role     @default(MEMBER)
-  joinedAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  teamId       String
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role      @default(MEMBER)
+  /// Optional custom role (members only). Owners and co-owners have fixed permissions.
+  customRoleId String?
+  customRole   TeamRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  joinedAt     DateTime  @default(now())
 
   @@unique([teamId, userId])
   @@index([userId])
+  @@index([customRoleId])
+}
+
+/// A custom team role made by the owner or a co-owner: a name, a colour and a
+/// set of permissions from lib/team-permissions.ts.
+model TeamRole {
+  id          String       @id @default(cuid())
+  teamId      String
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  color       String       @default("#8B5CF6")
+  permissions String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  members     TeamMember[]
+
+  @@unique([teamId, name])
+  @@index([teamId])
 }
 
 enum Role {
   OWNER
-  ADMIN
+  CO_OWNER
   MEMBER
 }
 
@@ -113,7 +137,7 @@ model Idea {
   team             Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
   title            String
   description      String?
-  // Once promoted, an idea is a project: notes are its working scratchpad.
+  /// Legacy project notes (no longer shown; kept so nothing written there is lost).
   notes            String?
   tags             String[]
   status           IdeaStatus @default(VAULT)
@@ -135,26 +159,78 @@ enum IdeaStatus {
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  teamId      String
-  team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  ideaId      String?
-  idea        Idea?      @relation(fields: [ideaId], references: [id], onDelete: SetNull)
-  title       String
-  notes       String?
-  status      TaskStatus @default(TODO)
-  priority    Priority   @default(MEDIUM)
-  isFocused   Boolean    @default(false)
-  createdById String
-  createdBy   User       @relation(fields: [createdById], references: [id])
-  assigneeId  String?
-  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            String         @id @default(cuid())
+  teamId        String
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ideaId        String?
+  idea          Idea?          @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  /// Encrypted (enc:v1:…), like description, notes and subtask titles.
+  title         String
+  description   String?
+  notes         String?
+  status        TaskStatus     @default(TODO)
+  priority      Priority       @default(MEDIUM)
+  /// TEAM: everyone on the team. ASSIGNEES: assignees, the creator, the owner and co-owners only.
+  visibility    TaskVisibility @default(TEAM)
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  completedById String?
+  completedBy   User?          @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  assignees     TaskAssignee[]
+  subtasks      Subtask[]
 
   @@index([teamId])
   @@index([teamId, status])
+}
+
+/// Who a task is assigned to. `focusedAt` is set while that person is
+/// actively working on it (Live focus), so focus is per person, not per task.
+model TaskAssignee {
+  taskId     String
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId     String
+  focusedAt  DateTime?
+  assignedAt DateTime  @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId, teamId])
+}
+
+model Subtask {
+  id          String            @id @default(cuid())
+  teamId      String
+  taskId      String
+  task        Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title       String
+  done        Boolean           @default(false)
+  position    Int               @default(0)
+  createdById String
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  assignees   SubtaskAssignee[]
+
+  @@index([taskId])
+}
+
+model SubtaskAssignee {
+  subtaskId String
+  subtask   Subtask @relation(fields: [subtaskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([subtaskId, userId])
+  @@index([userId])
+}
+
+enum TaskVisibility {
+  TEAM
+  ASSIGNEES
 }
 
 // TODO is shown as "Backlog" on the board; READY was added so the board can

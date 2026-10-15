@@ -43,7 +43,7 @@ export default function TermsPage() {
           when the content is deleted, apart from routine backups that expire on their own.
         </p>
         <p>
-          You are responsible for having the right to share what you post. Team owners and admins can edit or remove content and
+          You are responsible for having the right to share what you post. Team owners, co-owners and members whose role allows it can edit or remove content and
           members in their team.
         </p>
       </Section>

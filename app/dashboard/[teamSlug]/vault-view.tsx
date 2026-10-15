@@ -10,6 +10,7 @@ import { btn, cx, Monogram, Pill, PRIORITY_COLORS, TAG_COLORS, readable } from "
 import { IDEA_TAGS, PRIORITY_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/time";
 import type { IdeaDTO, Priority } from "@/lib/types";
+import { AssigneesPicker } from "./board-view";
 import { useWorkspace } from "./workspace";
 
 const spring = { type: "spring", stiffness: 480, damping: 36 } as const;
@@ -21,7 +22,7 @@ function parseCapture(raw: string, picked: string[]) {
 }
 
 export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => void }) {
-  const { ideas } = useWorkspace();
+  const { ideas, can } = useWorkspace();
   const [sort, setSort] = useState<"hot" | "new">("hot");
   const [promoting, setPromoting] = useState<IdeaDTO | null>(null);
 
@@ -36,7 +37,13 @@ export function VaultView({ onOpenProject }: { onOpenProject: (id: string) => vo
 
   return (
     <div>
-      <CaptureBar />
+      {can("ideas.create") ? (
+        <CaptureBar />
+      ) : (
+        <p className="rounded-2xl bg-surface px-4 py-3 text-[13px] text-ink-3 shadow-highlight">
+          Your role can spark ideas but not add new ones. Ask the team owner if you need to.
+        </p>
+      )}
 
       <div className="mt-8 flex items-center justify-between">
         <h2 className="text-sm font-medium text-ink-2">Raw ideas <span className="font-mono text-[11px] text-ink-3">{vault.length}</span></h2>
@@ -116,7 +123,6 @@ function CaptureBar() {
           id: `tmp-${now}`,
           title,
           description: null,
-          notes: null,
           tags,
           status: "VAULT",
           sparksCount: 0,
@@ -168,10 +174,11 @@ function CaptureBar() {
 }
 
 function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void }) {
-  const { member, viewer, myRole, team, run, patchIdea, removeIdea } = useWorkspace();
+  const { member, viewer, can, team, run, patchIdea, removeIdea } = useWorkspace();
   const author = member(idea.authorId);
   const temp = idea.id.startsWith("tmp-");
-  const canArchive = idea.authorId === viewer.id || myRole !== "MEMBER";
+  const canArchive = idea.authorId === viewer.id || can("ideas.manage");
+  const canPromote = can("projects.create") && can("tasks.create");
   const [deleting, setDeleting] = useState(false);
 
   const spark = () =>
@@ -268,9 +275,11 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
           </motion.svg>
           {idea.sparksCount}
         </motion.button>
-        <button type="button" disabled={temp} onClick={onPromote} className={cx(btn.outline, btn.sm)}>
-          Promote to execution →
-        </button>
+        {canPromote && (
+          <button type="button" disabled={temp} onClick={onPromote} className={cx(btn.outline, btn.sm)}>
+            Promote to execution →
+          </button>
+        )}
       </div>
     </motion.li>
   );
@@ -278,7 +287,7 @@ function IdeaCard({ idea, onPromote }: { idea: IdeaDTO; onPromote: () => void })
 
 /* ── Promote drawer ─────────────────────────────────────────────────────── */
 
-type Draft = { key: number; title: string; assigneeId: string | null; priority: Priority };
+type Draft = { key: number; title: string; assigneeIds: string[]; priority: Priority };
 let keySeq = 0;
 
 function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClose: () => void; onDone: (id: string) => void }) {
@@ -288,7 +297,7 @@ function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClos
   // Reset the rows whenever a different idea opens the drawer.
   if (idea && idea.id !== lastIdea) {
     setLastIdea(idea.id);
-    setRows([{ key: ++keySeq, title: idea.title.slice(0, 140), assigneeId: null, priority: "MEDIUM" }]);
+    setRows([{ key: ++keySeq, title: idea.title.slice(0, 140), assigneeIds: [], priority: "MEDIUM" }]);
   }
 
   return (
@@ -297,7 +306,7 @@ function PromoteDrawer({ idea, onClose, onDone }: { idea: IdeaDTO | null; onClos
       onClose={onClose}
       side="right"
       title="Promote to execution"
-      description="Break the idea into concrete tasks. Each one gets an owner and a priority."
+      description="Break the idea into concrete tasks. Each one can have several people and a priority."
     >
       {idea && <PromoteForm idea={idea} rows={rows} setRows={setRows} onClose={onClose} onDone={onDone} />}
     </Dialog>
@@ -317,7 +326,7 @@ function PromoteForm({
   onClose: () => void;
   onDone: (id: string) => void;
 }) {
-  const { team, members, member, run, patchIdea } = useWorkspace();
+  const { team, run, patchIdea } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const update = (key: number, patch: Partial<Draft>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -332,7 +341,7 @@ function PromoteForm({
         promoteIdea({
           teamId: team.id,
           ideaId: idea.id,
-          tasks: valid.map((r) => ({ title: r.title.trim(), assigneeId: r.assigneeId, priority: r.priority })),
+          tasks: valid.map((r) => ({ title: r.title.trim(), assigneeIds: r.assigneeIds, priority: r.priority })),
         }),
       {
         optimistic: () => patchIdea(idea.id, { status: "PROMOTED", taskCount: valid.length }),
@@ -357,7 +366,6 @@ function PromoteForm({
       <ul className="mt-5 space-y-2">
         <AnimatePresence initial={false}>
           {rows.map((r, i) => {
-            const a = member(r.assigneeId);
             return (
               <motion.li
                 key={r.key}
@@ -378,32 +386,7 @@ function PromoteForm({
                   className={cx(inputCls, "h-10")}
                 />
                 <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
-                  <Popover
-                    label="Assignee"
-                    triggerClassName="h-8 gap-2 px-2 text-xs"
-                    className="w-56"
-                    trigger={
-                      a ? (
-                        <><Monogram name={a.username} color={a.accentColor} size={20} /><span className="font-mono" style={{ color: readable(a.accentColor) }}>@{a.username}</span></>
-                      ) : (
-                        <><span className="size-5 rounded-[28%] border border-dashed border-ink-3/60" /><span className="text-ink-3">Unassigned</span></>
-                      )
-                    }
-                  >
-                    {(close) => (
-                      <>
-                        <MenuItem active={!r.assigneeId} onSelect={() => { update(r.key, { assigneeId: null }); close(); }}>
-                          <span className="size-5 rounded-[28%] border border-dashed border-ink-3/60" /> Unassigned
-                        </MenuItem>
-                        {members.map((m) => (
-                          <MenuItem key={m.userId} active={r.assigneeId === m.userId} onSelect={() => { update(r.key, { assigneeId: m.userId }); close(); }}>
-                            <Monogram name={m.username} color={m.accentColor} size={20} />
-                            <span className="font-mono text-xs" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
-                          </MenuItem>
-                        ))}
-                      </>
-                    )}
-                  </Popover>
+                  <AssigneesPicker value={r.assigneeIds} onChange={(ids) => update(r.key, { assigneeIds: ids })} label={`Task ${i + 1} assignees`} compact />
                   <PriorityPicker value={r.priority} onChange={(p) => update(r.key, { priority: p })} />
                   <span className="flex-1" />
                   {rows.length > 1 && (
@@ -420,7 +403,7 @@ function PromoteForm({
       {rows.length < 12 && (
         <button
           type="button"
-          onClick={() => setRows((rs) => [...rs, { key: ++keySeq, title: "", assigneeId: null, priority: "MEDIUM" }])}
+          onClick={() => setRows((rs) => [...rs, { key: ++keySeq, title: "", assigneeIds: [], priority: "MEDIUM" }])}
           className={cx(btn.ghost, btn.sm, "mt-2 self-start")}
         >
           + Add task

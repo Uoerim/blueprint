@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
-import { ActionError, requireMembership } from "@/lib/auth";
+import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
 import {
   createIdeaSchema,
   createProjectSchema,
@@ -17,7 +18,7 @@ import {
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = createIdeaSchema.parse(input);
-    await requireMembership(data.teamId, ctx.user.id);
+    await requireTeamAccess(data.teamId, ctx.user.id, "ideas.create");
     const idea = await db.idea.create({
       data: {
         teamId: data.teamId,
@@ -37,7 +38,7 @@ export async function createIdea(input: unknown) {
 export async function toggleSpark(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
-    await requireMembership(teamId, ctx.user.id);
+    await requireTeamAccess(teamId, ctx.user.id);
     const sparked = await db.$transaction(async (tx) => {
       const idea = await tx.idea.findFirst({
         where: { id: itemId, teamId },
@@ -62,35 +63,31 @@ export async function toggleSpark(input: unknown) {
 export async function promoteIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = promoteIdeaSchema.parse(input);
-    await requireMembership(data.teamId, ctx.user.id);
+    const access = await requireTeamAccess(data.teamId, ctx.user.id, "projects.create");
+    assertCan(access, "tasks.create");
 
     const idea = await db.idea.findFirst({
       where: { id: data.ideaId, teamId: data.teamId, status: { not: "ARCHIVED" } },
       select: { id: true },
     });
     if (!idea) throw new ActionError("Idea not found.");
-
-    // Every assignee must be a member of this exact team.
-    const assigneeIds = [...new Set(data.tasks.map((t) => t.assigneeId).filter((v): v is string => !!v))];
-    if (assigneeIds.length) {
-      const members = await db.teamMember.count({
-        where: { teamId: data.teamId, userId: { in: assigneeIds } },
-      });
-      if (members !== assigneeIds.length) throw new ActionError("Assignees must be on this team.");
-    }
+    await assertMembers(data.teamId, data.tasks.flatMap((t) => t.assigneeIds));
 
     await db.$transaction([
-      db.task.createMany({
-        data: data.tasks.map((t) => ({
-          teamId: data.teamId,
-          ideaId: idea.id,
-          title: encryptText(t.title, data.teamId),
-          priority: t.priority,
-          assigneeId: t.assigneeId ?? null,
-          status: "READY" as const,
-          createdById: ctx.user.id,
-        })),
-      }),
+      ...data.tasks.map((t) =>
+        db.task.create({
+          data: {
+            teamId: data.teamId,
+            ideaId: idea.id,
+            title: encryptText(t.title, data.teamId),
+            priority: t.priority,
+            status: "READY",
+            createdById: access.userId,
+            assignees: { create: t.assigneeIds.map((userId) => ({ userId, teamId: data.teamId })) },
+          },
+          select: { id: true },
+        }),
+      ),
       db.idea.updateMany({ where: { id: idea.id, teamId: data.teamId }, data: { status: "PROMOTED" } }),
     ]);
     await audit(ctx, { teamId: data.teamId, action: "idea.promoted", entityType: "Idea", entityId: idea.id });
@@ -99,16 +96,30 @@ export async function promoteIdea(input: unknown) {
   });
 }
 
+/** Loads an idea in this team with what the permission rules need. */
+async function loadIdea(teamId: string, itemId: string) {
+  const idea = await db.idea.findFirst({
+    where: { id: itemId, teamId },
+    select: { title: true, status: true, createdById: true, _count: { select: { tasks: true } } },
+  });
+  if (!idea) throw new ActionError("Idea not found.");
+  // A project is a promoted idea, or an archived one that still has tasks.
+  return { ...idea, isProject: idea.status === "PROMOTED" || idea._count.tasks > 0 };
+}
+
+const forbid = (what: string) => {
+  throw new ActionError(`You don't have permission to ${what}.`);
+};
+
 export async function archiveIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
-    const me = await requireMembership(teamId, ctx.user.id);
-    const idea = await db.idea.findFirst({ where: { id: itemId, teamId }, select: { createdById: true } });
-    if (!idea) throw new ActionError("Idea not found.");
-    if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
-      throw new ActionError("Only the author or an admin can archive this idea.");
-    }
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    const idea = await loadIdea(teamId, itemId);
+    const own = idea.createdById === access.userId;
+    if (!own && !access.can(idea.isProject ? "projects.archive" : "ideas.manage")) forbid("archive this");
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status: "ARCHIVED" } });
+    await db.taskAssignee.updateMany({ where: { teamId, task: { ideaId: itemId }, focusedAt: { not: null } }, data: { focusedAt: null } });
     await audit(ctx, { teamId, action: "idea.archived", entityType: "Idea", entityId: itemId });
     revalidatePath("/dashboard", "layout");
     return null;
@@ -119,14 +130,14 @@ export async function archiveIdea(input: unknown) {
 export async function createProject(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = createProjectSchema.parse(input);
-    await requireMembership(data.teamId, ctx.user.id);
+    const access = await requireTeamAccess(data.teamId, ctx.user.id, "projects.create");
     const project = await db.idea.create({
       data: {
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
         status: "PROMOTED",
-        createdById: ctx.user.id,
+        createdById: access.userId,
       },
       select: { id: true },
     });
@@ -136,20 +147,21 @@ export async function createProject(input: unknown) {
   });
 }
 
-/** Edit a project's title, description or notes. Any member can; it is a shared page. */
+/** Edit a project's name or description: its author, or anyone with projects.edit. */
 export async function updateProject(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title, description, notes } = updateProjectSchema.parse(input);
-    await requireMembership(teamId, ctx.user.id);
-    const { count } = await db.idea.updateMany({
+    const { teamId, itemId, title, description } = updateProjectSchema.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    const idea = await loadIdea(teamId, itemId);
+    if (idea.status !== "PROMOTED") throw new ActionError("Project not found.");
+    if (idea.createdById !== access.userId && !access.can("projects.edit")) forbid("edit this project");
+    await db.idea.updateMany({
       where: { id: itemId, teamId, status: "PROMOTED" },
       data: {
         ...(title !== undefined && { title: encryptText(title, teamId) }),
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
-        ...(notes !== undefined && { notes: encryptOptional(notes, teamId) }),
       },
     });
-    if (!count) throw new ActionError("Project not found.");
     revalidatePath("/dashboard", "layout");
     return null;
   });
@@ -159,16 +171,12 @@ export async function updateProject(input: unknown) {
 export async function restoreIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
-    const me = await requireMembership(teamId, ctx.user.id);
-    const idea = await db.idea.findFirst({
-      where: { id: itemId, teamId, status: "ARCHIVED" },
-      select: { createdById: true, _count: { select: { tasks: true } } },
-    });
-    if (!idea) throw new ActionError("Idea not found.");
-    if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
-      throw new ActionError("Only the author or an admin can restore this.");
-    }
-    const status = idea._count.tasks > 0 ? "PROMOTED" : "VAULT";
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    const idea = await loadIdea(teamId, itemId);
+    if (idea.status !== "ARCHIVED") throw new ActionError("Idea not found.");
+    const own = idea.createdById === access.userId;
+    if (!own && !access.can(idea.isProject ? "projects.archive" : "ideas.manage")) forbid("restore this");
+    const status = idea.isProject ? "PROMOTED" : "VAULT";
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status } });
     await audit(ctx, { teamId, action: "idea.restored", entityType: "Idea", entityId: itemId });
     revalidatePath("/dashboard", "layout");
@@ -177,27 +185,25 @@ export async function restoreIdea(input: unknown) {
 }
 
 /**
- * Permanently deletes an idea or project. Live projects need their exact title
- * as `confirm`; `withTasks` also deletes the project's tasks (otherwise they
- * stay on the board without a project).
+ * Permanently deletes an idea or project. Projects can only be deleted by the
+ * team owner, and live ones need their exact name as `confirm`. `withTasks`
+ * also deletes the project's tasks (otherwise they stay, outside any project).
  */
 export async function deleteIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId, confirm, withTasks } = deleteIdeaSchema.parse(input);
-    const me = await requireMembership(teamId, ctx.user.id);
-    const idea = await db.idea.findFirst({
-      where: { id: itemId, teamId },
-      select: { title: true, status: true, createdById: true },
-    });
-    if (!idea) throw new ActionError("Idea not found.");
-    if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
-      throw new ActionError("Only the author or an admin can delete this.");
-    }
-    if (idea.status === "PROMOTED" && confirm?.trim() !== decryptText(idea.title, teamId)) {
-      throw new ActionError("Type the project name exactly to confirm.");
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    const idea = await loadIdea(teamId, itemId);
+    if (idea.isProject) {
+      if (!access.can("projects.delete")) forbid("delete projects (only the team owner can)");
+      if (idea.status === "PROMOTED" && confirm?.trim() !== decryptText(idea.title, teamId)) {
+        throw new ActionError("Type the project name exactly to confirm.");
+      }
+    } else if (idea.createdById !== access.userId && !access.can("ideas.manage")) {
+      forbid("delete this idea");
     }
     await db.$transaction([
-      ...(withTasks ? [db.task.deleteMany({ where: { teamId, ideaId: itemId } })] : []),
+      ...(withTasks && idea.isProject ? [db.task.deleteMany({ where: { teamId, ideaId: itemId } })] : []),
       db.idea.deleteMany({ where: { id: itemId, teamId } }),
     ]);
     await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId });

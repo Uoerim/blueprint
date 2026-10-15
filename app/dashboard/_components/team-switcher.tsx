@@ -7,8 +7,8 @@ import { MenuItem, Popover } from "@/components/ui/popover";
 import { cx } from "@/components/ui/primitives";
 import type { TeamSummary } from "@/lib/types";
 import { CreateTeamDialog } from "./create-team-dialog";
+import { ROLE_NAME } from "@/lib/team-permissions";
 
-const ROLE_LABEL = { OWNER: "Owner", ADMIN: "Admin", MEMBER: "Member" };
 
 export function TeamSquare({ name, size = 22 }: { name: string; size?: number }) {
   // Deterministic hue per team name, drawn as a flat geometric tile.
@@ -61,7 +61,7 @@ export function TeamSwitcher({ teams }: { teams: TeamSummary[] }) {
               >
                 <TeamSquare name={t.name} />
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                <span className="text-[11px] text-ink-3">{ROLE_LABEL[t.role]}</span>
+                <span className="text-[11px] text-ink-3">{ROLE_NAME[t.role]}</span>
               </Link>
             ))}
             {!teams.length && <p className="px-2.5 py-2 text-[13px] text-ink-3">No teams yet.</p>}

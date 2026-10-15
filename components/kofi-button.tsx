@@ -30,7 +30,7 @@ export function KofiButton({ className, label = "Support on Ko-fi" }: { classNam
         onClose={() => setOpen(false)}
         title="Support Blueprint"
         description="Blueprint is free with no limits. Tips keep it running."
-        className="max-h-[84vh] max-w-md"
+        size="sm"
       >
         <iframe
           id="kofiframe"

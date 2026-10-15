@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTeamForViewer, requireOnboardedPage } from "@/lib/auth";
 import { decryptOptional, decryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { permissionsFor } from "@/lib/team-permissions";
+import { visibleTasks } from "@/lib/task-visibility";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TaskDTO, Viewer } from "@/lib/types";
 import { Workspace } from "./workspace";
 
@@ -18,11 +21,20 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
   const team = await getTeamForViewer(teamSlug, user.id);
 
   // Everything below is scoped to the verified team id, never the URL.
+  const me = await db.teamMember.findUnique({
+    where: { teamId_userId: { teamId: team.id, userId: user.id } },
+    select: { role: true, customRole: { select: { permissions: true } } },
+  });
+  if (!me) notFound();
+  const perms = permissionsFor(me.role, me.customRole?.permissions);
+  const taskWhere = visibleTasks(team.id, user.id, perms.includes("tasks.viewPrivate"));
+
   const [members, ideas, tasks, invites] = await Promise.all([
     db.teamMember.findMany({
       where: { teamId: team.id },
       select: {
         role: true,
+        customRole: { select: { id: true, name: true, color: true } },
         user: { select: { id: true, username: true, displayName: true, accentColor: true } },
       },
       orderBy: { joinedAt: "asc" },
@@ -33,42 +45,49 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         id: true,
         title: true,
         description: true,
-        notes: true,
         tags: true,
         status: true,
         sparksCount: true,
         sparkedByUserIds: true,
         createdById: true,
         createdAt: true,
-        tasks: { select: { status: true } },
+        tasks: { where: taskWhere, select: { status: true } },
       },
       orderBy: [{ createdAt: "desc" }],
       take: 300,
     }),
     db.task.findMany({
-      where: { teamId: team.id },
+      where: taskWhere,
       select: {
         id: true,
         title: true,
+        description: true,
         notes: true,
         status: true,
         priority: true,
-        isFocused: true,
-        assigneeId: true,
+        visibility: true,
         createdById: true,
+        completedById: true,
         completedAt: true,
         createdAt: true,
         updatedAt: true,
         idea: { select: { id: true, title: true } },
+        assignees: { select: { userId: true, focusedAt: true }, orderBy: { assignedAt: "asc" } },
+        subtasks: {
+          select: { id: true, title: true, done: true, completedAt: true, assignees: { select: { userId: true } } },
+          orderBy: { position: "asc" },
+        },
       },
       orderBy: [{ createdAt: "desc" }],
       take: 1000,
     }),
-    db.teamInvite.findMany({
-      where: { teamId: team.id, status: "PENDING" },
-      select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
+    perms.includes("members.invite")
+      ? db.teamInvite.findMany({
+          where: { teamId: team.id, status: "PENDING" },
+          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const viewer: Viewer = {
@@ -83,12 +102,12 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     displayName: m.user.displayName,
     accentColor: m.user.accentColor,
     role: m.role,
+    customRole: m.role === "MEMBER" ? m.customRole : null,
   }));
   const ideaDTOs: IdeaDTO[] = ideas.map((i) => ({
     id: i.id,
     title: decryptText(i.title, team.id),
     description: decryptOptional(i.description, team.id),
-    notes: decryptOptional(i.notes, team.id),
     tags: i.tags,
     status: i.status,
     sparksCount: i.sparksCount,
@@ -99,11 +118,28 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     doneCount: i.tasks.filter((t) => t.status === "DONE").length,
   }));
   const taskDTOs: TaskDTO[] = tasks.map((t) => ({
-    ...t,
+    id: t.id,
     title: decryptText(t.title, team.id),
+    description: decryptOptional(t.description, team.id),
     notes: decryptOptional(t.notes, team.id),
+    status: t.status,
+    priority: t.priority,
+    visibility: t.visibility,
+    createdById: t.createdById,
+    assigneeIds: t.assignees.map((a) => a.userId),
+    focus: t.status === "IN_PROGRESS"
+      ? t.assignees.filter((a) => a.focusedAt).map((a) => ({ userId: a.userId, since: a.focusedAt!.toISOString() }))
+      : [],
+    subtasks: t.subtasks.map((s) => ({
+      id: s.id,
+      title: decryptText(s.title, team.id),
+      done: s.done,
+      assigneeIds: s.assignees.map((a) => a.userId),
+      completedAt: s.completedAt?.toISOString() ?? null,
+    })),
     idea: t.idea && { id: t.idea.id, title: decryptText(t.idea.title, team.id) },
     completedAt: t.completedAt?.toISOString() ?? null,
+    completedById: t.completedById,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   }));
@@ -113,14 +149,14 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     accentColor: i.invitee.accentColor,
     createdAt: i.createdAt.toISOString(),
   }));
-  const myRole = memberDTOs.find((m) => m.userId === user.id)?.role ?? "MEMBER";
 
   return (
     <Workspace
       key={team.id}
       team={team}
       viewer={viewer}
-      myRole={myRole}
+      myRole={me.role}
+      perms={perms}
       members={memberDTOs}
       ideas={ideaDTOs}
       tasks={taskDTOs}

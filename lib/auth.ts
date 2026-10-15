@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import { Prisma, type Role, type User } from "@prisma/client";
+import { Prisma, type User } from "@prisma/client";
 import { db } from "./db";
 import { can, type Permission, type SiteRole } from "./site-roles";
 
@@ -78,21 +78,6 @@ export function requirePermission(user: User, permission: Permission) {
   if (isLockedOut(user) || !can(user.siteRole, permission)) {
     throw new ActionError("You don't have permission to do that.");
   }
-}
-
-/**
- * Zero-trust membership check: the caller's team id is never trusted until
- * this query proves the viewer belongs to it (and holds one of `roles`).
- */
-export async function requireMembership(teamId: string, userId: string, roles?: Role[]) {
-  const membership = await db.teamMember.findUnique({
-    where: { teamId_userId: { teamId, userId } },
-  });
-  if (!membership) throw new ActionError("Team not found.");
-  if (roles && !roles.includes(membership.role)) {
-    throw new ActionError("You don't have permission to do that.");
-  }
-  return membership;
 }
 
 /** For pages: resolve a team by slug only if the viewer is a member. */

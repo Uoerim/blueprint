@@ -21,7 +21,7 @@ export async function getUsage() {
       db.idea.count({ where: { createdById: user.id } }),
       db.idea.count({ where: { createdById: user.id, status: "PROMOTED" } }),
       db.task.count({ where: { createdById: user.id } }),
-      db.task.count({ where: { assigneeId: user.id, status: "DONE" } }),
+      db.task.count({ where: { completedById: user.id, status: "DONE" } }),
     ]);
     return { teams, owned, ideas, projects, created, shipped };
   });

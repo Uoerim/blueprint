@@ -74,7 +74,7 @@ export default function PrivacyPage() {
             invite. They cannot see your email address or the content of teams they are not in.
           </li>
           <li>
-            <strong>Team owners and admins</strong> can manage the team&apos;s members and content.
+            <strong>Team owners, co-owners and members with a role that allows it</strong> can manage the team&apos;s members and content. Tasks marked private are visible only to their assignees, their creator and the people allowed to see them.
           </li>
           <li>
             <strong>Blueprint staff</strong> (support, moderators and site admins) can see account details such as your email,

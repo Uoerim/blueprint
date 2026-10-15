@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import { getTeamForViewer, requireMembership, requireOnboardedPage } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import { getTeamForViewer, requireOnboardedPage } from "@/lib/auth";
 import { decryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { permissionsFor } from "@/lib/team-permissions";
+import { visibleTasks } from "@/lib/task-visibility";
 import { type ManagedIdea, TeamSettings } from "./team-settings";
 
 export async function generateMetadata({ params }: PageProps<"/dashboard/[teamSlug]/settings">): Promise<Metadata> {
@@ -13,30 +16,53 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
   const user = await requireOnboardedPage();
   const { teamSlug } = await params;
   const team = await getTeamForViewer(teamSlug, user.id);
-  const me = await requireMembership(team.id, user.id);
+  const me = await db.teamMember.findUnique({
+    where: { teamId_userId: { teamId: team.id, userId: user.id } },
+    select: { role: true, customRole: { select: { permissions: true } } },
+  });
+  if (!me) notFound();
+  const perms = permissionsFor(me.role, me.customRole?.permissions);
+  const has = (p: (typeof perms)[number]) => perms.includes(p);
+  const taskWhere = visibleTasks(team.id, user.id, has("tasks.viewPrivate"));
 
-  const [members, invites, ideas, shippedCount] = await Promise.all([
+  const [members, invites, roles, ideas, shippedCount] = await Promise.all([
     db.teamMember.findMany({
       where: { teamId: team.id },
       select: {
         role: true,
         joinedAt: true,
+        customRole: { select: { id: true, name: true, color: true } },
         user: { select: { id: true, username: true, displayName: true, accentColor: true } },
       },
       orderBy: { joinedAt: "asc" },
     }),
-    db.teamInvite.findMany({
-      where: { teamId: team.id, status: "PENDING" },
-      select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
-      orderBy: { createdAt: "desc" },
+    has("members.invite")
+      ? db.teamInvite.findMany({
+          where: { teamId: team.id, status: "PENDING" },
+          select: { id: true, createdAt: true, invitee: { select: { username: true, accentColor: true } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+    db.teamRole.findMany({
+      where: { teamId: team.id },
+      select: { id: true, name: true, color: true, permissions: true, _count: { select: { members: true } } },
+      orderBy: { createdAt: "asc" },
     }),
     db.idea.findMany({
       where: { teamId: team.id, status: { in: ["PROMOTED", "ARCHIVED"] } },
-      select: { id: true, title: true, status: true, createdById: true, updatedAt: true, tasks: { select: { status: true } } },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        createdById: true,
+        updatedAt: true,
+        tasks: { where: taskWhere, select: { status: true } },
+        _count: { select: { tasks: true } },
+      },
       orderBy: { updatedAt: "desc" },
       take: 500,
     }),
-    db.task.count({ where: { teamId: team.id, status: "DONE" } }),
+    has("team.cleanup") ? db.task.count({ where: { teamId: team.id, status: "DONE" } }) : Promise.resolve(0),
   ]);
 
   const managed = (status: "PROMOTED" | "ARCHIVED"): ManagedIdea[] =>
@@ -46,8 +72,10 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
         id: i.id,
         title: decryptText(i.title, team.id),
         authorId: i.createdById,
+        // Counts shown are what the viewer can see; isProject uses the real count so the rules match the server.
         taskCount: i.tasks.length,
         doneCount: i.tasks.filter((t) => t.status === "DONE").length,
+        isProject: i.status === "PROMOTED" || i._count.tasks > 0,
         updatedAt: i.updatedAt.toISOString(),
       }));
 
@@ -56,12 +84,14 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
       team={team}
       viewerId={user.id}
       myRole={me.role}
+      perms={perms}
       members={members.map((m) => ({
         userId: m.user.id,
         username: m.user.username ?? "unknown",
         displayName: m.user.displayName,
         accentColor: m.user.accentColor,
         role: m.role,
+        customRole: m.role === "MEMBER" ? m.customRole : null,
         joinedAt: m.joinedAt.toISOString(),
       }))}
       invites={invites.map((i) => ({
@@ -70,6 +100,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
         accentColor: i.invitee.accentColor,
         createdAt: i.createdAt.toISOString(),
       }))}
+      roles={roles.map((r) => ({ id: r.id, name: r.name, color: r.color, permissions: r.permissions, members: r._count.members }))}
       projects={managed("PROMOTED")}
       archived={managed("ARCHIVED")}
       shippedCount={shippedCount}

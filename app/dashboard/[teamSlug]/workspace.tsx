@@ -16,6 +16,7 @@ import {
 import { stopFocus } from "@/app/actions/tasks";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { ActionResult } from "@/lib/action-types";
+import type { TeamPermission } from "@/lib/team-permissions";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TaskDTO, Viewer } from "@/lib/types";
 import { ExecutionView } from "./execution-view";
 import { InviteDialog } from "./invite-dialog";
@@ -29,6 +30,9 @@ type Ctx = {
   team: { id: string; name: string; slug: string; description: string | null };
   viewer: Viewer;
   myRole: MemberDTO["role"];
+  /** Effective team permissions. The UI only hides controls; the server enforces. */
+  can: (p: TeamPermission) => boolean;
+  perms: readonly TeamPermission[];
   members: MemberDTO[];
   member: (id: string | null | undefined) => MemberDTO | undefined;
   tasks: TaskDTO[];
@@ -73,6 +77,7 @@ export function Workspace(props: {
   team: Ctx["team"];
   viewer: Viewer;
   myRole: MemberDTO["role"];
+  perms: TeamPermission[];
   members: MemberDTO[];
   ideas: IdeaDTO[];
   tasks: TaskDTO[];
@@ -134,6 +139,8 @@ export function Workspace(props: {
     team: props.team,
     viewer: props.viewer,
     myRole: props.myRole,
+    perms: props.perms,
+    can: (p) => props.perms.includes(p),
     members: props.members,
     member: (id) => (id ? memberMap.get(id) : undefined),
     tasks,
@@ -184,7 +191,7 @@ export function Workspace(props: {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setInviteOpen(true)}
+              onClick={() => (props.perms.includes("members.invite") ? setInviteOpen(true) : router.push(`/dashboard/${props.team.slug}/settings#members`))}
               className="flex -space-x-1.5 rounded-lg p-1 transition-colors hover:bg-tint/[0.05]"
               aria-label={`${props.members.length} members — manage`}
             >
@@ -197,9 +204,11 @@ export function Workspace(props: {
                 </span>
               )}
             </button>
-            <button type="button" onClick={() => setInviteOpen(true)} className={cx(btn.outline, btn.sm)}>
-              Invite teammates
-            </button>
+            {props.perms.includes("members.invite") && (
+              <button type="button" onClick={() => setInviteOpen(true)} className={cx(btn.outline, btn.sm)}>
+                Invite teammates
+              </button>
+            )}
             <Link
               href={`/dashboard/${props.team.slug}/settings`}
               aria-label="Team settings"
@@ -304,7 +313,11 @@ const elapsed = (from: string, now: number) => {
 function FocusDock() {
   const { tasks, member, viewer, team, run, patchTask } = useWorkspace();
   const now = useNow();
-  const focused = tasks.filter((t) => t.isFocused && t.status === "IN_PROGRESS" && t.assigneeId);
+  // One entry per person in focus (several people can work on one task).
+  const focused = tasks
+    .filter((t) => t.status === "IN_PROGRESS")
+    .flatMap((t) => t.focus.map((f) => ({ task: t, ...f })))
+    .sort((x, y) => x.since.localeCompare(y.since));
 
   return (
     <section aria-label="Live team focus" className="card mt-6 rounded-2xl p-3 sm:p-4">
@@ -318,14 +331,14 @@ function FocusDock() {
       <LayoutGroup>
         <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
           <AnimatePresence initial={false}>
-            {focused.map((t) => {
-              const m = member(t.assigneeId);
+            {focused.map(({ task: t, userId, since }) => {
+              const m = member(userId);
               if (!m) return null;
-              const mine = t.assigneeId === viewer.id;
+              const mine = userId === viewer.id;
               return (
                 <motion.li
                   layout
-                  key={t.id}
+                  key={`${t.id}:${userId}`}
                   initial={{ opacity: 0, scale: 0.92 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.92 }}
@@ -342,7 +355,7 @@ function FocusDock() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">
                       <span className="font-mono text-[11px]" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
-                      <span className="font-mono text-[11px] tabular-nums text-ink-3">{now ? elapsed(t.updatedAt, now) : ""}</span>
+                      <span className="font-mono text-[11px] tabular-nums text-ink-3">{now ? elapsed(since, now) : ""}</span>
                     </span>
                     <span className="block truncate text-[13px] text-ink">{t.title}</span>
                   </span>
@@ -351,7 +364,7 @@ function FocusDock() {
                       type="button"
                       onClick={() =>
                         run(() => stopFocus({ teamId: team.id, itemId: t.id }), {
-                          optimistic: () => patchTask(t.id, { isFocused: false }),
+                          optimistic: () => patchTask(t.id, { focus: t.focus.filter((f) => f.userId !== viewer.id) }),
                         })
                       }
                       className={cx(btn.ghost, btn.xs)}
@@ -365,7 +378,7 @@ function FocusDock() {
           </AnimatePresence>
           {!focused.length && (
             <li className="py-2 text-[13px] text-ink-3">
-              Nobody&apos;s in focus. Press <span className="text-ink-2">Start working</span> on a task to light up here.
+              Nobody&apos;s in focus. Press <span className="text-ink-2">Start working</span> on a task assigned to you to light up here.
             </li>
           )}
         </ul>

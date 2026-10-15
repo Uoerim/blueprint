@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ACCENT_HEXES, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
+import { GRANTABLE, ROLE_COLORS } from "./team-permissions";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 const HTML_TAGS = /<\/?[a-z][^>]*>/gi;
@@ -108,9 +109,16 @@ export const createIdeaSchema = z.strictObject({
 export const taskStatusSchema = z.enum(["TODO", "READY", "IN_PROGRESS", "DONE"]);
 export const prioritySchema = z.enum(["LOW", "MEDIUM", "HIGH"]);
 
+export const visibilitySchema = z.enum(["TEAM", "ASSIGNEES"]);
+/** Up to 20 assignees, de-duplicated. */
+export const assigneeIdsSchema = z
+  .array(id)
+  .max(20, "At most 20 people per task.")
+  .transform((ids) => [...new Set(ids)]);
+
 export const taskDraftSchema = z.strictObject({
   title: text(1, 140),
-  assigneeId: id.nullable().optional(),
+  assigneeIds: assigneeIdsSchema.default([]),
   priority: prioritySchema.default("MEDIUM"),
 });
 
@@ -123,9 +131,11 @@ export const promoteIdeaSchema = z.strictObject({
 export const createTaskSchema = z.strictObject({
   teamId: id,
   title: text(1, 140),
+  description: optionalText(4000),
   notes: optionalText(4000),
   priority: prioritySchema.default("MEDIUM"),
-  assigneeId: id.nullable().optional(),
+  assigneeIds: assigneeIdsSchema.default([]),
+  visibility: visibilitySchema.default("TEAM"),
   projectId: id.nullable().optional(),
 });
 
@@ -134,10 +144,25 @@ export const updateTaskSchema = z
     teamId: id,
     itemId: id,
     title: text(1, 140).optional(),
+    description: clearableText(4000).optional(),
     notes: clearableText(4000).optional(),
     projectId: id.nullable().optional(),
+    priority: prioritySchema.optional(),
+    visibility: visibilitySchema.optional(),
   })
-  .refine((v) => v.title !== undefined || v.notes !== undefined || v.projectId !== undefined, "Nothing to update");
+  .refine((v) => Object.keys(v).length > 2, "Nothing to update");
+
+export const taskAssigneesSchema = z.strictObject({ teamId: id, itemId: id, userIds: assigneeIdsSchema });
+
+export const createSubtaskSchema = z.strictObject({
+  teamId: id,
+  taskId: id,
+  title: text(1, 140),
+  assigneeIds: assigneeIdsSchema.default([]),
+});
+export const renameSubtaskSchema = z.strictObject({ teamId: id, itemId: id, title: text(1, 140) });
+export const toggleSubtaskSchema = z.strictObject({ teamId: id, itemId: id, done: z.boolean() });
+export const subtaskAssigneesSchema = taskAssigneesSchema;
 
 export const createProjectSchema = z.strictObject({
   teamId: id,
@@ -151,9 +176,8 @@ export const updateProjectSchema = z
     itemId: id,
     title: text(1, 140).optional(),
     description: clearableText(2000).optional(),
-    notes: clearableText(8000).optional(),
   })
-  .refine((v) => v.title !== undefined || v.description !== undefined || v.notes !== undefined, "Nothing to update");
+  .refine((v) => v.title !== undefined || v.description !== undefined, "Nothing to update");
 
 export const teamScoped = z.strictObject({ teamId: id, itemId: id });
 
@@ -180,3 +204,25 @@ export const adminSuspendSchema = z.strictObject({ userId: id, reason: clearable
 export const adminRoleSchema = z.strictObject({ userId: id, role: z.enum(["USER", "SUPPORT", "MODERATOR", "ADMIN"]) });
 export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
 export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
+
+/* ── Team roles ─────────────────────────────────────────────────────────── */
+
+export const permissionsSchema = z
+  .array(z.enum(GRANTABLE))
+  .max(GRANTABLE.length)
+  .transform((p) => [...new Set(p)]);
+export const createRoleSchema = z.strictObject({
+  teamId: id,
+  name: text(2, 30),
+  color: z.enum(ROLE_COLORS),
+  permissions: permissionsSchema,
+});
+export const updateRoleSchema = z.strictObject({
+  teamId: id,
+  itemId: id,
+  name: text(2, 30),
+  color: z.enum(ROLE_COLORS),
+  permissions: permissionsSchema,
+});
+export const memberRoleSchema = z.strictObject({ teamId: id, itemId: id, role: z.enum(["CO_OWNER", "MEMBER"]) });
+export const memberCustomRoleSchema = z.strictObject({ teamId: id, itemId: id, roleId: id.nullable() });

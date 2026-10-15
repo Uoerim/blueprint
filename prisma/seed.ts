@@ -37,7 +37,7 @@ async function main() {
   if (oldIds.length) {
     await db.team.deleteMany({ where: { createdById: { in: oldIds } } });
     await db.teamInvite.deleteMany({ where: { OR: [{ inviterId: { in: oldIds } }, { inviteeId: { in: oldIds } }] } });
-    await db.task.deleteMany({ where: { OR: [{ createdById: { in: oldIds } }, { assigneeId: { in: oldIds } }] } });
+    await db.task.deleteMany({ where: { OR: [{ createdById: { in: oldIds } }, { assignees: { some: { userId: { in: oldIds } } } }] } });
     await db.idea.deleteMany({ where: { createdById: { in: oldIds } } });
     await db.teamMember.deleteMany({ where: { userId: { in: oldIds } } });
     await db.user.deleteMany({ where: { id: { in: oldIds } } });
@@ -66,7 +66,7 @@ async function main() {
       members: {
         create: [
           { userId: u.ada, role: "OWNER" },
-          { userId: u.linus_k, role: "ADMIN" },
+          { userId: u.linus_k, role: "CO_OWNER" },
           { userId: u.grace, role: "MEMBER" },
           { userId: u.mo, role: "MEMBER" },
         ],
@@ -121,9 +121,11 @@ async function main() {
         title: encryptText(title, teamId),
         status,
         priority,
-        assigneeId: assignee ? u[assignee] : null,
         ideaId,
-        isFocused: opts.focused ?? false,
+        assignees: assignee
+          ? { create: { userId: u[assignee], teamId, focusedAt: opts.focused ? hoursAgo(0.7) : null } }
+          : undefined,
+        completedById: opts.doneH !== undefined && assignee ? u[assignee] : null,
         completedAt: opts.doneH !== undefined ? hoursAgo(opts.doneH) : null,
         createdAt: hoursAgo(opts.h ?? 40),
       },

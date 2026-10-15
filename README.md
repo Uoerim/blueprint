@@ -56,21 +56,24 @@ When something ships, it stays on the record with your `@username` on it.
 ### Ideas and projects
 
 - **Idea vault.** One shared list per team. Tag ideas `#feature`, `#bug`, `#experiment` or `#random`, spark the ones you like, and sort by most sparked or newest.
-- **Promote to a project.** Break an idea into up to twelve tasks at once, each with an owner and a priority. Or start a project from scratch.
-- **Project pages.** Each project has its own page: description, shared notes, progress, the people on it, and a board with only its tasks.
+- **Promote to a project.** Break an idea into up to twelve tasks at once, each with its people and a priority. Or start a project from scratch.
+- **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks.
 - **Archive and restore.** Archive ideas or projects to tidy up, and bring them back any time from team settings.
 
 ### Getting work done
 
 - **Execution board.** Kanban (`Backlog → Ready → In progress → Done`) or a compact list, filtered to *My tasks*, *All tasks*, unassigned, or any teammate.
-- **Task notes.** Open any task to rename it, write notes, or move it to another project.
-- **Live focus.** *Start working* shows the team what you're on right now, with a running timer. It refreshes every 15 seconds while the tab is open.
+- **Rich tasks.** Every task has a title, a description, notes, a priority and a project, plus a checklist of **subtasks**.
+- **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
+- **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
+- **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task. It refreshes every 15 seconds while the tab is open.
 - **Shipped.** A timeline of everything finished and who finished it, with weekly and all-time counts.
 
 ### Teams
 
 - **Usernames.** Everyone picks a unique `@username` when they join, with a live availability check.
 - **Unlimited teams.** Create as many as you like and invite people by searching their `@username`. Invites arrive in a bell with one-click accept.
+- **Team roles.** Owner, co-owners and plain members, plus **custom roles** you design permission by permission. See [Team roles](#team-roles).
 - **Team settings.** Rename the team, manage members and roles, hand over ownership, manage projects and the archive, clear shipped tasks, leave, or delete the team.
 - **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back.
 
@@ -92,9 +95,10 @@ When something ships, it stays on the record with your `@username` on it.
 2. **Create a team** and invite people with **Invite teammates**, searching by `@username`.
 3. **Capture ideas** in the **Idea vault**. Add tags, and spark the ones you believe in.
 4. **Promote** a good idea into a project with tasks, or start a project from **Execution → New project**.
-5. **Work the board.** Open a project to see its page. Use **Start working** on a task so the team knows, and **Mark done** when it ships.
-6. **Look back** in **Shipped** to see everything the team finished.
-7. **Manage things** from the **Settings** button on the team, and your own preferences from the profile picture menu.
+5. **Plan the work.** Add tasks with the quick-add bar: pick who's on it and whether everyone or only assignees can see it. Open a task to write its description and notes and break it into subtasks.
+6. **Work the board.** Assignees press **Start working** so the team knows, tick subtasks as they go, and press **Mark done** when it ships.
+7. **Look back** in **Shipped** to see everything the team finished and who finished it.
+8. **Set up roles** in **Settings → Roles**: create custom roles and give them to members from the member list.
 
 ## Roles and permissions
 
@@ -102,14 +106,33 @@ Blueprint has two kinds of role. **Team roles** apply inside one team. **Site ro
 
 ### Team roles
 
-| Action | Member | Admin | Owner |
-| --- | :---: | :---: | :---: |
-| Add and edit ideas, projects and tasks; spark; work tasks | ✅ | ✅ | ✅ |
-| Archive or delete your own ideas, projects and tasks | ✅ | ✅ | ✅ |
-| Archive or delete anyone's ideas, projects and tasks | | ✅ | ✅ |
-| Rename the team, manage the archive, clear shipped tasks | | ✅ | ✅ |
-| Remove members | | ✅ (not admins) | ✅ |
-| Change roles, transfer ownership, delete the team | | | ✅ |
+| Role | What they can do |
+| --- | --- |
+| **Owner** | Everything, including deleting the team and its projects, choosing co-owners and transferring ownership. One per team. |
+| **Co-owner** | Everything except deleting the team or projects, and choosing co-owners. Creates and manages custom roles. |
+| **Member** (default) | Capture and spark ideas, manage their own ideas, and work on and finish tasks and subtasks assigned to them. They can't create or edit tasks. |
+| **Custom role** | Exactly the permissions the owner or a co-owner picks for it (replaces the member defaults). |
+
+Permissions a custom role can grant:
+
+| Group | Permission | Allows |
+| --- | --- | --- |
+| Ideas | Capture ideas | Add ideas to the vault |
+| | Manage all ideas | Edit, archive and delete anyone's ideas |
+| Projects | Create projects | Start projects and promote ideas |
+| | Edit projects | Change any project's name and description |
+| | Archive projects | Archive and restore projects |
+| Tasks | Create tasks | Add tasks and subtasks, choose assignees and visibility, and edit tasks they created |
+| | Edit any task | Change details, assignees, priority, visibility and subtasks |
+| | Move any task | Start, move and finish tasks they aren't assigned to |
+| | Delete tasks | Permanently delete tasks |
+| | See private tasks | See tasks that are visible to assignees only |
+| People | Invite people | Invite people by username |
+| | Manage members | Remove members and give them roles, but only roles with permissions they have themselves |
+| Team | Edit team details | Change the team name and description |
+| | Clean up | Clear shipped tasks and empty the archive |
+
+Deleting projects and the team always stays with the owner. Every rule is enforced on the server in each action (`lib/team-permissions.ts`, `lib/team-access.ts`); the interface only hides what you can't use.
 
 ### Site roles
 
@@ -130,8 +153,8 @@ Idea and task text is encrypted in the application before it's written to Postgr
 
 | Encrypted (AES-256-GCM) | Stays plain, so Postgres can index, sort and filter |
 | --- | --- |
-| Idea titles, descriptions and project notes | Tags, sparks, statuses, priorities |
-| Task titles and notes | Team, author and assignee ids, timestamps |
+| Idea and project titles and descriptions | Tags, sparks, statuses, priorities, visibility |
+| Task titles, descriptions and notes; subtask titles | Team, author and assignee ids, roles, timestamps |
 
 - **One key per team.** Each team's key is derived with HKDF-SHA256 from the master `ENCRYPTION_KEY` and the team id. A key for one team can't decrypt another team's rows.
 - **Fresh IV on every write.** Values are stored as `enc:v1:<iv>:<authTag>:<ciphertext>` with a random 12-byte IV, so identical text never looks the same twice. The GCM auth tag rejects any altered or moved ciphertext.
@@ -157,7 +180,8 @@ flowchart LR
 | Layer | What it does | Where |
 | --- | --- | --- |
 | **Per-team AES-256-GCM field encryption** | Idea and task contents are encrypted with per-team HKDF-derived keys before they reach Postgres, so raw ideas are never stored in plaintext in the database or the audit log. | `lib/crypto.ts`, `instrumentation.ts` |
-| **Zero-trust team isolation** | Every team-scoped action resolves the session to a Prisma user and re-proves membership in Postgres. URL slugs and client ids are never trusted. | `lib/auth.ts`, `app/actions/*` |
+| **Zero-trust team isolation** | Every team-scoped action resolves the session to a Prisma user, re-proves membership and reloads the caller's team permissions from Postgres. URL slugs and client ids are never trusted. | `lib/team-access.ts`, `app/actions/*` |
+| **Team permissions and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered in the database query, so they never reach people who can't see them, and acting on one behaves exactly as if it didn't exist. | `lib/team-permissions.ts`, `lib/task-visibility.ts` |
 | **Anti-IDOR** | Every update and delete is scoped with `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. | `app/actions/*` |
 | **Site roles and suspensions** | Staff permissions are re-read from the database on every admin action. Suspended accounts are blocked from every page, action and API route, and banned in Clerk too. Non-staff get a 404 for `/admin`. | `lib/site-roles.ts`, `app/actions/admin.ts` |
 | **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 20/min for writes. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
@@ -268,7 +292,7 @@ npm run site:role -- your_username ADMIN
 | `npm run db:encrypt [-- --apply]` | Encrypt rows written before `ENCRYPTION_KEY` was set. Dry run unless `--apply`. |
 | `npm run site:role -- <username> <ROLE>` | Set a site role: `USER`, `SUPPORT`, `MODERATOR` or `ADMIN` |
 | `npm run site:role -- list` / `unsuspend <username>` | List staff, or lift a suspension |
-| `npm run team:role -- <username> <team-slug> <ROLE>` | Set a team role: `OWNER`, `ADMIN` or `MEMBER` |
+| `npm run team:role -- <username> <team-slug> <ROLE>` | Set a team role: `OWNER`, `CO_OWNER` or `MEMBER` |
 
 ## Deploy to Vercel
 
@@ -333,7 +357,9 @@ components/
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
   crypto.ts                per-team AES-256-GCM field encryption
-  auth.ts site-roles.ts    sessions, membership checks, staff permissions
+  auth.ts site-roles.ts    sessions, suspensions, site staff permissions
+  team-permissions.ts      team roles, custom role permissions, task rules
+  team-access.ts           per-action team membership and permission checks
   action.ts api.ts         server action and API guards (origin, rate limit, auth)
   validations.ts           Zod schemas and sanitising
 prisma/

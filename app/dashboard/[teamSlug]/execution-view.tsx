@@ -63,13 +63,13 @@ function ExecutionHome({ missing }: { missing: boolean }) {
 function projectStats(tasks: TaskDTO[], id: string) {
   const own = tasks.filter((t) => t.idea?.id === id);
   const done = own.filter((t) => t.status === "DONE").length;
-  const people = [...new Set(own.map((t) => t.assigneeId).filter((v): v is string => !!v))];
-  const focused = own.some((t) => t.isFocused && t.status === "IN_PROGRESS");
+  const people = [...new Set(own.flatMap((t) => t.assigneeIds))];
+  const focused = own.some((t) => t.status === "IN_PROGRESS" && t.focus.length > 0);
   return { total: own.length, done, open: own.length - done, people, focused };
 }
 
 function ProjectList() {
-  const { ideas, tasks, openProject, member } = useWorkspace();
+  const { ideas, tasks, openProject, member, can } = useWorkspace();
   const [creating, setCreating] = useState(false);
   const projects = ideas.filter((i) => i.status === "PROMOTED");
   const loose = tasks.filter((t) => !t.idea || !projects.some((p) => p.id === t.idea!.id)).filter((t) => t.status !== "DONE").length;
@@ -81,7 +81,9 @@ function ProjectList() {
           {projects.length ? `${projects.length} project${projects.length > 1 ? "s" : ""} in execution` : "No projects yet"}
           {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} outside a project</span>}
         </p>
-        <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
+        {can("projects.create") && (
+          <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
+        )}
       </div>
 
       {projects.length ? (
@@ -141,9 +143,11 @@ function ProjectList() {
         </ul>
       ) : (
         <div className="card mt-4 rounded-2xl px-6 py-14 text-center">
-          <p className="text-[15px] text-ink">Promote an idea from the vault, or start a project here.</p>
-          <p className="mt-1 text-sm text-ink-3">Each project gets its own board, description and notes.</p>
-          <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm, "mt-5")}>New project</button>
+          <p className="text-[15px] text-ink">No projects yet.</p>
+          <p className="mt-1 text-sm text-ink-3">Each project gets its own description, board, tasks and subtasks.</p>
+          {can("projects.create") && (
+            <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm, "mt-5")}>New project</button>
+          )}
         </div>
       )}
 
@@ -155,13 +159,16 @@ function ProjectList() {
 /* ── One project ────────────────────────────────────────────────────────── */
 
 function ProjectPage({ project }: { project: IdeaDTO }) {
-  const { tasks, member, openProject, team, viewer, myRole, run, removeIdea, removeTask } = useWorkspace();
+  const { tasks, member, openProject, team, viewer, can, run, removeIdea, removeTask } = useWorkspace();
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<"archive" | "delete" | null>(null);
   const [withTasks, setWithTasks] = useState(false);
   const s = projectStats(tasks, project.id);
   const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
-  const canArchive = project.authorId === viewer.id || myRole !== "MEMBER";
+  const own = project.authorId === viewer.id;
+  const canEdit = own || can("projects.edit");
+  const canArchive = own || can("projects.archive");
+  const canDelete = can("projects.delete");
   const author = member(project.authorId);
 
   const archive = () => {
@@ -204,12 +211,10 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>
-          {canArchive && (
-            <>
-              <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.ghost, btn.sm)}>Archive</button>
-              <button type="button" onClick={() => setConfirm("delete")} className={cx(btn.ghost, btn.sm, "text-rose hover:text-rose")}>Delete</button>
-            </>
+          {canEdit && <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>}
+          {canArchive && <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.ghost, btn.sm)}>Archive</button>}
+          {canDelete && (
+            <button type="button" onClick={() => setConfirm("delete")} className={cx(btn.ghost, btn.sm, "text-rose hover:text-rose")}>Delete</button>
           )}
         </div>
       </div>
@@ -235,21 +240,8 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
               </div>
             ))}
           </dl>
-          {s.people.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-1.5">
-              {s.people.map((id) => {
-                const m = member(id);
-                return m ? (
-                  <li key={id} className="flex items-center gap-1.5 rounded-lg py-0.5 pl-0.5 pr-2" style={{ backgroundColor: `${m.accentColor}12` }}>
-                    <Monogram name={m.username} color={m.accentColor} size={20} />
-                    <span className="font-mono text-[11px]" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
-                  </li>
-                ) : null;
-              })}
-            </ul>
-          )}
         </section>
-        <ProjectNotes project={project} />
+        <ProjectPeople projectId={project.id} people={s.people} />
       </div>
 
       <div className="mt-8">
@@ -277,7 +269,7 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           setWithTasks(false);
         }}
         title="Delete project?"
-        description={<>&ldquo;{project.title}&rdquo;, its description and its notes will be deleted for everyone on the team.</>}
+        description={<>&ldquo;{project.title}&rdquo; and its description will be deleted for everyone on the team. Only the team owner can do this.</>}
         confirmLabel="Delete project"
         level={{ kind: "type", phrase: project.title, what: "project name" }}
         onConfirm={destroy}
@@ -296,41 +288,38 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
   );
 }
 
-function ProjectNotes({ project }: { project: IdeaDTO }) {
-  const { team, run, patchIdea } = useWorkspace();
-  const [draft, setDraft] = useState(project.notes ?? "");
-  const [saved, setSaved] = useState(project.notes ?? "");
-  const dirty = draft.trim() !== saved.trim();
-
-  const save = () => {
-    if (!dirty) return;
-    const next = draft.trim();
-    setSaved(next);
-    run(() => updateProject({ teamId: team.id, itemId: project.id, notes: next }), {
-      optimistic: () => patchIdea(project.id, { notes: next || null }),
-      success: "Notes saved.",
-    });
-  };
-
+/** Who is on the project: open tasks per person and who is working right now. */
+function ProjectPeople({ projectId, people }: { projectId: string; people: string[] }) {
+  const { tasks, member } = useWorkspace();
+  const own = tasks.filter((t) => t.idea?.id === projectId);
   return (
-    <section aria-label="Project notes" className="card flex flex-col rounded-2xl p-4">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={`notes-${project.id}`} className="text-sm font-medium">Notes</label>
-        <span className="text-[12px] text-ink-3">{dirty ? "Unsaved" : "Shared with the team"}</span>
-      </div>
-      <textarea
-        id={`notes-${project.id}`}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-        maxLength={8000}
-        rows={7}
-        placeholder="Decisions, links, open questions. Saved when you click away."
-        className={cx(inputCls, "mt-3 min-h-40 flex-1 resize-y py-2.5 leading-relaxed")}
-      />
-      <div className="mt-3 flex justify-end">
-        <button type="button" onClick={save} disabled={!dirty} className={cx(btn.outline, btn.xs)}>Save notes</button>
-      </div>
+    <section aria-label="People on this project" className="card rounded-2xl p-4">
+      <h3 className="text-sm font-medium">People</h3>
+      {people.length ? (
+        <ul className="mt-3 space-y-1">
+          {people.map((id) => {
+            const m = member(id);
+            if (!m) return null;
+            const mine = own.filter((t) => t.assigneeIds.includes(id));
+            const open = mine.filter((t) => t.status !== "DONE").length;
+            const working = own.find((t) => t.status === "IN_PROGRESS" && t.focus.some((f) => f.userId === id));
+            return (
+              <li key={id} className="flex items-center gap-3 rounded-xl px-2 py-1.5">
+                <Monogram name={m.username} color={m.accentColor} size={26} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-mono text-[12px]" style={{ color: readable(m.accentColor) }}>@{m.username}</span>
+                  <span className="block truncate text-[12px] text-ink-3">
+                    {working ? <>Working on <span className="text-ink-2">{working.title}</span></> : `${open} open of ${mine.length}`}
+                  </span>
+                </span>
+                {working && <span className="size-2 shrink-0 rounded-full bg-emerald" aria-label="In focus" />}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="mt-3 text-[13px] text-ink-3">Nobody is assigned to this project&apos;s tasks yet.</p>
+      )}
     </section>
   );
 }
@@ -343,7 +332,7 @@ function ProjectDialog({ open, onClose, project }: { open: boolean; onClose: () 
       open={open}
       onClose={onClose}
       title={project ? "Edit project" : "New project"}
-      description={project ? undefined : "A project holds its own tasks, description and notes."}
+      description={project ? undefined : "A project holds its own description, tasks and subtasks."}
     >
       {open && <ProjectForm project={project} onClose={onClose} />}
     </Dialog>
@@ -375,7 +364,6 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           id: `tmp-${now}`,
           title: t,
           description: d || null,
-          notes: null,
           tags: [],
           status: "PROMOTED",
           sparksCount: 0,

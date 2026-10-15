@@ -4,6 +4,7 @@ import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import { requireStaffPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { can, outranks } from "@/lib/site-roles";
+import { ROLE_NAME } from "@/lib/team-permissions";
 import { id as idSchema } from "@/lib/validations";
 import { fmtDate, fmtDateTime, RolePill, StatusPill } from "../../_components/ui";
 import { UserActions } from "./user-actions";
@@ -35,13 +36,13 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
         select: { role: true, joinedAt: true, team: { select: { id: true, name: true, slug: true, _count: { select: { members: true } } } } },
         orderBy: { joinedAt: "asc" },
       },
-      _count: { select: { ideasCreated: true, tasksCreated: true, tasksAssigned: true } },
+      _count: { select: { ideasCreated: true, tasksCreated: true, taskAssignments: true } },
     },
   });
   if (!user) notFound();
 
   const [shipped, history] = await Promise.all([
-    db.task.count({ where: { assigneeId: user.id, status: "DONE" } }),
+    db.task.count({ where: { completedById: user.id, status: "DONE" } }),
     db.auditLog.findMany({
       where: { OR: [{ userId: user.id }, { entityId: user.id }] },
       orderBy: { createdAt: "desc" },
@@ -116,7 +117,7 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
               {[
                 ["Ideas", user._count.ideasCreated],
                 ["Tasks created", user._count.tasksCreated],
-                ["Assigned", user._count.tasksAssigned],
+                ["Assigned", user._count.taskAssignments],
                 ["Shipped", shipped],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-xl bg-surface-2 p-3">
@@ -137,7 +138,7 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
                       <span className="block truncate text-ink">{m.team.name}</span>
                       <span className="block font-mono text-xs text-ink-3">/{m.team.slug} · {m.team._count.members} members</span>
                     </span>
-                    <span className="text-xs text-ink-2">{m.role.toLowerCase()}</span>
+                    <span className="text-xs text-ink-2">{ROLE_NAME[m.role]}</span>
                     <span className="text-xs text-ink-3">since {fmtDate(m.joinedAt)}</span>
                   </li>
                 ))}

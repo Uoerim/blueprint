@@ -13,6 +13,7 @@ export function Dialog({
   description,
   children,
   side = "center",
+  size = "md",
   className,
 }: {
   open: boolean;
@@ -21,6 +22,8 @@ export function Dialog({
   description?: string;
   children: ReactNode;
   side?: "center" | "right";
+  /** Centre dialogs only: sm (448px), md (512px, default) or lg (672px, taller). */
+  size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -66,7 +69,7 @@ export function Dialog({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className={cx("fixed inset-0 z-[60] flex", side === "center" ? "items-start justify-center p-4 pt-[12vh]" : "justify-end")}>
+        <div className={cx("fixed inset-0 z-[60] flex", side === "center" ? cx("items-start justify-center p-4", size === "lg" ? "pt-[6vh]" : "pt-[12vh]") : "justify-end")}>
           <motion.div
             className="absolute inset-0 bg-black/60"
             initial={{ opacity: 0 }}
@@ -87,7 +90,9 @@ export function Dialog({
             transition={{ type: "spring", stiffness: 420, damping: 38 }}
             className={cx(
               "glass-solid relative flex flex-col border-line-strong shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]",
-              side === "center" ? "max-h-[76vh] w-full max-w-lg rounded-2xl border" : "h-full w-full max-w-xl border-l",
+              side === "center"
+                ? cx("w-full rounded-2xl border", size === "lg" ? "max-h-[86vh] max-w-2xl" : size === "sm" ? "max-h-[84vh] max-w-md" : "max-h-[76vh] max-w-lg")
+                : "h-full w-full max-w-xl border-l",
               className,
             )}
           >

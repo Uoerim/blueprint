@@ -49,7 +49,7 @@ export async function suspendUser(input: unknown) {
     if (target.bannedAt) throw new ActionError("That account is already suspended.");
     await db.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason } });
     // Unassign live focus so the team doesn't see a ghost "working on" badge.
-    await db.task.updateMany({ where: { assigneeId: target.id, isFocused: true }, data: { isFocused: false } });
+    await db.taskAssignee.updateMany({ where: { userId: target.id, focusedAt: { not: null } }, data: { focusedAt: null } });
     const clerk = await clerkBan(target.clerkId);
     await audit(ctx, { action: "admin.user.suspended", entityType: "User", entityId: target.id });
     done();
@@ -122,7 +122,8 @@ export async function deleteUser(input: unknown) {
           await tx.team.delete({ where: { id: teamId } });
         }
       }
-      await tx.task.updateMany({ where: { assigneeId: target.id }, data: { assigneeId: null, isFocused: false } });
+      await tx.taskAssignee.deleteMany({ where: { userId: target.id } });
+      await tx.subtaskAssignee.deleteMany({ where: { userId: target.id } });
       await tx.teamInvite.deleteMany({ where: { OR: [{ inviterId: target.id }, { inviteeId: target.id }] } });
       await tx.teamMember.deleteMany({ where: { userId: target.id } });
       await tx.user.update({

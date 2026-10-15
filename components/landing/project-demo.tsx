@@ -46,10 +46,21 @@ export function ProjectDemo() {
           </div>
         </div>
         <div className="rounded-xl bg-surface-2 p-3">
-          <p className="text-[12px] font-medium text-ink-2">Notes</p>
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
-            Tempo range 80–160 BPM. Keep the curve gentle under 15°. Demo build goes to <span className="font-mono text-cyan">@mo</span> on Friday.
+          <p className="flex items-baseline justify-between text-[12px] font-medium text-ink-2">
+            Subtasks <span className="font-mono font-normal text-ink-3">2/3</span>
           </p>
+          <ul className="mt-1.5 space-y-1 text-[12.5px] text-ink-2">
+            {[
+              ["Read accelerometer", true],
+              ["Fit the tempo curve", true],
+              ["Tune it with @mo", false],
+            ].map(([t, done]) => (
+              <li key={String(t)} className="flex items-center gap-2">
+                <span className={cx("grid size-3.5 shrink-0 place-items-center rounded border", done ? "border-emerald bg-emerald" : "border-line-strong")} aria-hidden />
+                <span className={cx(done && "text-ink-3 line-through")}>{t}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -74,7 +85,7 @@ export function ProjectDemo() {
                         <span className="mt-1.5 flex items-center gap-1.5">
                           <Monogram name={c.who} color={c.color} size={16} />
                           <span className="font-mono text-[10.5px]" style={{ color: readable(c.color) }}>@{c.who}</span>
-                          {c.notes && <span className="ml-auto text-[10.5px] text-ink-3">notes</span>}
+                          {c.notes && <span className="ml-auto text-[10.5px] text-ink-3">2/3</span>}
                         </span>
                       </button>
                     </motion.li>

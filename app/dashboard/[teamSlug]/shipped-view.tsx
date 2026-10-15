@@ -18,7 +18,7 @@ export function ShippedView() {
     { label: "Tasks remaining", value: tasks.filter((t) => t.status !== "DONE").length, color: "#F59E0B" },
     {
       label: "Teammates in focus",
-      value: new Set(tasks.filter((t) => t.isFocused && t.status === "IN_PROGRESS").map((t) => t.assigneeId)).size,
+      value: new Set(tasks.flatMap((t) => (t.status === "IN_PROGRESS" ? t.focus.map((f) => f.userId) : []))).size,
       color: "#F43F5E",
     },
     { label: "Total shipped", value: done.length, color: "#10B981" },
@@ -40,7 +40,8 @@ export function ShippedView() {
       at: t.completedAt!,
       id: t.id,
       title: t.title,
-      who: t.assigneeId,
+      // Credit whoever marked it done (older rows: the first assignee).
+      who: t.completedById ?? t.assigneeIds[0] ?? null,
       idea: t.idea?.title ?? null,
     })),
     ...executed,

@@ -6,5 +6,7 @@ import { resolveDatabaseUrls } from "./database-url.mjs";
 export function createPrisma(log: ("warn" | "error")[] = ["error"]) {
   const { pooled } = resolveDatabaseUrls();
   if (!pooled) throw new Error("No database URL: set POSTGRES_PRISMA_URL (or DATABASE_URL).");
-  return new PrismaClient({ adapter: new PrismaNeon({ connectionString: pooled }), log });
+  // Honour ?schema= like Prisma's own engine does (used for isolated test schemas).
+  const schema = new URL(pooled).searchParams.get("schema") ?? undefined;
+  return new PrismaClient({ adapter: new PrismaNeon({ connectionString: pooled }, { schema }), log });
 }
