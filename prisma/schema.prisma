@@ -1,0 +1,168 @@
+// Neon Serverless Postgres via Prisma.
+// POSTGRES_PRISMA_URL      -> pooled connection (pgbouncer) used by the app at runtime
+// POSTGRES_URL_NON_POOLING -> direct connection used by migrations / db push
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// engineType "client" = Rust-free Prisma Client running on the Neon serverless
+// driver adapter (lib/db.ts). No native query engine, so it also runs on
+// Windows ARM64, edge-style runtimes and anywhere Node runs.
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+model User {
+  id            String       @id @default(cuid())
+  clerkId       String       @unique
+  email         String       @unique
+  username      String?      @unique
+  displayName   String?
+  accentColor   String       @default("#6366F1")
+  onboarded     Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  teamsOwned    Team[]       @relation("TeamOwner")
+  memberships   TeamMember[]
+  invitesSent   TeamInvite[] @relation("Inviter")
+  invitesRecv   TeamInvite[] @relation("Invitee")
+  ideasCreated  Idea[]
+  tasksCreated  Task[]
+  tasksAssigned Task[]       @relation("TaskAssignee")
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  createdById String
+  createdBy   User         @relation("TeamOwner", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  members     TeamMember[]
+  invites     TeamInvite[]
+  ideas       Idea[]
+  tasks       Task[]
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role     @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model TeamInvite {
+  id          String       @id @default(cuid())
+  teamId      String
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviterId   String
+  inviter     User         @relation("Inviter", fields: [inviterId], references: [id])
+  inviteeId   String
+  invitee     User         @relation("Invitee", fields: [inviteeId], references: [id])
+  status      InviteStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  respondedAt DateTime?
+
+  @@unique([teamId, inviteeId, status])
+  @@index([inviteeId, status])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Idea {
+  id               String     @id @default(cuid())
+  teamId           String
+  team             Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  tags             String[]
+  status           IdeaStatus @default(VAULT)
+  sparksCount      Int        @default(0)
+  sparkedByUserIds String[]
+  createdById      String
+  createdBy        User       @relation(fields: [createdById], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  tasks            Task[]
+
+  @@index([teamId])
+}
+
+enum IdeaStatus {
+  VAULT
+  PROMOTED
+  ARCHIVED
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  teamId      String
+  team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ideaId      String?
+  idea        Idea?      @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  title       String
+  notes       String?
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  isFocused   Boolean    @default(false)
+  createdById String
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([teamId])
+  @@index([teamId, status])
+}
+
+// TODO is shown as "Backlog" on the board; READY was added so the board can
+// carry four columns (Backlog -> Ready -> In Progress -> Done).
+enum TaskStatus {
+  TODO
+  READY
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  teamId     String?
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  ipAddress  String
+  createdAt  DateTime @default(now())
+
+  @@index([teamId, createdAt])
+}
