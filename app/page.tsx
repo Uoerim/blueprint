@@ -280,7 +280,7 @@ function Footer() {
           <Link className="transition-colors hover:text-ink" href="/privacy">Privacy</Link>
           <Link className="transition-colors hover:text-ink" href="/terms">Terms</Link>
           <a className="transition-colors hover:text-ink" href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a className="transition-colors hover:text-ink" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer license">License</a>
+          <a className="transition-colors hover:text-ink" href={`${REPO}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer license">License</a>
         </span>
       </div>
     </footer>

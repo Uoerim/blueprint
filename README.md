@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Framer Motion](https://img.shields.io/badge/Framer%20Motion-14-0055FF?logo=framer&logoColor=white)](https://motion.dev)
 [![Zod](https://img.shields.io/badge/Validation-Zod%204-3E67B1?logo=zod&logoColor=white)](https://zod.dev)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-Non--Commercial%20(CC%20BY--NC--SA%204.0)-lightgrey)](./LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-lightgrey)](./LICENSE)
 
 ---
 
@@ -153,10 +153,12 @@ The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` 
 
 ## License
 
-**Blueprint is free and open source for non-commercial use**, under [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](./LICENSE).
+**Blueprint is free for non-commercial use**, under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
 
-- ✅ Clone, modify, self-host and use it with your friends, co-founders, classes or teams, for free.
-- ✅ Share your changes, under the same license, with credit.
-- ❌ Do not sell it, offer it as a paid hosted SaaS, or bundle it into a commercial product without written permission from the author.
+- ✅ Clone, modify, and self-host on your own database/Vercel for free with your friends, classes, or squad.
+- ✅ Share your changes under the same non-commercial license, with credit (keep the `LICENSE` file and its `Required Notice` line).
+- 💡 **Official hosted version ([blueprint.raqameen.com](https://blueprint.raqameen.com)):** Only the official hosted app may offer paid options or lightweight ads, to support domain, database, and hosting costs. Want it completely free? Self-host it in 3 minutes with the [Quick start](#quick-start) above.
+- ❌ Third parties may not sell Blueprint, run ads on it, offer it as a paid hosted SaaS, or use it commercially without written permission from the author.
+- 🤝 **Contributions:** By submitting a PR, you grant the author the right to use your contribution in both the open repository and the official hosted instance. See the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE).
 
-See [`LICENSE`](./LICENSE) for the summary and the full legal text.
+For commercial permission, open an issue or email support@raqameen.com.
