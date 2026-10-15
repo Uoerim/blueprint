@@ -25,6 +25,8 @@ export async function GET(req: Request) {
   const users = await db.user.findMany({
     where: {
       onboarded: true,
+      bannedAt: null,
+      deletedAt: null,
       username: { startsWith: q.data, mode: "insensitive" },
       id: { not: guard.viewer.id },
     },

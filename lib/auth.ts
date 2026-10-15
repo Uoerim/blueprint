@@ -4,6 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 import { Prisma, type Role, type User } from "@prisma/client";
 import { db } from "./db";
+import { can, type Permission, type SiteRole } from "./site-roles";
 
 export class ActionError extends Error {}
 
@@ -41,20 +42,42 @@ export const getViewer = cache(async (): Promise<User | null> => {
   }
 });
 
-/** For pages: signed-in and onboarded, otherwise redirect. */
+/** Suspended or deleted accounts are locked out of everything, even with a live Clerk session. */
+export const isLockedOut = (user: Pick<User, "bannedAt" | "deletedAt">) => !!user.bannedAt || !!user.deletedAt;
+
+/** For pages: signed-in, not suspended and onboarded, otherwise redirect. */
 export async function requireOnboardedPage(): Promise<User> {
   const user = await getViewer();
   if (!user) redirect("/sign-in");
+  if (isLockedOut(user)) redirect("/suspended");
   if (!user.onboarded || !user.username) redirect("/onboarding");
   return user;
 }
 
-/** For server actions / route handlers: signed-in and onboarded, otherwise throw. */
+/** For server actions / route handlers: signed-in, not suspended and onboarded, otherwise throw. */
 export async function requireOnboarded(): Promise<User> {
   const user = await getViewer();
   if (!user) throw new ActionError("Sign in required.");
+  if (isLockedOut(user)) throw new ActionError("This account is suspended.");
   if (!user.onboarded || !user.username) throw new ActionError("Finish onboarding first.");
   return user;
+}
+
+/**
+ * For /admin pages: staff with the permission, otherwise a plain 404 so the
+ * panel's existence isn't revealed to regular accounts.
+ */
+export async function requireStaffPage(permission: Permission = "admin.view"): Promise<User & { siteRole: SiteRole }> {
+  const user = await requireOnboardedPage();
+  if (!can(user.siteRole, permission)) notFound();
+  return user;
+}
+
+/** For admin server actions: re-checked from the database on every call. */
+export function requirePermission(user: User, permission: Permission) {
+  if (isLockedOut(user) || !can(user.siteRole, permission)) {
+    throw new ActionError("You don't have permission to do that.");
+  }
 }
 
 /**

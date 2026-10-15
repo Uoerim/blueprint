@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
+import { encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { createTaskSchema, id, prioritySchema, taskStatusSchema, teamScoped, updateTaskSchema } from "@/lib/validations";
 
@@ -41,8 +42,8 @@ export async function createTask(input: unknown) {
     const task = await db.task.create({
       data: {
         teamId: data.teamId,
-        title: data.title,
-        notes: data.notes,
+        title: encryptText(data.title, data.teamId),
+        notes: encryptOptional(data.notes, data.teamId),
         priority: data.priority,
         assigneeId: data.assigneeId ?? null,
         ideaId: data.projectId ?? null,
@@ -64,8 +65,8 @@ export async function updateTask(input: unknown) {
     const { count } = await db.task.updateMany({
       where: { id: itemId, teamId },
       data: {
-        ...(title !== undefined && { title }),
-        ...(notes !== undefined && { notes }),
+        ...(title !== undefined && { title: encryptText(title, teamId) }),
+        ...(notes !== undefined && { notes: encryptOptional(notes, teamId) }),
         ...(projectId !== undefined && { ideaId: projectId }),
       },
     });

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
 import { ActionError, requireMembership } from "@/lib/auth";
+import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import {
   createIdeaSchema,
@@ -20,8 +21,8 @@ export async function createIdea(input: unknown) {
     const idea = await db.idea.create({
       data: {
         teamId: data.teamId,
-        title: data.title,
-        description: data.description,
+        title: encryptText(data.title, data.teamId),
+        description: encryptOptional(data.description, data.teamId),
         tags: [...new Set(data.tags)],
         createdById: ctx.user.id,
       },
@@ -83,7 +84,7 @@ export async function promoteIdea(input: unknown) {
         data: data.tasks.map((t) => ({
           teamId: data.teamId,
           ideaId: idea.id,
-          title: t.title,
+          title: encryptText(t.title, data.teamId),
           priority: t.priority,
           assigneeId: t.assigneeId ?? null,
           status: "READY" as const,
@@ -122,8 +123,8 @@ export async function createProject(input: unknown) {
     const project = await db.idea.create({
       data: {
         teamId: data.teamId,
-        title: data.title,
-        description: data.description,
+        title: encryptText(data.title, data.teamId),
+        description: encryptOptional(data.description, data.teamId),
         status: "PROMOTED",
         createdById: ctx.user.id,
       },
@@ -143,9 +144,9 @@ export async function updateProject(input: unknown) {
     const { count } = await db.idea.updateMany({
       where: { id: itemId, teamId, status: "PROMOTED" },
       data: {
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(notes !== undefined && { notes }),
+        ...(title !== undefined && { title: encryptText(title, teamId) }),
+        ...(description !== undefined && { description: encryptOptional(description, teamId) }),
+        ...(notes !== undefined && { notes: encryptOptional(notes, teamId) }),
       },
     });
     if (!count) throw new ActionError("Project not found.");
@@ -192,7 +193,7 @@ export async function deleteIdea(input: unknown) {
     if (idea.createdById !== ctx.user.id && me.role === "MEMBER") {
       throw new ActionError("Only the author or an admin can delete this.");
     }
-    if (idea.status === "PROMOTED" && confirm?.trim() !== idea.title) {
+    if (idea.status === "PROMOTED" && confirm?.trim() !== decryptText(idea.title, teamId)) {
       throw new ActionError("Type the project name exactly to confirm.");
     }
     await db.$transaction([

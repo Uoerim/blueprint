@@ -1,0 +1,160 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { audit, runAction } from "@/lib/action";
+import { ActionError, requirePermission } from "@/lib/auth";
+import { clerkBan, clerkDelete, clerkSignOutEverywhere, clerkUnban } from "@/lib/clerk-admin";
+import { db } from "@/lib/db";
+import { outranks, type Permission } from "@/lib/site-roles";
+import {
+  adminDeleteTeamSchema,
+  adminDeleteUserSchema,
+  adminRoleSchema,
+  adminSuspendSchema,
+  adminUserSchema,
+} from "@/lib/validations";
+
+/**
+ * Site-wide staff actions. Every call re-reads the actor from the database
+ * (runAction → getViewer), checks the permission, refuses to act on yourself
+ * and on equal/higher staff (admins excepted), and writes an audit entry.
+ * None of these ever read or return team content.
+ */
+
+type Actor = Parameters<Parameters<typeof runAction>[1]>[0]["user"];
+
+async function loadTarget(actor: Actor, userId: string, permission: Permission) {
+  requirePermission(actor, permission);
+  if (userId === actor.id) throw new ActionError("You can't do that to your own account here. Use the CLI.");
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, clerkId: true, username: true, siteRole: true, bannedAt: true, deletedAt: true },
+  });
+  if (!target || target.deletedAt) throw new ActionError("Account not found.");
+  if (!outranks(actor.siteRole, target.siteRole)) {
+    throw new ActionError("You can only act on accounts below your own role.");
+  }
+  return target;
+}
+
+const done = () => {
+  revalidatePath("/admin", "layout");
+  return null;
+};
+
+export async function suspendUser(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId, reason } = adminSuspendSchema.parse(input);
+    const target = await loadTarget(ctx.user, userId, "users.suspend");
+    if (target.bannedAt) throw new ActionError("That account is already suspended.");
+    await db.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason } });
+    // Unassign live focus so the team doesn't see a ghost "working on" badge.
+    await db.task.updateMany({ where: { assigneeId: target.id, isFocused: true }, data: { isFocused: false } });
+    const clerk = await clerkBan(target.clerkId);
+    await audit(ctx, { action: "admin.user.suspended", entityType: "User", entityId: target.id });
+    done();
+    return { clerk };
+  });
+}
+
+export async function unsuspendUser(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId } = adminUserSchema.parse(input);
+    const target = await loadTarget(ctx.user, userId, "users.suspend");
+    if (!target.bannedAt) throw new ActionError("That account isn't suspended.");
+    await db.user.update({ where: { id: target.id }, data: { bannedAt: null, banReason: null } });
+    const clerk = await clerkUnban(target.clerkId);
+    await audit(ctx, { action: "admin.user.unsuspended", entityType: "User", entityId: target.id });
+    done();
+    return { clerk };
+  });
+}
+
+export async function signOutEverywhere(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId } = adminUserSchema.parse(input);
+    const target = await loadTarget(ctx.user, userId, "users.signout");
+    const clerk = await clerkSignOutEverywhere(target.clerkId);
+    if (!clerk) throw new ActionError("Clerk didn't accept the request. Try again.");
+    await audit(ctx, { action: "admin.user.signed_out", entityType: "User", entityId: target.id });
+    return done();
+  });
+}
+
+export async function setSiteRole(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId, role } = adminRoleSchema.parse(input);
+    const target = await loadTarget(ctx.user, userId, "users.role");
+    if (target.siteRole === role) return null;
+    if (role !== "USER" && target.bannedAt) throw new ActionError("Unsuspend the account before giving it a staff role.");
+    await db.user.update({ where: { id: target.id }, data: { siteRole: role } });
+    await audit(ctx, { action: `admin.user.role.${role}`, entityType: "User", entityId: target.id });
+    return done();
+  });
+}
+
+/**
+ * Deletes an account: Clerk login removed, memberships and invites removed,
+ * owned teams handed to the next admin/member (or deleted when empty), and the
+ * row kept as a scrubbed tombstone so shared ideas and tasks stay intact.
+ */
+export async function deleteUser(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId, confirm } = adminDeleteUserSchema.parse(input);
+    const target = await loadTarget(ctx.user, userId, "users.delete");
+    if (confirm.trim().replace(/^@/, "") !== (target.username ?? "")) {
+      throw new ActionError("Type the username exactly to confirm.");
+    }
+    if (!(await clerkDelete(target.clerkId))) throw new ActionError("Clerk didn't delete the login. Nothing was changed.");
+
+    await db.$transaction(async (tx) => {
+      const owned = await tx.teamMember.findMany({ where: { userId: target.id, role: "OWNER" }, select: { teamId: true } });
+      for (const { teamId } of owned) {
+        const heir = await tx.teamMember.findFirst({
+          where: { teamId, userId: { not: target.id } },
+          orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
+          select: { id: true, userId: true },
+        });
+        if (heir) {
+          await tx.teamMember.update({ where: { id: heir.id }, data: { role: "OWNER" } });
+          await tx.team.update({ where: { id: teamId }, data: { createdById: heir.userId } });
+        } else {
+          await tx.team.delete({ where: { id: teamId } });
+        }
+      }
+      await tx.task.updateMany({ where: { assigneeId: target.id }, data: { assigneeId: null, isFocused: false } });
+      await tx.teamInvite.deleteMany({ where: { OR: [{ inviterId: target.id }, { inviteeId: target.id }] } });
+      await tx.teamMember.deleteMany({ where: { userId: target.id } });
+      await tx.user.update({
+        where: { id: target.id },
+        data: {
+          clerkId: `deleted:${target.id}`,
+          email: `deleted+${target.id}@users.noreply.invalid`,
+          username: null,
+          displayName: null,
+          onboarded: false,
+          siteRole: "USER",
+          bannedAt: null,
+          banReason: null,
+          deletedAt: new Date(),
+        },
+      });
+    });
+    await audit(ctx, { action: "admin.user.deleted", entityType: "User", entityId: target.id });
+    return done();
+  });
+}
+
+export async function adminDeleteTeam(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, confirm } = adminDeleteTeamSchema.parse(input);
+    requirePermission(ctx.user, "teams.delete");
+    const team = await db.team.findUnique({ where: { id: teamId }, select: { name: true } });
+    if (!team) throw new ActionError("Team not found.");
+    if (confirm.trim() !== team.name) throw new ActionError("Type the team name exactly to confirm.");
+    await db.team.delete({ where: { id: teamId } });
+    await audit(ctx, { action: "admin.team.deleted", entityType: "Team", entityId: teamId });
+    revalidatePath("/dashboard", "layout");
+    return done();
+  });
+}

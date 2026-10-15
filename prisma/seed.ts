@@ -4,11 +4,12 @@
  *   npm run db:seed
  *
  * Demo users get fake `seed_*` Clerk ids, so nobody can sign in as them; they
- * exist so you can search @handles and invite them. Set SEED_INVITE_USERNAME
- * to your own @handle (after onboarding) to receive pending invites to both
+ * exist so you can search @usernames and invite them. Set SEED_INVITE_USERNAME
+ * to your own @username (after onboarding) to receive pending invites to both
  * demo teams. Re-running is safe: it wipes and rebuilds only seed data.
  */
 import type { Priority, TaskStatus } from "@prisma/client";
+import { encryptOptional, encryptText } from "../lib/crypto";
 import { createPrisma } from "../lib/prisma";
 
 const db = createPrisma();
@@ -87,8 +88,8 @@ async function main() {
       data: {
         teamId,
         createdById: u[by],
-        title,
-        description,
+        title: encryptText(title, teamId),
+        description: encryptOptional(description, teamId),
         tags,
         status,
         sparkedByUserIds: sparkers.map((s) => u[s]),
@@ -117,7 +118,7 @@ async function main() {
       data: {
         teamId,
         createdById: u[by],
-        title,
+        title: encryptText(title, teamId),
         status,
         priority,
         assigneeId: assignee ? u[assignee] : null,

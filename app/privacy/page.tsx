@@ -76,6 +76,11 @@ export default function PrivacyPage() {
           <li>
             <strong>Team owners and admins</strong> can manage the team&apos;s members and content.
           </li>
+          <li>
+            <strong>Blueprint staff</strong> (support, moderators and site admins) can see account details such as your email,
+            @username, teams and activity records, to help you and to enforce the Terms. They can suspend or delete accounts
+            that break the rules. The admin tools never show the text of your ideas, projects or tasks.
+          </li>
         </ul>
       </Section>
 
@@ -119,7 +124,10 @@ export default function PrivacyPage() {
       <Section id="security" title="Security">
         <p>
           All traffic is encrypted with HTTPS, sign-in is handled by Clerk, and every request is checked so people can only
-          reach the teams they belong to. No system is perfectly secure, so if you find a problem please tell us at <Mail />.
+          reach the teams they belong to. The text of your ideas, projects and tasks (titles, descriptions and notes) is
+          encrypted with AES-256-GCM before it is stored, using a key unique to your team, so it never sits in the database
+          as plain text. Tags, statuses and dates stay unencrypted so the app can sort and filter them. No system is perfectly
+          secure, so if you find a problem please tell us at <Mail />.
         </p>
       </Section>
 

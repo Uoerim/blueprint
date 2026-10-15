@@ -2,6 +2,7 @@ import { Show, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FocusHud, InviteDemo, PipelineDemo } from "@/components/landing/bento";
+import { EncryptionDemo } from "@/components/landing/encryption-demo";
 import { LivePreview } from "@/components/landing/live-preview";
 import { MaskedHeadline, Rise } from "@/components/landing/motion";
 import { LandingNav } from "@/components/landing/nav";
@@ -250,6 +251,17 @@ function Tour() {
       >
         <ShippedMock />
       </Row>
+
+      <Row
+        id="security"
+        step="07 · Private"
+        title="Encrypted before it's stored."
+        body="Idea and task text is encrypted with AES-256-GCM using a key unique to your team before it reaches the database. Another team's key can't open it, and nobody browsing the database sees your plans."
+        points={["A separate key for every team", "Admins manage accounts, never read your ideas", "HTTPS, strict security headers and rate limits everywhere"]}
+      >
+        <EncryptionDemo />
+        <p className="mt-3 text-[13px] text-ink-3">Type something: every save gets a fresh random IV, so the same text never looks the same twice.</p>
+      </Row>
     </section>
   );
 }
@@ -262,7 +274,7 @@ function Closing() {
       <Rise className="card flex flex-col items-start gap-6 rounded-3xl p-8 sm:p-12 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-[clamp(1.6rem,3vw,2.5rem)] font-semibold leading-[1.1] tracking-[-0.03em]">Free, with no limits.</h2>
-          <p className="mt-2 max-w-[44ch] text-[17px] text-ink-2">Unlimited teams, ideas, projects and tasks. Sign in with Google or GitHub and start in a minute.</p>
+          <p className="mt-2 max-w-[44ch] text-[17px] text-ink-2">Unlimited teams, ideas, projects and tasks. Encrypted per team. Sign in with Google or GitHub and start in a minute.</p>
         </div>
         <PrimaryCta label="Start your team" />
       </Rise>

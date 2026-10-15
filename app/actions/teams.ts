@@ -59,7 +59,7 @@ export async function sendInvite(input: unknown) {
     if (inviteeId === ctx.user.id) throw new ActionError("You're already on this team.");
 
     const invitee = await db.user.findFirst({
-      where: { id: inviteeId, onboarded: true },
+      where: { id: inviteeId, onboarded: true, bannedAt: null, deletedAt: null },
       select: { id: true, username: true },
     });
     if (!invitee) throw new ActionError("User not found.");

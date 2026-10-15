@@ -172,3 +172,11 @@ export function slugify(name: string): string {
       .replace(/-+$/g, "") || "team"
   );
 }
+
+/* ── Site admin ─────────────────────────────────────────────────────────── */
+
+export const adminUserSchema = z.strictObject({ userId: id });
+export const adminSuspendSchema = z.strictObject({ userId: id, reason: clearableText(500) });
+export const adminRoleSchema = z.strictObject({ userId: id, role: z.enum(["USER", "SUPPORT", "MODERATOR", "ADMIN"]) });
+export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
+export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });

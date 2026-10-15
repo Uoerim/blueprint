@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTeamForViewer, requireMembership, requireOnboardedPage } from "@/lib/auth";
+import { decryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { type ManagedIdea, TeamSettings } from "./team-settings";
 
@@ -43,7 +44,7 @@ export default async function TeamSettingsPage({ params }: PageProps<"/dashboard
       .filter((i) => i.status === status)
       .map((i) => ({
         id: i.id,
-        title: i.title,
+        title: decryptText(i.title, team.id),
         authorId: i.createdById,
         taskCount: i.tasks.length,
         doneCount: i.tasks.filter((t) => t.status === "DONE").length,

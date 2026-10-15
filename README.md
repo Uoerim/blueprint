@@ -1,61 +1,198 @@
-# Blueprint
+<div align="center">
 
-**Where raw ideas become shipped reality.** A fast, private idea vault and execution board for friends and small squads.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
+  <img alt="Blueprint: where raw ideas become shipped reality" src=".github/assets/banner-light.svg" width="560">
+</picture>
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs)](https://nextjs.org)
+**A private idea vault and execution board for friends, classes and small squads.**<br>
+Capture ideas, agree on the good ones, turn them into projects, and ship them together.
+
+[**Use it free at blueprint.raqameen.com**](https://blueprint.raqameen.com) · [Self-host it](#self-hosting) · [Security](#security-and-privacy) · [License](#license)
+
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com)
-[![Neon](https://img.shields.io/badge/DB-Neon%20Serverless%20Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
-[![Prisma](https://img.shields.io/badge/ORM-Prisma-2D3748?logo=prisma)](https://prisma.io)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Framer Motion](https://img.shields.io/badge/Framer%20Motion-14-0055FF?logo=framer&logoColor=white)](https://motion.dev)
-[![Zod](https://img.shields.io/badge/Validation-Zod%204-3E67B1?logo=zod&logoColor=white)](https://zod.dev)
-[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-lightgrey)](./LICENSE)
+[![Neon Postgres](https://img.shields.io/badge/DB-Neon%20Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Prisma](https://img.shields.io/badge/ORM-Prisma%206-2D3748?logo=prisma)](https://prisma.io)
+[![AES-256-GCM](https://img.shields.io/badge/Encryption-AES--256--GCM%20per%20team-059669)](#field-encryption)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-lightgrey)](./LICENSE)
+
+</div>
 
 ---
 
-## The philosophy
+## Contents
 
-Enterprise project managers were built for org charts. Four friends with a side project need none of it: no sprints, no story points, no seat licences, no workflow editor. Every minute spent configuring a tool is a minute the idea goes cold.
+- [Why Blueprint](#why-blueprint)
+- [Features](#features)
+- [Using Blueprint](#using-blueprint)
+- [Roles and permissions](#roles-and-permissions)
+- [Security and privacy](#security-and-privacy)
+- [Tech stack](#tech-stack)
+- [Self-hosting](#self-hosting)
+- [Deploy to Vercel](#deploy-to-vercel)
+- [Administration](#administration)
+- [Project structure](#project-structure)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
 
-What a squad actually needs is three things:
+## Why Blueprint
 
-1. **A place to throw ideas the moment they land.** ⌘K, type, hashtag, done. Under three seconds.
-2. **A way to agree which ones are worth doing.** Sparks are cheap co-signs, so the vault sorts itself without a meeting.
-3. **A quiet signal that someone is on it.** Press *Start working* and your name glows in the Live Focus dock.
+Big project tools are built for org charts. A few friends with a side project need none of it: no sprints, no story points, no seat licences, no workflow editor. Every minute spent configuring a tool is a minute the idea goes cold.
 
-When something ships, it stays on the record, with your `@handle` on it.
+A small team needs three things, and Blueprint is built around them:
+
+1. **A place to put ideas the moment they land.** Type it, tag it, done.
+2. **A way to agree which ones are worth doing.** Sparks are one-click co-signs, so the best ideas rise without a meeting.
+3. **A quiet signal that someone is on it.** Press *Start working* and your name lights up for the whole team.
+
+When something ships, it stays on the record with your `@username` on it.
 
 ## Features
 
-| | |
-| --- | --- |
-| **Zero-photo interactive landing page** | The hero is a working replica of the vault and focus dock, built in React + Framer Motion. Promote an idea, start focus, mark it done, right on the page. No stock photos, no screenshots. |
-| **Unique `@username` onboarding** | After Clerk sign-up, everyone claims a unique handle (`^[a-z0-9_]{3,20}$`, reserved words blocked) with a live, debounced, rate-limited availability check and a signature accent colour. Enforced by a Postgres unique index. |
-| **Multi-team workspaces** | Anyone can create teams (auto or custom slug), switch between them, and invite people by searching `@username` (⌘I). Invites land in a bell with one-click accept/decline. Roles: `OWNER`, `ADMIN`, `MEMBER`. |
-| **Idea Vault** | Quick-capture bar with `#feature` `#bug` `#experiment` `#random` tags, author handle, timestamps, Spark/co-sign counter, sort by most-sparked or newest. |
-| **Promote to execution** | A slide-over drawer breaks an idea into concrete tasks, each with an owner (custom popover, no native selects) and a priority. Tasks remember their parent idea. |
-| **Execution board** | Kanban (`Backlog → Ready → In Progress → Done`) or compact list view, filters for All / My tasks / Unassigned / every `@member`, optimistic updates, SVG strikethrough on *Mark done*. |
-| **Live Team Focus dock** | Pinned at the top of every team: who is working on what right now, glowing in their accent colour, with a running timer. Refreshes every 15 seconds while the tab is visible. |
-| **Shipped archive** | HUD strip (Ideas in vault, Tasks remaining, Teammates in focus, Total shipped) and a day-by-day timeline of who shipped what, including fully executed ideas. |
+### Ideas and projects
 
-## Security architecture
+- **Idea vault.** One shared list per team. Tag ideas `#feature`, `#bug`, `#experiment` or `#random`, spark the ones you like, and sort by most sparked or newest.
+- **Promote to a project.** Break an idea into up to twelve tasks at once, each with an owner and a priority. Or start a project from scratch.
+- **Project pages.** Each project has its own page: description, shared notes, progress, the people on it, and a board with only its tasks.
+- **Archive and restore.** Archive ideas or projects to tidy up, and bring them back any time from team settings.
+
+### Getting work done
+
+- **Execution board.** Kanban (`Backlog → Ready → In progress → Done`) or a compact list, filtered to *My tasks*, *All tasks*, unassigned, or any teammate.
+- **Task notes.** Open any task to rename it, write notes, or move it to another project.
+- **Live focus.** *Start working* shows the team what you're on right now, with a running timer. It refreshes every 15 seconds while the tab is open.
+- **Shipped.** A timeline of everything finished and who finished it, with weekly and all-time counts.
+
+### Teams
+
+- **Usernames.** Everyone picks a unique `@username` when they join, with a live availability check.
+- **Unlimited teams.** Create as many as you like and invite people by searching their `@username`. Invites arrive in a bell with one-click accept.
+- **Team settings.** Rename the team, manage members and roles, hand over ownership, manage projects and the archive, clear shipped tasks, leave, or delete the team.
+- **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back.
+
+### Account
+
+- **Account window.** Appearance (dark, light or system theme) and Usage live inside the standard account window alongside your profile and security settings.
+- **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
+- **Support.** A *Contact support* button in the dashboard and user menu, plus Privacy Policy and Terms pages.
+
+### Platform
+
+- **Site staff roles.** Support, Moderator and Admin roles with an admin panel for accounts, teams and the audit log. See [Administration](#administration).
+- **Encrypted content.** Idea and task text is encrypted with a key unique to each team before it's stored. See [Field encryption](#field-encryption).
+- **Interactive landing page.** The hero and the product tour are working replicas of the app, built in React and Framer Motion. No screenshots.
+
+## Using Blueprint
+
+1. **Sign up** with Google or GitHub, then choose your `@username` and colour.
+2. **Create a team** and invite people with **Invite teammates**, searching by `@username`.
+3. **Capture ideas** in the **Idea vault**. Add tags, and spark the ones you believe in.
+4. **Promote** a good idea into a project with tasks, or start a project from **Execution → New project**.
+5. **Work the board.** Open a project to see its page. Use **Start working** on a task so the team knows, and **Mark done** when it ships.
+6. **Look back** in **Shipped** to see everything the team finished.
+7. **Manage things** from the **Settings** button on the team, and your own preferences from the profile picture menu.
+
+## Roles and permissions
+
+Blueprint has two kinds of role. **Team roles** apply inside one team. **Site roles** apply to the whole Blueprint instance, for running and moderating it.
+
+### Team roles
+
+| Action | Member | Admin | Owner |
+| --- | :---: | :---: | :---: |
+| Add and edit ideas, projects and tasks; spark; work tasks | ✅ | ✅ | ✅ |
+| Archive or delete your own ideas, projects and tasks | ✅ | ✅ | ✅ |
+| Archive or delete anyone's ideas, projects and tasks | | ✅ | ✅ |
+| Rename the team, manage the archive, clear shipped tasks | | ✅ | ✅ |
+| Remove members | | ✅ (not admins) | ✅ |
+| Change roles, transfer ownership, delete the team | | | ✅ |
+
+### Site roles
+
+| Role | Can do |
+| --- | --- |
+| `USER` | Everyone. No admin access. |
+| `SUPPORT` | Read-only admin panel: look up accounts, teams and the audit log. |
+| `MODERATOR` | Support, plus suspend and unsuspend accounts and sign them out everywhere. |
+| `ADMIN` | Everything: change site roles, delete accounts, delete teams. |
+
+Staff can only act on accounts ranked below them (admins can act on anyone), never on themselves, and the last admin can't be removed. **No site role can read the text of ideas, projects or tasks.** The admin panel shows accounts, memberships and counts only.
+
+## Security and privacy
+
+### Field encryption
+
+Idea and task text is encrypted in the application before it's written to Postgres, so it never sits in the database, its backups or Prisma Studio as plain text.
+
+| Encrypted (AES-256-GCM) | Stays plain, so Postgres can index, sort and filter |
+| --- | --- |
+| Idea titles, descriptions and project notes | Tags, sparks, statuses, priorities |
+| Task titles and notes | Team, author and assignee ids, timestamps |
+
+- **One key per team.** Each team's key is derived with HKDF-SHA256 from the master `ENCRYPTION_KEY` and the team id. A key for one team can't decrypt another team's rows.
+- **Fresh IV on every write.** Values are stored as `enc:v1:<iv>:<authTag>:<ciphertext>` with a random 12-byte IV, so identical text never looks the same twice. The GCM auth tag rejects any altered or moved ciphertext.
+- **Validate first, then encrypt.** Zod validation, sanitising and tag parsing run on the plaintext inside each server action, before encryption.
+- **Fails closed in production.** The app refuses to start, and Vercel builds fail, without a valid `ENCRYPTION_KEY`. In local development it falls back to plaintext with a warning.
+- **Backwards compatible.** Rows written before encryption are read as-is. Run `npm run db:encrypt -- --apply` to encrypt them in place.
+
+```mermaid
+flowchart LR
+  A[Browser] -- HTTPS --> B[Server action]
+  B --> C{Zod validation<br/>and sanitising}
+  C --> D["encryptText(text, teamId)<br/>HKDF(ENCRYPTION_KEY, teamId) → AES-256-GCM"]
+  D --> E[(Neon Postgres<br/>enc:v1:…)]
+  E --> F["decryptText(value, teamId)"]
+  F --> G[Team members only]
+```
+
+> [!IMPORTANT]
+> Back up `ENCRYPTION_KEY` somewhere safe and never change it once data exists. If it's lost or changed, encrypted text can't be read again.
+
+### Security architecture
 
 | Layer | What it does | Where |
 | --- | --- | --- |
-| **IP sliding-window rate limiting** | Global 100 req/60s per IP in the proxy; 30/60s for username checks and user search (anti-enumeration); 20/60s for writes; 10/60s for onboarding. Applied per IP *and* per user. Returns `429` with `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. In-memory LRU by default; set Upstash / Vercel KV REST credentials for a shared store. | `lib/rate-limit.ts`, `proxy.ts` |
-| **Safe client IP extraction** | `x-vercel-forwarded-for` → `x-real-ip` → `x-forwarded-for`, validated. | `lib/request.ts` |
-| **Zero-trust team isolation** | Every team-scoped action resolves the Clerk session to an onboarded Prisma user and re-proves `TeamMember` membership in Postgres. URL slugs and client ids are never trusted. Role checks for member removal and role changes. | `lib/auth.ts`, `app/actions/*` |
-| **Anti-IDOR** | Every update/delete is scoped with `{ id, teamId: verifiedTeamId }`; assignees must be members of that exact team. | `app/actions/*` |
-| **CSRF / origin checks** | Every Server Action verifies `Origin` matches `Host`; read endpoints reject cross-site `Sec-Fetch-Site`. | `lib/action.ts`, `lib/api.ts` |
-| **Strict validation** | Zod `.strict()` schemas on every input; control/bidi characters and HTML stripped; length and tag limits; Prisma parameterised queries only. Server Action body limit 64 KB. | `lib/validations.ts` |
-| **Hardened headers** | Per-request nonce CSP with `strict-dynamic`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`; HSTS preload; `X-Frame-Options: DENY`; `nosniff`; strict referrer and permissions policies; `X-Powered-By` removed. | `proxy.ts`, `next.config.ts` |
-| **Safe errors** | Errors are logged server-side and mapped to generic messages; stack traces and Prisma codes never reach the client. | `lib/action.ts`, `app/error.tsx` |
-| **Audit log** | Team creation, invites, membership changes, ideas, focus and completions are written to `AuditLog` with the caller's IP. | `lib/action.ts` |
+| **Per-team AES-256-GCM field encryption** | Idea and task contents are encrypted with per-team HKDF-derived keys before they reach Postgres, so raw ideas are never stored in plaintext in the database or the audit log. | `lib/crypto.ts`, `instrumentation.ts` |
+| **Zero-trust team isolation** | Every team-scoped action resolves the session to a Prisma user and re-proves membership in Postgres. URL slugs and client ids are never trusted. | `lib/auth.ts`, `app/actions/*` |
+| **Anti-IDOR** | Every update and delete is scoped with `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. | `app/actions/*` |
+| **Site roles and suspensions** | Staff permissions are re-read from the database on every admin action. Suspended accounts are blocked from every page, action and API route, and banned in Clerk too. Non-staff get a 404 for `/admin`. | `lib/site-roles.ts`, `app/actions/admin.ts` |
+| **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 20/min for writes. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
+| **CSRF and origin checks** | Every server action verifies `Origin` against `Host`. Read endpoints reject cross-site `Sec-Fetch-Site`. | `lib/action.ts`, `lib/api.ts` |
+| **Strict validation** | Zod `.strict()` schemas on every input. Control characters, bidi overrides and HTML are stripped. Parameterised queries only. 64 KB action body limit. | `lib/validations.ts` |
+| **Hardened headers** | Per-request nonce CSP with `strict-dynamic`, `object-src 'none'` and `frame-ancestors 'none'`; HSTS preload; `X-Frame-Options: DENY`; `nosniff`; strict referrer and permissions policies. | `proxy.ts`, `next.config.ts` |
+| **Typed confirmations** | Destructive actions check the typed project, team or username on the server, not only in the UI. | `app/actions/*` |
+| **Safe errors** | Errors are logged server-side and mapped to generic messages. Stack traces and database codes never reach the browser. | `lib/action.ts` |
+| **Audit log** | Team, membership and staff actions are recorded with the actor and IP. Entries hold ids and action names, never content. | `lib/action.ts`, `/admin/audit` |
 
-## Quick start
+Found a vulnerability? Please email **support@raqameen.com** instead of opening a public issue.
 
-**Requirements:** Node.js 20.9+ and a free [Neon](https://neon.tech) database.
+## Tech stack
+
+| | |
+| --- | --- |
+| **Framework** | Next.js 16 (App Router, server actions, Turbopack), React 19, TypeScript 5 |
+| **Auth** | Clerk (Google and GitHub sign-in), lazy user sync with no webhooks |
+| **Database** | Neon serverless Postgres with Prisma 6 in driver-adapter mode (`engineType = "client"`, no native engine) |
+| **UI** | Tailwind CSS 4, Framer Motion, light and dark themes |
+| **Validation** | Zod 4 |
+| **Crypto** | Node `crypto`: AES-256-GCM with HKDF-SHA256 key derivation, no extra dependencies |
+| **Hosting** | Vercel (`iad1`, next to Neon `us-east-1`), optional Upstash Redis for shared rate limits |
+
+## Self-hosting
+
+Self-hosting is free for any noncommercial use. It takes a few minutes and free tiers of Clerk, Neon and Vercel are enough.
+
+### Requirements
+
+- Node.js 24
+- A [Clerk](https://clerk.com) application (free)
+- A [Neon](https://neon.tech) Postgres database (free)
+
+### Quick start
 
 ```bash
 git clone https://github.com/Uoerim/blueprint.git
@@ -63,24 +200,31 @@ cd blueprint
 npm install
 ```
 
-**1. Clerk.** Link the project to a Clerk application. This writes the keys to `.env.local`:
+**1. Connect Clerk.** This links a Clerk application and writes its keys to `.env.local`:
 
 ```bash
 npx -y clerk@latest init
 ```
 
-**2. Neon Serverless Postgres.** Copy `.env.example` to `.env.local` (or add to the file Clerk created) and paste your Neon connection strings:
+**2. Add the database and encryption key.** Copy the rest of `.env.example` into `.env.local` and fill in:
 
 ```bash
-POSTGRES_PRISMA_URL=...        # pooled
-POSTGRES_URL_NON_POOLING=...   # direct
+POSTGRES_PRISMA_URL=...        # Neon pooled URL (host contains -pooler)
+POSTGRES_URL_NON_POOLING=...   # Neon direct URL
+ENCRYPTION_KEY=...             # see below
 ```
 
-**3. Database.** Push the schema, and optionally seed two demo squads:
+Generate the encryption key with:
 
 ```bash
-npm run db:deploy    # applies prisma/migrations (use db:push only for throwaway experiments)
-npm run db:seed      # optional; SEED_INVITE_USERNAME=your_handle invites you to the demo teams
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**3. Create the tables.** Optionally seed two demo teams to explore:
+
+```bash
+npm run db:deploy
+npm run db:seed      # optional; set SEED_INVITE_USERNAME=your_username to get invites to the demo teams
 ```
 
 **4. Run it.**
@@ -89,67 +233,134 @@ npm run db:seed      # optional; SEED_INVITE_USERNAME=your_handle invites you to
 npm run dev
 ```
 
-Open http://localhost:3000, sign up, claim your `@handle`, create a team.
+Open http://localhost:3000, sign up, choose your `@username`, and create a team.
+
+**5. Make yourself an admin** (optional):
+
+```bash
+npm run site:role -- your_username ADMIN
+```
+
+### Environment variables
+
+| Variable | Required | Purpose |
+| --- | :---: | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | ✅ | Clerk keys (`pk_…`, `sk_…`). The secret key is server-only. |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | ✅ | `/sign-in` and `/sign-up` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL`, `…SIGN_UP_FALLBACK_REDIRECT_URL` | ✅ | `/dashboard` and `/onboarding` |
+| `POSTGRES_PRISMA_URL` | ✅ | Neon pooled connection string (`DATABASE_URL` also works) |
+| `POSTGRES_URL_NON_POOLING` | ✅ | Neon direct connection string, used for migrations (`DATABASE_URL_UNPOOLED` also works) |
+| `ENCRYPTION_KEY` | ✅ in production | 32 bytes as 64 hex characters. Encrypts idea and task text. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`) | | Shared rate limits across serverless instances |
+| `SEED_INVITE_USERNAME` | | Your username, to receive invites to the seeded demo teams |
 
 ### Scripts
 
-| Script | Does |
+| Command | What it does |
 | --- | --- |
-| `npm run dev` | Dev server |
-| `npm run build` | `prisma generate` + production build |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run db:migrate` / `db:deploy` / `db:push` / `db:seed` / `db:studio` | Prisma against the URLs in `.env.local` (`db:migrate` creates a migration, `db:deploy` applies them) |
-| `npm run team:role -- <username> <team-slug> <role>` (role: `OWNER`, `ADMIN` or `MEMBER`) | Grant a team role from the terminal (adds the user to the team if needed) |
-
-### Notes
-
-- Prisma runs in Rust-free mode (`engineType = "client"`) on the **Neon serverless driver adapter**, so there is no native query engine. It works on serverless/edge-style hosts and on Windows ARM64.
-- Users are synced lazily: the first authenticated request creates the Prisma `User` from the Clerk session, so no webhook is required.
-- `TaskStatus` includes `READY` on top of `TODO` / `IN_PROGRESS` / `DONE` so the board has four columns.
+| `npm run db:deploy` | Apply migrations from `prisma/migrations` |
+| `npm run db:migrate -- --name <change>` | Create a new migration after editing the schema |
+| `npm run db:seed` | Demo data (refuses to run against production) |
+| `npm run db:studio` | Prisma Studio. Encrypted fields show as `enc:v1:…`. |
+| `npm run db:encrypt [-- --apply]` | Encrypt rows written before `ENCRYPTION_KEY` was set. Dry run unless `--apply`. |
+| `npm run site:role -- <username> <ROLE>` | Set a site role: `USER`, `SUPPORT`, `MODERATOR` or `ADMIN` |
+| `npm run site:role -- list` / `unsuspend <username>` | List staff, or lift a suspension |
+| `npm run team:role -- <username> <team-slug> <ROLE>` | Set a team role: `OWNER`, `ADMIN` or `MEMBER` |
 
 ## Deploy to Vercel
 
-The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` (next to Neon's `us-east-1`), and Vercel runs the `vercel-build` script automatically (`scripts/vercel-build.mjs`): `prisma generate`, then `prisma migrate deploy`, then `next build`. It accepts Neon variables under any of their names (`POSTGRES_PRISMA_URL`/`POSTGRES_URL_NON_POOLING`, `DATABASE_URL`/`DATABASE_URL_UNPOOLED`, or prefixed), derives the direct URL from a pooled Neon URL if needed, and fails a Production build with a clear message when no database is configured. So every deploy applies pending migrations before building. A brand-new database gets its tables on the first deploy.
+Vercel runs `scripts/vercel-build.mjs` automatically. It checks `ENCRYPTION_KEY`, runs `prisma generate`, applies pending migrations with `prisma migrate deploy`, then builds. It accepts Neon variables under any of their usual names and stops with a clear message if the database or key is missing.
 
 ### 1. Clerk production instance
 
-1. In the [Clerk Dashboard](https://dashboard.clerk.com), open the app, switch the instance toggle from **Development** to **Production**, and create it (choose to clone the development settings).
-2. Clerk production needs a **domain you own** (it can't use `*.vercel.app`). Enter it, then add the DNS records Clerk lists (CNAMEs such as `clerk.`, `accounts.`, `clkmail.` and the two DKIM records) at your DNS provider. Wait until **Domains** shows them verified.
-3. **SSO connections → GitHub and Google** need your own OAuth credentials in production:
-   - **GitHub:** github.com → Settings → Developer settings → OAuth Apps → New. Homepage URL is `https://your-domain`, and the callback URL is the **Authorized redirect URI** shown in Clerk's GitHub connection. Paste the Client ID and Secret into Clerk.
-   - **Google:** Google Cloud Console → APIs & Services. Configure the OAuth consent screen and **publish** it. Then go to Credentials → Create OAuth client ID (Web application), with authorized origin `https://your-domain` and redirect URI from Clerk's Google connection. Paste the ID and Secret into Clerk.
-4. **API keys** (production): copy `pk_live_…` and `sk_live_…`.
+1. In the [Clerk dashboard](https://dashboard.clerk.com), switch the app to **Production** and create the instance (clone the development settings).
+2. Clerk production needs a **domain you own**. Add it, then create the DNS records Clerk lists and wait until they're verified.
+3. Add your own OAuth credentials under **SSO connections**:
+   - **GitHub:** Settings → Developer settings → OAuth Apps. Use your domain as the homepage and Clerk's redirect URI as the callback.
+   - **Google:** Google Cloud Console → APIs & Services. Publish the consent screen (with your `/privacy` and `/terms` links), then create a Web OAuth client with Clerk's redirect URI.
+4. Under **Legal**, add `https://your-domain/terms` and `https://your-domain/privacy`.
+5. Copy the `pk_live_…` and `sk_live_…` keys.
 
 ### 2. Vercel project
 
-1. **Add New → Project → Import** this GitHub repo. Leave framework (Next.js), root directory, build and install commands on their defaults.
-2. **Storage:** connect a database and, for shared rate limits, Redis. Both inject env vars automatically:
-   - **Neon** (Marketplace): creates `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING` and others. Or paste the URLs of an existing Neon database yourself.
-   - **Upstash for Redis** (Marketplace): creates `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without it, each serverless instance rate-limits on its own.
-3. **Environment variables** (Settings → Environment Variables):
-
-   | Name | Production value |
-   | --- | --- |
-   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_…` |
-   | `CLERK_SECRET_KEY` | `sk_live_…` |
-   | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
-   | `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
-   | `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/dashboard` |
-   | `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/onboarding` |
-   | `POSTGRES_PRISMA_URL` | Neon **pooled** URL (host contains `-pooler`) |
-   | `POSTGRES_URL_NON_POOLING` | Neon **direct** URL (used by migrations at build time) |
-   | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | from Upstash (optional, recommended) |
-
-   Scope the `pk_live`/`sk_live` keys and the production database to **Production** only. For **Preview**, use your development Clerk keys and a separate Neon branch. Otherwise a preview build would run migrations against production.
-4. **Domains:** add the same domain you gave Clerk, and point DNS at Vercel as instructed.
-5. **Deploy.** `NEXT_PUBLIC_*` values are baked in at build time, so redeploy after changing them.
+1. **Add New → Project** and import the repository. Keep the default Next.js settings.
+2. Under **Storage**, connect **Neon** (and optionally **Upstash for Redis**). Their variables are added for you.
+3. Under **Settings → Environment Variables**, add the Clerk variables and `ENCRYPTION_KEY` from the table above.
+   - Scope the live Clerk keys and the production database to **Production**.
+   - Give **Preview** your development Clerk keys, a separate Neon branch, and its own `ENCRYPTION_KEY`, so preview builds never touch production data.
+4. Add your domain under **Domains** and point DNS at Vercel.
+5. **Deploy.** `NEXT_PUBLIC_*` values are built in, so redeploy after changing them.
 
 ### 3. After the first deploy
 
-- Sign up on your domain, claim your `@handle` and create a team. You're its owner.
-- Do **not** run `db:seed` against production (the script refuses unless `SEED_ALLOW_PRODUCTION=1`).
-- To grant a role on production, run `team:role` with the production `POSTGRES_*` URLs in your environment.
-- Schema changes later: `npm run db:migrate -- --name <change>` locally, commit `prisma/migrations`, push. Vercel applies them on deploy.
+```bash
+# with the production POSTGRES_* URLs exported in your shell
+npm run site:role -- your_username ADMIN
+npm run db:encrypt -- --apply   # only if the database already had data from before encryption
+```
+
+## Administration
+
+Staff open the admin panel from the **Admin** button in the dashboard header, at `/admin`.
+
+| Page | What it shows |
+| --- | --- |
+| **Overview** | Account, team, idea and task counts, newest accounts and recent staff actions |
+| **Accounts** | Search by username, name or email; filter staff, suspended or deleted accounts |
+| **Account** | Details, teams, activity, and actions: change site role, suspend with a reason, sign out everywhere, delete |
+| **Teams** | Every team with its owner and counts; admins can delete a team |
+| **Audit log** | Staff actions, or every recorded action. Admins also see IP addresses. |
+
+- **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
+- **Deleting** removes the login, memberships and invites. Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
+- **The first admin** can only be created from the terminal with `npm run site:role`. The script shows which database it will change and asks you to type the username back. There is no web route or secret that grants a role.
+
+## Project structure
+
+```text
+app/
+  page.tsx                 landing page and product tour
+  actions/                 server actions: ideas, tasks, teams, admin, account
+  admin/                   staff panel: overview, accounts, teams, audit log
+  dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
+  onboarding/ suspended/   username setup, suspended-account page
+  privacy/ terms/          legal pages
+components/
+  landing/                 interactive landing demos
+  ui/                      dialogs, confirm dialog, popovers, toasts, primitives
+lib/
+  crypto.ts                per-team AES-256-GCM field encryption
+  auth.ts site-roles.ts    sessions, membership checks, staff permissions
+  action.ts api.ts         server action and API guards (origin, rate limit, auth)
+  validations.ts           Zod schemas and sanitising
+prisma/
+  schema.prisma migrations/
+  seed.ts                  demo data
+  site-role.ts set-role.ts site-role and team-role CLIs
+  encrypt-existing.ts      encrypts rows written before ENCRYPTION_KEY was set
+proxy.ts                   CSP, rate limiting, route protection
+instrumentation.ts         refuses to start without ENCRYPTION_KEY in production
+```
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+1. Fork the repository and create a branch.
+2. Follow [Self-hosting](#self-hosting) to run it locally.
+3. Keep `npm run typecheck` and `npm run lint` passing, and try UI changes in the browser.
+4. Open a pull request. The template asks what changed and how you tested it.
+
+By submitting a pull request you agree to the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE).
+
+## Support
+
+- **Help, account or data requests:** support@raqameen.com, or **Contact support** in the app
+- **Bugs and ideas:** [GitHub issues](https://github.com/Uoerim/blueprint/issues)
+- **Like it?** [Support Blueprint on Ko-fi](https://ko-fi.com/yosifibrahim)
 
 ## License
 
@@ -157,8 +368,14 @@ The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` 
 
 - ✅ Clone, modify, and self-host on your own database/Vercel for free with your friends, classes, or squad.
 - ✅ Share your changes under the same non-commercial license, with credit (keep the `LICENSE` file and its `Required Notice` line).
-- 💡 **Official hosted version ([blueprint.raqameen.com](https://blueprint.raqameen.com)):** Only the official hosted app may offer paid options or lightweight ads, to support domain, database, and hosting costs. Want it completely free? Self-host it in 3 minutes with the [Quick start](#quick-start) above.
-- ❌ Third parties may not sell Blueprint, run ads on it, offer it as a paid hosted SaaS, or use it commercially without written permission from the author.
+- 💡 **Official hosted version ([blueprint.raqameen.com](https://blueprint.raqameen.com)):** Only the official hosted app may offer paid options or lightweight ads, to support domain, database, and hosting costs. Want it completely free? Self-host it in a few minutes with the [Quick start](#quick-start) above.
+- ❌ Third parties may not sell Blueprint, run ads on it, offer it as a paid hosted SaaS, or use it commercially without written permission.
 - 🤝 **Contributions:** By submitting a PR, you grant the author the right to use your contribution in both the open repository and the official hosted instance. See the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE).
 
 For commercial permission, open an issue or email support@raqameen.com.
+
+<div align="center">
+<br>
+<img src="public/logo.svg" width="40" alt="Blueprint logo"><br>
+<sub>© 2026 Yosuf Mohamed Ali Ibrahim (Raqameen)</sub>
+</div>

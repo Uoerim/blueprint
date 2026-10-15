@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTeamForViewer, requireOnboardedPage } from "@/lib/auth";
+import { decryptOptional, decryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TaskDTO, Viewer } from "@/lib/types";
 import { Workspace } from "./workspace";
@@ -85,9 +86,9 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
   }));
   const ideaDTOs: IdeaDTO[] = ideas.map((i) => ({
     id: i.id,
-    title: i.title,
-    description: i.description,
-    notes: i.notes,
+    title: decryptText(i.title, team.id),
+    description: decryptOptional(i.description, team.id),
+    notes: decryptOptional(i.notes, team.id),
     tags: i.tags,
     status: i.status,
     sparksCount: i.sparksCount,
@@ -99,6 +100,9 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
   }));
   const taskDTOs: TaskDTO[] = tasks.map((t) => ({
     ...t,
+    title: decryptText(t.title, team.id),
+    notes: decryptOptional(t.notes, team.id),
+    idea: t.idea && { id: t.idea.id, title: decryptText(t.idea.title, team.id) },
     completedAt: t.completedAt?.toISOString() ?? null,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),

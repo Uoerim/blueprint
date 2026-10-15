@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { getViewer } from "./auth";
+import { getViewer, isLockedOut } from "./auth";
 import { rateLimitHeaders, rateLimitRequest, type Tier } from "./rate-limit";
 import { getClientIp } from "./request";
 
@@ -23,6 +23,7 @@ export async function guardRead(req: Request, tier: Tier) {
   const ip = getClientIp(req.headers);
   const viewer = await getViewer();
   if (!viewer) return { error: json({ error: "Unauthorized" }, 401) } as const;
+  if (isLockedOut(viewer)) return { error: json({ error: "Forbidden" }, 403) } as const;
   const rl = await rateLimitRequest(tier, ip, viewer.id);
   const headers = rateLimitHeaders(rl);
   if (!rl.success) return { error: json({ error: "Too many requests" }, 429, headers) } as const;

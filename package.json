@@ -14,6 +14,8 @@
     "db:seed": "dotenv -e .env.local -e .env -- tsx prisma/seed.ts",
     "db:studio": "dotenv -e .env.local -e .env -- prisma studio",
     "team:role": "dotenv -e .env.local -e .env -- tsx prisma/set-role.ts",
+    "site:role": "dotenv -e .env.local -e .env -- tsx prisma/site-role.ts",
+    "db:encrypt": "dotenv -e .env.local -e .env -- tsx prisma/encrypt-existing.ts",
     "vercel-build": "node scripts/vercel-build.mjs",
     "db:deploy": "dotenv -e .env.local -e .env -- prisma migrate deploy"
   },

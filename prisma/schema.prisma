@@ -24,6 +24,13 @@ model User {
   displayName   String?
   accentColor   String       @default("#6366F1")
   onboarded     Boolean      @default(false)
+  /// Site-wide staff role (separate from per-team roles). See lib/site-roles.ts.
+  siteRole      SiteRole     @default(USER)
+  /// Set when staff suspend the account; blocks every page, action and API call.
+  bannedAt      DateTime?
+  banReason     String?
+  /// Set when an admin deletes the account: personal fields are scrubbed and the row is kept as a tombstone.
+  deletedAt     DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   teamsOwned    Team[]       @relation("TeamOwner")
@@ -33,6 +40,15 @@ model User {
   ideasCreated  Idea[]
   tasksCreated  Task[]
   tasksAssigned Task[]       @relation("TaskAssignee")
+
+  @@index([siteRole])
+}
+
+enum SiteRole {
+  USER
+  SUPPORT
+  MODERATOR
+  ADMIN
 }
 
 model Team {

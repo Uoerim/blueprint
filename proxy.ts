@@ -5,7 +5,7 @@ import { getClientIp } from "@/lib/request";
 
 // Coarse gate only: pages redirect to sign-in here, and every page, action and
 // /api handler still runs its own resource-level check (lib/auth.ts, lib/api.ts).
-const PROTECTED_PAGES = /^\/(dashboard|onboarding)(\/|$)/;
+const PROTECTED_PAGES = /^\/(dashboard|onboarding|admin)(\/|$)/;
 
 export default clerkMiddleware(
   async (auth, req) => {

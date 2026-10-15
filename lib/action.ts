@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 import type { User } from "@prisma/client";
-import { ActionError, getViewer, requireOnboarded } from "./auth";
+import { ActionError, getViewer, isLockedOut, requireOnboarded } from "./auth";
 import { db } from "./db";
 import { rateLimitRequest, type Tier } from "./rate-limit";
 import { getClientIp, isSameOrigin } from "./request";
@@ -29,6 +29,7 @@ export async function runAction<T>(
 
     const viewer = await getViewer();
     if (!viewer) return { ok: false, error: "Sign in required." };
+    if (isLockedOut(viewer)) return { ok: false, error: "This account is suspended." };
 
     const rl = await rateLimitRequest(options.tier, ip, viewer.id);
     if (!rl.success) {
