@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { CoffeeButton } from "@/components/coffee-button";
+import { KofiButton } from "@/components/kofi-button";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import { requireOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { coffeeUrl } from "@/lib/support";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import { ThemePicker } from "./theme-picker";
 
@@ -14,7 +13,6 @@ export const metadata: Metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const user = await requireOnboardedPage();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  const coffee = coffeeUrl();
 
   const [teams, owned, ideas, projects, created, shipped, firstTeam] = await Promise.all([
     db.teamMember.count({ where: { userId: user.id } }),
@@ -79,14 +77,10 @@ export default async function SettingsPage() {
         <div>
           <h2 id="support-h" className="text-lg font-semibold tracking-tight">Support Blueprint</h2>
           <p className="mt-1 max-w-[52ch] text-[14px] text-ink-2">
-            Blueprint is free with no limits. If it helps your squad ship, a coffee keeps the servers on.
+            Blueprint is free with no limits. If it helps your squad ship, a Ko-fi keeps the servers on.
           </p>
         </div>
-        {coffee ? (
-          <CoffeeButton href={coffee} className="h-10 shrink-0 self-start sm:self-auto" />
-        ) : (
-          <span className="shrink-0 text-[13px] text-ink-3">Coffee link coming soon.</span>
-        )}
+        <KofiButton className="h-10 shrink-0 self-start sm:self-auto" />
       </section>
     </div>
   );

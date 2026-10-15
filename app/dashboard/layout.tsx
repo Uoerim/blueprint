@@ -1,11 +1,10 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CoffeeButton } from "@/components/coffee-button";
+import { KofiButton } from "@/components/kofi-button";
 import { BrandMark, Monogram, readable } from "@/components/ui/primitives";
 import { requireOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { coffeeUrl } from "@/lib/support";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
 import { InvitesBell } from "./_components/invites-bell";
 import { TeamSwitcher } from "./_components/team-switcher";
@@ -31,7 +30,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     }),
   ]);
 
-  const coffee = coffeeUrl();
   const teams: TeamSummary[] = memberships.map((m) => ({ ...m.team, role: m.role }));
   const incoming: IncomingInvite[] = invites.map((i) => ({
     id: i.id,
@@ -50,7 +48,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <span className="text-ink-3" aria-hidden>/</span>
           <TeamSwitcher teams={teams} />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            {coffee && <CoffeeButton href={coffee} label="Coffee" className="hidden h-8 px-2.5 md:inline-flex" />}
+            <KofiButton label="Ko-fi" className="hidden h-8 px-2.5 md:inline-flex" />
             <InvitesBell invites={incoming} />
             <Link
               href="/dashboard/settings"
