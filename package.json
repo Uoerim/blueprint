@@ -1,5 +1,5 @@
 {
-  "name": "idea-vault",
+  "name": "blueprint",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,8 @@
     "db:push": "dotenv -e .env.local -e .env -- prisma db push",
     "db:migrate": "dotenv -e .env.local -e .env -- prisma migrate dev",
     "db:seed": "dotenv -e .env.local -e .env -- tsx prisma/seed.ts",
-    "db:studio": "dotenv -e .env.local -e .env -- prisma studio"
+    "db:studio": "dotenv -e .env.local -e .env -- prisma studio",
+    "team:role": "dotenv -e .env.local -e .env -- tsx prisma/set-role.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.15",

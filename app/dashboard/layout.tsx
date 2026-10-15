@@ -41,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <div className="flex min-h-screen flex-col">
       <header className="glass sticky top-0 z-40 border-b border-line">
         <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
-          <Link href="/" aria-label="Idea Vault home" className="grid size-8 place-items-center rounded-md text-ink transition-colors hover:bg-white/[0.06]">
+          <Link href="/" aria-label="Blueprint home" className="grid size-8 place-items-center rounded-md text-ink transition-colors hover:bg-white/[0.06]">
             <BrandMark size={20} />
           </Link>
           <span className="text-ink-3" aria-hidden>/</span>

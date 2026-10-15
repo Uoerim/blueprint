@@ -15,7 +15,7 @@ export function LandingNav() {
       <nav className="mx-auto flex h-14 max-w-[1240px] items-center gap-6 px-4 sm:px-6" aria-label="Main">
         <Link href="/" className="flex items-center gap-2 rounded-md text-ink transition-opacity hover:opacity-80">
           <BrandMark />
-          <span className="text-[15px] font-semibold tracking-tight">Idea Vault</span>
+          <span className="text-[15px] font-semibold tracking-tight">Blueprint</span>
         </Link>
         <ul className="hidden items-center gap-1 md:flex">
           {LINKS.map((l) => (

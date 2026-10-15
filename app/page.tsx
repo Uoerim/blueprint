@@ -6,7 +6,7 @@ import { MaskedHeadline, Rise } from "@/components/landing/motion";
 import { LandingNav } from "@/components/landing/nav";
 import { btn, cx, Kbd, Monogram, Pill, readable } from "@/components/ui/primitives";
 
-const REPO = "https://github.com/Uoerim/idea-vault";
+const REPO = "https://github.com/Uoerim/blueprint";
 
 export default function Home() {
   return (
@@ -98,7 +98,7 @@ function Philosophy() {
             What a squad actually needs is a place to throw ideas the moment they land, a way to agree which ones are worth doing, and a quiet signal that someone is on it.
           </Rise>
           <Rise as="p" delay={0.12}>
-            Idea Vault is those three things, done well. Every idea starts raw. Teammates spark the ones they believe in. The good ones get promoted into small tasks with names on them. And when something ships, it stays on the record, so the squad can see how far it&apos;s come.
+            Blueprint is those three things, done well. Every idea starts raw. Teammates spark the ones they believe in. The good ones get promoted into small tasks with names on them. And when something ships, it stays on the record, so the squad can see how far it&apos;s come.
           </Rise>
         </div>
       </div>
@@ -331,7 +331,7 @@ function Footer() {
   return (
     <footer className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-[14svh] sm:px-6">
       <div className="grid gap-2 text-sm text-ink-3 md:grid-cols-[1fr_auto_1fr] md:items-baseline">
-        <span>Idea Vault, built for squads.</span>
+        <span>Blueprint, built for squads.</span>
         <span className="flex flex-wrap gap-6">
           <a className="text-ink transition-colors hover:text-accent" href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
           <a className="text-ink transition-colors hover:text-accent" href="#security">Security</a>

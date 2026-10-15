@@ -10,7 +10,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
       <header className="relative px-4 py-5 sm:px-6">
         <Link href="/" className="inline-flex items-center gap-2 rounded-md text-ink transition-opacity hover:opacity-80">
           <BrandMark />
-          <span className="text-[15px] font-semibold tracking-tight">Idea Vault</span>
+          <span className="text-[15px] font-semibold tracking-tight">Blueprint</span>
         </Link>
       </header>
       <main className="relative flex flex-1 items-center justify-center px-4 pb-20">{children}</main>

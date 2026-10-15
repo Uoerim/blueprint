@@ -8,7 +8,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Idea Vault — where raw ideas become shipped reality", template: "%s · Idea Vault" },
+  title: { default: "Blueprint — where raw ideas become shipped reality", template: "%s · Blueprint" },
   description:
     "A fast, private idea vault and execution board for friends and small squads. Dump ideas, promote them to tasks, see who's in focus, keep what shipped.",
 };

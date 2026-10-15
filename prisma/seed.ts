@@ -43,7 +43,7 @@ async function main() {
       data: {
         ...p,
         clerkId: `seed_${p.username}`,
-        email: `${p.username}@seed.idea-vault.invalid`,
+        email: `${p.username}@seed.blueprint.invalid`,
         onboarded: true,
       },
     });

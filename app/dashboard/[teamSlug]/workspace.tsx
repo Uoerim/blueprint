@@ -51,7 +51,7 @@ export function useWorkspace() {
 
 type View = "vault" | "board" | "shipped";
 const VIEWS: { id: View; label: string; key: string }[] = [
-  { id: "vault", label: "Idea Vault", key: "1" },
+  { id: "vault", label: "Idea vault", key: "1" },
   { id: "board", label: "Execution", key: "2" },
   { id: "shipped", label: "Shipped", key: "3" },
 ];

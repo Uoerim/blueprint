@@ -1,4 +1,4 @@
-# Idea Vault
+# Blueprint
 
 **Where raw ideas become shipped reality.** A fast, private idea vault and execution board for friends and small squads.
 
@@ -58,8 +58,8 @@ When something ships, it stays on the record, with your `@handle` on it.
 **Requirements:** Node.js 20.9+ and a free [Neon](https://neon.tech) database.
 
 ```bash
-git clone https://github.com/Uoerim/idea-vault.git
-cd idea-vault
+git clone https://github.com/Uoerim/blueprint.git
+cd blueprint
 npm install
 ```
 
@@ -99,6 +99,7 @@ Open http://localhost:3000, sign up, claim your `@handle`, create a team.
 | `npm run build` | `prisma generate` + production build |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
 | `npm run db:push` / `db:migrate` / `db:seed` / `db:studio` | Prisma against the URLs in `.env.local` |
+| `npm run team:role -- <username> <team-slug> <role>` (role: `OWNER`, `ADMIN` or `MEMBER`) | Grant a team role from the terminal (adds the user to the team if needed) |
 
 ### Notes
 
@@ -108,7 +109,7 @@ Open http://localhost:3000, sign up, claim your `@handle`, create a team.
 
 ## License
 
-**Idea Vault is free and open source for non-commercial use**, under [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](./LICENSE).
+**Blueprint is free and open source for non-commercial use**, under [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](./LICENSE).
 
 - ✅ Clone, modify, self-host and use it with your friends, co-founders, classes or teams, for free.
 - ✅ Share your changes, under the same license, with credit.
