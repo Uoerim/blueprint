@@ -109,7 +109,7 @@ Open http://localhost:3000, sign up, claim your `@handle`, create a team.
 
 ## Deploy to Vercel
 
-The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` (next to Neon's `us-east-1`), and Vercel runs the `vercel-build` script automatically, which is `prisma generate && prisma migrate deploy && next build`. So every deploy applies pending migrations before building. A brand-new database gets its tables on the first deploy.
+The repo is production-ready for Vercel: `vercel.json` pins functions to `iad1` (next to Neon's `us-east-1`), and Vercel runs the `vercel-build` script automatically (`scripts/vercel-build.mjs`): `prisma generate`, then `prisma migrate deploy`, then `next build`. It accepts Neon variables under any of their names (`POSTGRES_PRISMA_URL`/`POSTGRES_URL_NON_POOLING`, `DATABASE_URL`/`DATABASE_URL_UNPOOLED`, or prefixed), derives the direct URL from a pooled Neon URL if needed, and fails a Production build with a clear message when no database is configured. So every deploy applies pending migrations before building. A brand-new database gets its tables on the first deploy.
 
 ### 1. Clerk production instance
 
