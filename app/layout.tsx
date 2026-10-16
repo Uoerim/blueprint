@@ -21,17 +21,26 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false, email: false, address: false },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  // Lets the installed app draw edge to edge; app chrome pads itself with the safe-area insets.
-  viewportFit: "cover",
-  // Pinch-zoom stays allowed for accessibility; inputs are 16px on phones so focusing one never zooms.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
-  ],
-};
+const BG = { light: "#f7f7f5", dark: "#09090b" };
+
+export async function generateViewport(): Promise<Viewport> {
+  // The phone's status bar takes the page colour of the theme you picked, not just the phone's own setting.
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  return {
+    width: "device-width",
+    initialScale: 1,
+    // Lets the installed app draw edge to edge; app chrome pads itself with the safe-area insets.
+    viewportFit: "cover",
+    // Pinch-zoom stays allowed for accessibility; inputs are 16px on phones so focusing one never zooms.
+    themeColor:
+      theme === "system"
+        ? [
+            { media: "(prefers-color-scheme: light)", color: BG.light },
+            { media: "(prefers-color-scheme: dark)", color: BG.dark },
+          ]
+        : BG[theme],
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Every response carries a fresh CSP nonce (proxy.ts), so render per request.
