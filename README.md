@@ -206,7 +206,7 @@ flowchart LR
 | --- | --- |
 | **Bot screening** | On the app's private routes (`/dashboard`, `/onboarding`, `/admin`, `/api`, `/sign-in`, `/sign-up`) and on every mutation, requests from HTTP libraries, scanners and headless browsers are refused with `403` (`curl`, `python-requests`, `Go-http-client`, `HeadlessChrome`, Puppeteer, Playwright, `sqlmap` and so on), as are requests with no `User-Agent`. Mutations must also carry a real browser `Accept-Language`. The public pages stay open to search engines and link previews. |
 | **Request-forgery (CSRF) protection** | Every non-GET request, server actions included, must have an `Origin` that matches the site (or `ALLOWED_ORIGINS`), browser fetch metadata (`Sec-Fetch-Site`) of `same-origin` when present, and a `Referer` from the same origin when present. Checked at the edge and again inside every action. |
-| **Distributed rate limits** | Sliding windows in Upstash Redis, shared by every serverless instance, falling back to an in-memory window only if Redis is unreachable. Every `429` carries `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. |
+| **Distributed rate limits** | Sliding windows in Upstash Redis, shared by every serverless instance (one Redis command per check), falling back to an in-memory window if Redis is unreachable or slow. Every `429` carries `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. |
 | **Trusted client IP** | Read in the order `x-vercel-forwarded-for` → `x-real-ip` → first `x-forwarded-for`, and each candidate must look like an IP address. On Vercel the first header is set by Vercel and can't be spoofed. |
 
 | Rate-limit tier | Limit (per minute) | Applies to |
@@ -216,7 +216,7 @@ flowchart LR
 | Invites and search | 15 per user, 30 per IP | Team invites and `@username` search |
 | Mutations | 30 per user, 60 per IP | Ideas, tasks, subtasks, focus, teams, tags, roles |
 | Onboarding | 5 per IP and per user | Claiming a username, refreshing your profile picture |
-| Live change-check | 90 per IP and per user | `/api/pulse` |
+| Live change-check | 90 per IP and per user | `/api/pulse`, counted in memory so polling never costs Redis commands |
 
 The per-IP ceiling is higher than the per-user one where people often share a network (an office, a classroom), so teammates don't use up each other's allowance. Sign-in and sign-up themselves are submitted to Clerk, which applies its own rate limits; turn on Clerk's **bot sign-up protection** in the Clerk dashboard as well.
 
@@ -248,7 +248,7 @@ The per-IP ceiling is higher than the per-user one where people often share a ne
 - **Append-only, twice over.** The Prisma client refuses every update and delete on the audit table, and a Postgres trigger refuses `UPDATE`, `DELETE` and `TRUNCATE` even from raw SQL or scripts.
 - **No denial-of-wallet through logging.** Rate-limit hits by signed-in people are written at most once a minute per person and tier. Anonymous floods stopped at the edge are only written to the server log with a shortened IP, so an attack spread over many addresses can't turn into a flood of database writes.
 
-Found a vulnerability? Please email **support@raqameen.com** instead of opening a public issue.
+Found a vulnerability? Please see [`SECURITY.md`](./SECURITY.md) and email **support@raqameen.com** instead of opening a public issue.
 
 ### Live updates
 
@@ -378,12 +378,32 @@ Vercel runs `scripts/vercel-build.mjs` automatically. It checks `ENCRYPTION_KEY`
 ### 2. Vercel project
 
 1. **Add New → Project** and import the repository. Keep the default Next.js settings.
-2. Under **Storage**, connect **Neon** (and optionally **Upstash for Redis**). Their variables are added for you.
-3. Under **Settings → Environment Variables**, add the Clerk variables and `ENCRYPTION_KEY` from the table above.
+2. Under **Storage**, connect **Neon** and **Upstash for Redis** (see [Rate limits with Upstash](#rate-limits-with-upstash)). Their variables are added for you.
+3. Under **Settings → Environment Variables**, add the Clerk variables, `ENCRYPTION_KEY` and `ALLOWED_ORIGINS` from the table above.
+   - Save `CLERK_SECRET_KEY` and `ENCRYPTION_KEY` as **Sensitive**, so their values can never be read back in the dashboard (see [Secrets](#secrets)).
    - Scope the live Clerk keys and the production database to **Production**.
    - Give **Preview** your development Clerk keys, a separate Neon branch, and its own `ENCRYPTION_KEY`, so preview builds never touch production data.
 4. Add your domain under **Domains** and point DNS at Vercel.
 5. **Deploy.** `NEXT_PUBLIC_*` values are built in, so redeploy after changing them.
+
+### Rate limits with Upstash
+
+Without Redis, every serverless instance counts requests on its own, so the limits are approximate. With Upstash they're shared across all of them.
+
+1. In the Vercel project, open **Storage → Create Database → Upstash for Redis** (from the Marketplace).
+2. Pick the region closest to your functions (for `iad1`, **US East / N. Virginia**) and the **Free** plan.
+3. Connect it to the project for **Production** and **Preview**. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN`, which the app reads automatically.
+4. **Redeploy.** Responses keep their `X-RateLimit-*` headers, now counted across every instance.
+
+It stays cheap: each check is a single Redis command (one Lua script), the live change-check is counted in memory instead of in Redis, and a page view costs one command. A small team fits comfortably in the free tier. If Upstash is ever slow (over 1.5 s) or down, the app falls back to in-memory limits instead of failing open.
+
+### Secrets
+
+Vercel flags variables that look like secrets but are readable in the dashboard. To fix that for good:
+
+- **`CLERK_SECRET_KEY`:** in Clerk, open **API keys** and create a new secret key. In Vercel, delete the old variable and add it again with the new value and **Sensitive** switched on. Redeploy, check sign-in works, then delete the old key in Clerk.
+- **`ENCRYPTION_KEY`:** **never rotate it**: data encrypted with it can't be read with a new key. Re-add the *same* value as **Sensitive** instead (copy it from your password manager or backup first, because Sensitive values can't be read back).
+- Variables from the Neon and Upstash integrations are managed by those integrations.
 
 ### 3. After the first deploy
 
@@ -455,6 +475,10 @@ lib/
   team-permissions.ts      team roles, custom role permissions, task rules
   team-access.ts           per-action team membership and permission checks
   action.ts api.ts         server action and API guards (origin, rate limit, auth)
+  request.ts               client IP, origin checks, bot screening
+  rate-limit.ts            sliding-window limits (Upstash, in-memory fallback)
+  audit.ts                 append-only audit trail and its action list
+  errors.ts                safe error messages and scrubbed server logs
   validations.ts           Zod schemas and sanitising
   app-mode.ts              detects the installed phone app (or the ?app=1 preview)
 prisma/
@@ -462,7 +486,7 @@ prisma/
   seed.ts                  demo data
   site-role.ts set-role.ts site-role and team-role CLIs
   encrypt-existing.ts      encrypts rows written before ENCRYPTION_KEY was set
-proxy.ts                   CSP, rate limiting, route protection
+proxy.ts                   CSP, bot screening, origin checks, rate limiting, route protection
 instrumentation.ts         refuses to start without ENCRYPTION_KEY in production
 ```
 
@@ -475,7 +499,7 @@ Issues and pull requests are welcome.
 3. Keep `npm run typecheck` and `npm run lint` passing, and try UI changes in the browser.
 4. Open a pull request. The template asks what changed and how you tested it.
 
-By submitting a pull request you agree to the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE).
+By submitting a pull request you agree to the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE). Please report security problems privately, as described in [`SECURITY.md`](./SECURITY.md).
 
 ## Support
 

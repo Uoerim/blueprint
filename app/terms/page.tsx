@@ -24,7 +24,16 @@ export default function TermsPage() {
         <p>
           Blueprint lets teams collect ideas, turn them into projects and track tasks. It is currently free, with no limits on
           teams, ideas, projects or tasks. We may add, change or remove features. If we ever introduce paid plans or limits, we
-          will tell you in advance and nothing you already made will be locked away without notice.
+          will tell you in advance and nothing you already made will be locked away without notice. Any payments would be handled
+          by a payment provider under its own terms.
+        </p>
+        <p>
+          Blueprint&apos;s source code is published on{" "}
+          <a href="https://github.com/Uoerim/blueprint" className={link} target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>{" "}
+          under the PolyForm Noncommercial License 1.0.0. These terms cover the hosted service at blueprint.raqameen.com.
+          Copies that other people host are not run by us, and these terms don&apos;t apply to them.
         </p>
       </Section>
 
@@ -54,8 +63,8 @@ export default function TermsPage() {
           <li>post anything illegal, or that harasses, threatens or exposes other people&apos;s private information;</li>
           <li>send spam invites or use Blueprint to advertise;</li>
           <li>upload malware, or try to break into accounts, teams or our systems;</li>
-          <li>get around rate limits or security checks, or scrape the service with bots;</li>
-          <li>resell or rebrand Blueprint as your own service.</li>
+          <li>use scripts, headless browsers or other automated tools to access the app or its API, scrape it, or get around rate limits or security checks;</li>
+          <li>resell or rebrand Blueprint as your own service, or use the Blueprint name or logo for a copy you run.</li>
         </ul>
       </Section>
 

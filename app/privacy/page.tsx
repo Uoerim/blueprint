@@ -39,16 +39,30 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Technical data.</strong> Our hosting provider processes your IP address and basic request information to
-            deliver pages, stop abuse and limit how many requests one address can send.
+            deliver pages, stop abuse, block automated traffic and limit how many requests one address or account can send.
           </li>
         </ul>
       </Section>
 
       <Section id="cookies" title="Cookies">
+        <p>We only use cookies the app needs to work:</p>
+        <ul>
+          <li>Clerk&apos;s cookies, to keep you signed in;</li>
+          <li>
+            <code className="font-mono text-[14px] text-ink">bp-theme</code>, which remembers whether you picked the dark, light or system theme;
+          </li>
+          <li>
+            <code className="font-mono text-[14px] text-ink">bp-last-team</code>, which remembers the team you were last in, so the Ideas and Tasks tabs of the
+            installed app open it;
+          </li>
+          <li>
+            <code className="font-mono text-[14px] text-ink">bp-app-preview</code>, only if you switch on the app-layout preview.
+          </li>
+        </ul>
         <p>
-          We only use cookies the app needs: Clerk&apos;s cookies to keep you signed in, and a <code className="font-mono text-[14px] text-ink">bp-theme</code>{" "}
-          cookie that remembers whether you picked the dark, light or system theme. There are no analytics, advertising or
-          tracking cookies, so there is no cookie banner.
+          Your browser also keeps two small notes on your device: whether you dismissed or accepted the offer to install
+          Blueprint, and a copy of the logo and the &ldquo;you&apos;re offline&rdquo; screen for when you lose connection. None of
+          this leaves your device. There are no analytics, advertising or tracking cookies, so there is no cookie banner.
         </p>
       </Section>
 
@@ -90,6 +104,10 @@ export default function PrivacyPage() {
           <li><strong>Clerk</strong>: sign-in and account management.</li>
           <li><strong>Neon</strong>: the database that stores your account and content.</li>
           <li><strong>Vercel</strong>: hosting and delivery of the website.</li>
+          <li>
+            <strong>Upstash</strong>: counts requests per IP address and per account over a one-minute window to stop abuse.
+            The counters delete themselves after a minute.
+          </li>
           <li><strong>Google and GitHub</strong>: only when you choose to sign in with them.</li>
           <li>
             <strong>Ko-fi</strong>: only if you choose to send a tip. Ko-fi handles the payment under its own privacy policy, and
