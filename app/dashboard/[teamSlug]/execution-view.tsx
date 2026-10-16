@@ -153,7 +153,6 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
   const { tasks, member, openProject, openIdea, team, viewer, can, run, removeIdea, removeTask, patchIdea, patchTask } = useWorkspace();
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState<"archive" | "delete" | "return" | null>(null);
-  const [withTasks, setWithTasks] = useState(false);
   const s = projectStats(tasks, project.id);
   const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
   const own = project.authorId === viewer.id;
@@ -191,16 +190,16 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
     });
   };
 
+  // Deleting a project always takes its tasks (and their subtasks) with it.
   const destroy = () => {
-    const alsoTasks = withTasks;
     const ids = tasks.filter((t) => t.idea?.id === project.id).map((t) => t.id);
     openProject(null);
-    run(() => deleteIdea({ teamId: team.id, itemId: project.id, confirm: project.title, withTasks: alsoTasks }), {
+    run(() => deleteIdea({ teamId: team.id, itemId: project.id, confirm: project.title }), {
       optimistic: () => {
         removeIdea(project.id);
-        if (alsoTasks) ids.forEach(removeTask);
+        ids.forEach(removeTask);
       },
-      success: alsoTasks ? "Project and its tasks deleted." : "Project deleted. Its tasks are still on the board.",
+      success: ids.length ? "Project and its tasks deleted." : "Project deleted.",
     });
   };
 
@@ -319,26 +318,19 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
       </ConfirmDialog>
       <ConfirmDialog
         open={confirm === "delete"}
-        onClose={() => {
-          setConfirm(null);
-          setWithTasks(false);
-        }}
+        onClose={() => setConfirm(null)}
         title="Delete project?"
-        description={<>&ldquo;{project.title}&rdquo; and its description will be deleted for everyone on the team. Only the team owner can do this.</>}
+        description={
+          <>
+            &ldquo;{project.title}&rdquo;, its description
+            {s.total > 0 ? <> and its {s.total} task{s.total === 1 ? "" : "s"}, with their subtasks,</> : null} will be deleted for
+            everyone on the team. Only the team owner can do this. Want to keep it for later? Archive it instead.
+          </>
+        }
         confirmLabel="Delete project"
         level={{ kind: "type", phrase: project.title, what: "project name" }}
         onConfirm={destroy}
-      >
-        {s.total > 0 && (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 p-3 text-[14px] text-ink">
-            <input type="checkbox" checked={withTasks} onChange={(e) => setWithTasks(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--rose)]" />
-            <span>
-              Also delete its {s.total} task{s.total === 1 ? "" : "s"}
-              <span className="block text-[13px] text-ink-3">Otherwise they stay on the board, outside any project.</span>
-            </span>
-          </label>
-        )}
-      </ConfirmDialog>
+      />
     </div>
   );
 }

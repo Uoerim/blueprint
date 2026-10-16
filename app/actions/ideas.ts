@@ -221,12 +221,12 @@ export async function restoreIdea(input: unknown) {
 
 /**
  * Permanently deletes an idea or project. Projects can only be deleted by the
- * team owner, and live ones need their exact name as `confirm`. `withTasks`
- * also deletes the project's tasks (otherwise they stay, outside any project).
+ * team owner, and live ones need their exact name as `confirm`. A project's
+ * tasks always go with it, along with their subtasks and assignments.
  */
 export async function deleteIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, confirm, withTasks } = deleteIdeaSchema.parse(input);
+    const { teamId, itemId, confirm } = deleteIdeaSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const idea = await loadIdea(teamId, itemId);
     if (idea.isProject) {
@@ -237,10 +237,12 @@ export async function deleteIdea(input: unknown) {
     } else if (idea.createdById !== access.userId && !access.can("ideas.manage")) {
       forbid("delete this idea");
     }
+    // One transaction: the project and its tasks go together, or not at all.
     await db.$transaction([
-      ...(withTasks && idea.isProject ? [db.task.deleteMany({ where: { teamId, ideaId: itemId } })] : []),
+      ...(idea.isProject ? [db.task.deleteMany({ where: { teamId, ideaId: itemId } })] : []),
       db.idea.deleteMany({ where: { id: itemId, teamId } }),
     ]);
+    const withTasks = idea.isProject && idea._count.tasks > 0;
     await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId });
     await teamChanged(teamId);
     return null;

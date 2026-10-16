@@ -80,7 +80,7 @@ When something ships, it stays on the record with your `@username` on it.
 - **Unlimited teams.** Create as many as you like and invite people by `@username`, either while creating the team or any time after. Invites arrive live in a bell with one-click accept.
 - **Team roles.** Owner, co-owners and plain members, plus **custom roles** you design permission by permission. See [Team roles](#team-roles).
 - **Team settings.** Rename the team, manage members and roles, hand over ownership, manage projects and the archive, clear shipped tasks, leave, or delete the team.
-- **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back.
+- **Careful deletes.** Small deletes (a task, an idea) need a tick confirming there's no undo. Big ones (a project, a team, bulk clean-ups) need the exact name typed back. Deleting a project always deletes its tasks and subtasks with it; archive it instead to keep them.
 
 ### Account and home
 

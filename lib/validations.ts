@@ -100,7 +100,6 @@ export const deleteIdeaSchema = z.strictObject({
   teamId: id,
   itemId: id,
   confirm: z.string().max(160).optional(),
-  withTasks: z.boolean().optional(),
 });
 
 export const tagSchema = z

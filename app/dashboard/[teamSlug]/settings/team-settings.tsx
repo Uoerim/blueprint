@@ -63,15 +63,14 @@ type RoleRow = { id: string; name: string; color: string; permissions: string[];
 type Team = { id: string; name: string; slug: string; description: string | null };
 type Run = <T>(fn: () => Promise<ActionResult<T>>, success?: string, onOk?: () => void) => void;
 
-/** One pending confirmation; `tasks` > 0 adds an "also delete its tasks" option. */
+/** One pending confirmation. */
 type Ask = {
   title: string;
   description: ReactNode;
   confirmLabel: string;
   level: ConfirmLevel;
   tone?: "danger" | "neutral";
-  tasks?: number;
-  onConfirm: (withTasks: boolean) => void;
+  onConfirm: () => void;
 };
 
 type Shared = {
@@ -121,7 +120,6 @@ export function TeamSettings({
   const [pending, startTransition] = useTransition();
   const { toast, show } = useToast();
   const [ask, setAsk] = useState<Ask | null>(null);
-  const [withTasks, setWithTasks] = useState(false);
   const can = (p: TeamPermission) => perms.includes(p);
 
   const run: Run = (fn, success, onOk) =>
@@ -133,10 +131,7 @@ export function TeamSettings({
       else router.refresh();
     });
 
-  const confirmIt = (a: Ask) => {
-    setWithTasks(false);
-    setAsk(a);
-  };
+  const confirmIt = (a: Ask) => setAsk(a);
 
   const shared: Shared = { team, myRole, viewerId, can, run, confirmIt };
   const sections = [
@@ -184,18 +179,8 @@ export function TeamSettings({
         confirmLabel={ask?.confirmLabel ?? ""}
         level={ask?.level ?? { kind: "plain" }}
         tone={ask?.tone}
-        onConfirm={() => ask?.onConfirm(withTasks)}
-      >
-        {!!ask?.tasks && (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 p-3 text-[14px] text-ink">
-            <input type="checkbox" checked={withTasks} onChange={(e) => setWithTasks(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--rose)]" />
-            <span>
-              Also delete its {ask.tasks} task{ask.tasks === 1 ? "" : "s"}
-              <span className="block text-[13px] text-ink-3">Otherwise they stay on the board, outside any project.</span>
-            </span>
-          </label>
-        )}
-      </ConfirmDialog>
+        onConfirm={() => ask?.onConfirm()}
+      />
       <ToastView toast={toast} />
     </div>
   );
@@ -708,12 +693,17 @@ function Projects({ team, viewerId, can, run, confirmIt, projects }: Shared & { 
                               close();
                               confirmIt({
                                 title: "Delete project?",
-                                description: <>&ldquo;{p.title}&rdquo; and its description will be deleted for everyone on the team.</>,
+                                description: (
+                                  <>
+                                    &ldquo;{p.title}&rdquo;, its description
+                                    {p.taskCount > 0 ? <> and its {p.taskCount} task{p.taskCount === 1 ? "" : "s"}, with their subtasks,</> : null}{" "}
+                                    will be deleted for everyone on the team.
+                                  </>
+                                ),
                                 confirmLabel: "Delete project",
                                 level: { kind: "type", phrase: p.title, what: "project name" },
-                                tasks: p.taskCount,
-                                onConfirm: (withTasks) =>
-                                  run(() => deleteIdea({ teamId: team.id, itemId: p.id, confirm: p.title, withTasks }), withTasks ? "Project and its tasks deleted." : "Project deleted."),
+                                onConfirm: () =>
+                                  run(() => deleteIdea({ teamId: team.id, itemId: p.id, confirm: p.title }), p.taskCount ? "Project and its tasks deleted." : "Project deleted."),
                               });
                             }}
                           >
@@ -767,11 +757,16 @@ function Archive({ team, viewerId, can, run, confirmIt, archived }: Shared & { a
                     onClick={() =>
                       confirmIt({
                         title: "Delete for good?",
-                        description: <>&ldquo;{i.title}&rdquo; will be permanently deleted.</>,
+                        description: (
+                          <>
+                            &ldquo;{i.title}&rdquo;
+                            {i.isProject && i.taskCount > 0 ? <> and its {i.taskCount} task{i.taskCount === 1 ? "" : "s"}</> : null} will be
+                            permanently deleted.
+                          </>
+                        ),
                         confirmLabel: "Delete",
                         level: { kind: "ack" },
-                        tasks: i.isProject ? i.taskCount : 0,
-                        onConfirm: (withTasks) => run(() => deleteIdea({ teamId: team.id, itemId: i.id, withTasks }), "Deleted."),
+                        onConfirm: () => run(() => deleteIdea({ teamId: team.id, itemId: i.id }), "Deleted."),
                       })
                     }
                     className={cx(btn.ghost, btn.xs, "text-rose hover:text-rose")}
