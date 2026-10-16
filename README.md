@@ -383,6 +383,11 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 
 - The Ideas and Tasks tabs open the team you were last in (remembered in a `bp-last-team` cookie, checked against your memberships on the server).
 - The Profile tab lives at `/dashboard/me`, so `me` and `admin` are reserved and can't be used as team slugs.
+- Switching tabs is built to feel instant:
+  - Ideas ↔ Tasks within the same team switch on the device without asking the server;
+  - every other tab shows its loading screen the moment you tap;
+  - screens you just left stay ready for 30 seconds (`staleTimes` in `next.config.ts`). Live updates re-check a screen as you return and refresh it if anything changed, and signing in or out clears them.
+- Pages load your account and their data side by side (`withOnboardedPage` and `requireTeamPage` in `lib/auth.ts`), each query scoped to the verified session.
 - After an update, fully close the installed app and reopen it to pick up the new layout.
 
 ## Project structure

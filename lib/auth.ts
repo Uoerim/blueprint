@@ -80,12 +80,36 @@ export function requirePermission(user: User, permission: Permission) {
   }
 }
 
-/** For pages: resolve a team by slug only if the viewer is a member. */
-export async function getTeamForViewer(slug: string, userId: string) {
-  const team = await db.team.findFirst({
-    where: { slug, members: { some: { userId } } },
-    select: { id: true, name: true, slug: true, description: true },
-  });
-  if (!team) notFound();
-  return team;
+/**
+ * For pages: requireOnboardedPage() and the page's own queries side by side, so
+ * the page waits for the database once instead of twice. `load` gets the Clerk
+ * id of the verified session and must scope every query to it (for example
+ * `where: { user: { clerkId } }`); nothing it returns is used unless the session
+ * checks pass, because a failed check redirects before the results come back.
+ */
+export async function withOnboardedPage<T>(load: (clerkId: string) => Promise<T>): Promise<[User, T]> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) redirect("/sign-in");
+  return Promise.all([requireOnboardedPage(), load(clerkId)]);
+}
+
+/**
+ * For team pages: the signed-in, onboarded viewer plus their membership of the
+ * team at `slug`, fetched together. A plain 404 unless they're a member, so a
+ * team's existence isn't revealed to outsiders.
+ */
+export async function requireTeamPage(slug: string) {
+  const [user, member] = await withOnboardedPage((clerkId) =>
+    db.teamMember.findFirst({
+      where: { team: { slug }, user: { clerkId } },
+      select: {
+        userId: true,
+        role: true,
+        customRole: { select: { permissions: true } },
+        team: { select: { id: true, name: true, slug: true, description: true } },
+      },
+    }),
+  );
+  if (!member || member.userId !== user.id) notFound();
+  return { user, team: member.team, me: { role: member.role, customRole: member.customRole } };
 }

@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: { bodySizeLimit: "64kb" },
+    // Keep screens you just left for 30s, so switching tabs back is instant. LivePulse
+    // re-checks each screen as you return and refreshes it if anything moved, and
+    // Clerk clears this cache whenever you sign in or out.
+    staleTimes: { dynamic: 30 },
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

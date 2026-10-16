@@ -7,28 +7,15 @@ import { KOFI_URL } from "@/components/kofi-button";
 import { SupportDialog } from "@/components/support";
 import { Dialog } from "@/components/ui/dialog";
 import { Monogram, readable } from "@/components/ui/primitives";
-import type { Theme } from "@/lib/theme";
 import { UsagePage } from "../_components/account-menu";
+import { useMe } from "../_components/app-shell";
 import { ThemePicker } from "../_components/theme-picker";
 
 type Sheet = "appearance" | "usage" | "support" | null;
 
 /** A native-style settings list: your photo and @username, then grouped rows. */
-export function ProfileScreen({
-  username,
-  displayName,
-  accentColor,
-  imageUrl,
-  theme,
-  staff,
-}: {
-  username: string;
-  displayName: string | null;
-  accentColor: string;
-  imageUrl: string | null;
-  theme: Theme;
-  staff: boolean;
-}) {
+export function ProfileScreen() {
+  const { username, displayName, accentColor, imageUrl, theme, staff } = useMe();
   const { openUserProfile, signOut } = useClerk();
   const [sheet, setSheet] = useState<Sheet>(null);
 

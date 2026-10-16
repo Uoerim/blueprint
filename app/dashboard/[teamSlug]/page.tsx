@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getTeamForViewer, requireOnboardedPage } from "@/lib/auth";
+import { requireTeamPage } from "@/lib/auth";
 import { decryptOptional, decryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { permissionsFor } from "@/lib/team-permissions";
@@ -14,18 +13,12 @@ export async function generateMetadata({ params }: PageProps<"/dashboard/[teamSl
 }
 
 export default async function TeamPage({ params, searchParams }: PageProps<"/dashboard/[teamSlug]">) {
-  const user = await requireOnboardedPage();
-  const { teamSlug } = await params;
-  const sp = await searchParams;
+  const [{ teamSlug }, sp] = await Promise.all([params, searchParams]);
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const team = await getTeamForViewer(teamSlug, user.id);
+  // Session check and membership in one wait; 404 unless you're in this team.
+  const { user, team, me } = await requireTeamPage(teamSlug);
 
   // Everything below is scoped to the verified team id, never the URL.
-  const me = await db.teamMember.findUnique({
-    where: { teamId_userId: { teamId: team.id, userId: user.id } },
-    select: { role: true, customRole: { select: { permissions: true } } },
-  });
-  if (!me) notFound();
   const perms = permissionsFor(me.role, me.customRole?.permissions);
   const taskWhere = visibleTasks(team.id, user.id, perms.includes("tasks.viewPrivate"));
 

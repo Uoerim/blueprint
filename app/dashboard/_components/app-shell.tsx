@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createContext, use, useEffect, type ReactNode } from "react";
+import { createContext, use, useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { Monogram, cx } from "@/components/ui/primitives";
 import { APP_PREVIEW_COOKIE } from "@/lib/app-preview";
+import type { Theme } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
 import { InvitesBell } from "./invites-bell";
 
@@ -22,11 +23,31 @@ export function rememberTeam(slug: string) {
   document.cookie = `${LAST_TEAM_COOKIE}=${encodeURIComponent(slug)}; path=/; max-age=31536000; samesite=lax${secure}`;
 }
 
-const TeamsContext = createContext<TeamSummary[]>([]);
-export const useTeams = () => use(TeamsContext);
+/** You, as the dashboard layout already loaded you. Only your own account, never anyone else's. */
+export type Me = {
+  username: string;
+  displayName: string | null;
+  accentColor: string;
+  imageUrl: string | null;
+  theme: Theme;
+  staff: boolean;
+};
 
-export function TeamsProvider({ teams, children }: { teams: TeamSummary[]; children: ReactNode }) {
-  return <TeamsContext value={teams}>{children}</TeamsContext>;
+type DashboardData = { teams: TeamSummary[]; me: Me | null };
+const DashboardContext = createContext<DashboardData>({ teams: [], me: null });
+export const useTeams = () => use(DashboardContext).teams;
+export function useMe(): Me {
+  const me = use(DashboardContext).me;
+  if (!me) throw new Error("useMe() needs <DashboardProvider>.");
+  return me;
+}
+
+/**
+ * Shares what the dashboard layout loaded (your teams and your account) with the
+ * screens under it, so tabs like Profile open without another trip to the server.
+ */
+export function DashboardProvider({ teams, me, children }: DashboardData & { children: ReactNode }) {
+  return <DashboardContext value={{ teams, me }}>{children}</DashboardContext>;
 }
 
 /** ?app=1 turns the app-layout preview on for this browser, ?app=0 turns it off. */
@@ -37,7 +58,9 @@ export function AppPreviewSwitch() {
   useEffect(() => {
     if (flag !== "1" && flag !== "0") return;
     const on = flag === "1";
-    document.cookie = `${APP_PREVIEW_COOKIE}=${on ? "1" : ""}; path=/; max-age=${on ? 2592000 : 0}; samesite=lax`;
+    // Cosmetic only: it switches the layout and grants nothing.
+    const secure = window.location.protocol === "https:" ? "; secure" : "";
+    document.cookie = `${APP_PREVIEW_COOKIE}=${on ? "1" : ""}; path=/; max-age=${on ? 2592000 : 0}; samesite=lax${secure}`;
     document.documentElement.classList.toggle("app-preview", on);
     const url = new URL(window.location.href);
     url.searchParams.delete("app");
@@ -91,8 +114,11 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   const slugHere = onTeam && onTeam[1] !== "me" ? onTeam[1] : null;
   const team = slugHere ?? lastTeam ?? teams[0]?.slug ?? null;
   const view = params.get("view");
+  const here = `${path}?${params.toString()}`;
+  // Light the tapped tab at once, before the next screen arrives; forgotten as soon as the address moves.
+  const [tapped, setTapped] = useState<{ tab: Tab; from: string } | null>(null);
 
-  const active: Tab | null =
+  const routed: Tab | null =
     path === "/dashboard"
       ? "home"
       : path.startsWith("/dashboard/me")
@@ -100,6 +126,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
         : slugHere && !path.endsWith("/settings")
           ? view === "board" || view === "shipped" ? "tasks" : "ideas"
           : null;
+  const active = tapped && tapped.from === here ? tapped.tab : routed;
 
   const tabs: { id: Tab; label: string; href: string; icon: ReactNode }[] = [
     { id: "home", label: "Home", href: "/dashboard", icon: <HomeIcon /> },
@@ -107,6 +134,20 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
     { id: "tasks", label: "Tasks", href: team ? `/dashboard/${team}?view=board` : "/dashboard", icon: <TasksIcon /> },
     { id: "profile", label: "Profile", href: "/dashboard/me", icon: <ProfileIcon /> },
   ];
+
+  const go = (e: MouseEvent<HTMLAnchorElement>, t: Tab, href: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    const url = new URL(href, window.location.href);
+    // Ideas and Tasks of the team already on screen: the workspace holds all its data
+    // and follows the address, so switch views without asking the server again.
+    if (slugHere && url.pathname === path) {
+      e.preventDefault();
+      if (url.search !== window.location.search) window.history.pushState(null, "", url);
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    if (url.pathname !== path) setTapped({ tab: t, from: here });
+  };
 
   return (
     <nav
@@ -119,6 +160,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
           <Link
             key={t.id}
             href={t.href}
+            onClick={(e) => go(e, t.id, t.href)}
             aria-label={t.label}
             aria-current={on ? "page" : undefined}
             className={cx(

@@ -4,13 +4,13 @@ import { Suspense, type ReactNode } from "react";
 import { KofiButton } from "@/components/kofi-button";
 import { SupportButton } from "@/components/support";
 import { BrandMark } from "@/components/ui/primitives";
-import { requireOnboardedPage } from "@/lib/auth";
+import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/site-roles";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
 import { AccountMenu } from "./_components/account-menu";
-import { AppHeader, AppPreviewSwitch, BottomNav, TeamsProvider } from "./_components/app-shell";
+import { AppHeader, AppPreviewSwitch, BottomNav, DashboardProvider, type Me } from "./_components/app-shell";
 import { InstallPrompt } from "./_components/install-prompt";
 import { InvitesBell } from "./_components/invites-bell";
 import { LivePulse } from "./_components/live-pulse";
@@ -18,16 +18,15 @@ import { TeamSwitcher } from "./_components/team-switcher";
 import { UsernameChip } from "./_components/username-chip";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const user = await requireOnboardedPage();
-
-  const [memberships, invites] = await Promise.all([
+  // Your account, teams and invites in one wait; every query is scoped to the verified session.
+  const [user, [memberships, invites]] = await withOnboardedPage((clerkId) => Promise.all([
     db.teamMember.findMany({
-      where: { userId: user.id },
+      where: { user: { clerkId } },
       select: { role: true, favorite: true, team: { select: { id: true, name: true, slug: true } } },
       orderBy: [{ favorite: "desc" }, { joinedAt: "asc" }],
     }),
     db.teamInvite.findMany({
-      where: { inviteeId: user.id, status: "PENDING" },
+      where: { invitee: { clerkId }, status: "PENDING" },
       select: {
         id: true,
         createdAt: true,
@@ -36,12 +35,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       },
       orderBy: { createdAt: "desc" },
     }),
-  ]);
+  ]));
 
   const jar = await cookies();
   const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   // Ideas/Tasks tabs in the installed app open the team you were last in (only if you're still a member).
-  const remembered = decodeURIComponent(jar.get("bp-last-team")?.value ?? "");
+  // The cookie is untrusted input: a malformed value is ignored, and only a team you belong to is used.
+  let remembered = "";
+  try {
+    remembered = decodeURIComponent(jar.get("bp-last-team")?.value ?? "");
+  } catch {}
   const lastTeam = memberships.some((m) => m.team.slug === remembered) ? remembered : (memberships[0]?.team.slug ?? null);
   const firstName = user.displayName?.trim().split(/\s+/)[0] || user.username!;
   const teams: TeamSummary[] = memberships.map((m) => ({ ...m.team, role: m.role, favorite: m.favorite }));
@@ -52,8 +55,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor, imageUrl: i.inviter.imageUrl },
   }));
 
+  const me: Me = {
+    username: user.username!,
+    displayName: user.displayName,
+    accentColor: user.accentColor,
+    imageUrl: user.imageUrl,
+    theme,
+    staff: isStaff(user.siteRole),
+  };
+
   return (
-    <TeamsProvider teams={teams}>
+    <DashboardProvider teams={teams} me={me}>
       <div className="flex min-h-screen flex-col">
         <header className="glass sticky top-0 z-40 border-b border-line app:hidden">
           <div className="flex h-14 items-center gap-1.5 px-2 sm:gap-3 sm:px-5">
@@ -95,6 +107,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <LivePulse />
         <InstallPrompt />
       </div>
-    </TeamsProvider>
+    </DashboardProvider>
   );
 }

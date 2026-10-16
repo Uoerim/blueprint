@@ -1,5 +1,5 @@
 import { readable } from "@/components/ui/primitives";
-import { requireOnboardedPage } from "@/lib/auth";
+import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { InviteList } from "./_components/invites-bell";
 import { NewTeamButton } from "./_components/new-team-button";
@@ -9,11 +9,10 @@ export const metadata = { title: "Dashboard" };
 
 /** The dashboard home: every team you're in, searchable and starrable, plus pending invites. */
 export default async function DashboardHome() {
-  const user = await requireOnboardedPage();
-
-  const [memberships, mine, invites] = await Promise.all([
+  // Your account and your teams in one wait; every query is scoped to the verified session.
+  const [user, [memberships, mine, invites]] = await withOnboardedPage((clerkId) => Promise.all([
     db.teamMember.findMany({
-      where: { userId: user.id },
+      where: { user: { clerkId } },
       select: {
         role: true,
         favorite: true,
@@ -33,11 +32,11 @@ export default async function DashboardHome() {
     // Counts only: how many open tasks are assigned to you in each team.
     db.taskAssignee.groupBy({
       by: ["teamId"],
-      where: { userId: user.id, task: { status: { not: "DONE" } } },
+      where: { user: { clerkId }, task: { status: { not: "DONE" } } },
       _count: { _all: true },
     }),
     db.teamInvite.findMany({
-      where: { inviteeId: user.id, status: "PENDING" },
+      where: { invitee: { clerkId }, status: "PENDING" },
       select: {
         id: true,
         createdAt: true,
@@ -46,7 +45,7 @@ export default async function DashboardHome() {
       },
       orderBy: { createdAt: "desc" },
     }),
-  ]);
+  ]));
 
   const open = new Map(mine.map((m) => [m.teamId, m._count._all]));
   const teams: HomeTeam[] = memberships.map((m) => ({

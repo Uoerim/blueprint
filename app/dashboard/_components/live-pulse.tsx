@@ -11,12 +11,16 @@ const SLOW_MS = 15000;
  * /api/pulse whether the current team or the viewer's notifications changed
  * (two timestamps, one tiny query) and re-fetches the page data only when one
  * moved. Hidden tabs stop polling and check again the moment they're shown.
+ *
+ * Screens you leave are kept for a short while (staleTimes in next.config), so
+ * the stamps are remembered per screen: coming back to one that changed while
+ * you were away refreshes it on the very first check.
  */
 export function LivePulse() {
   const router = useRouter();
   const path = usePathname();
   const team = /^\/dashboard\/([a-z0-9-]+)/.exec(path)?.[1];
-  const last = useRef<{ key: string; team: number | null; inbox: number } | null>(null);
+  const seen = useRef(new Map<string, { team: number | null; inbox: number }>());
 
   useEffect(() => {
     let stopped = false;
@@ -31,10 +35,10 @@ export function LivePulse() {
         const res = await fetch(`/api/pulse${team ? `?team=${encodeURIComponent(team)}` : ""}`, { cache: "no-store" });
         if (!res.ok) throw new Error(String(res.status));
         const now = (await res.json()) as { team: number | null; inbox: number };
-        const prev = last.current;
-        last.current = { key, ...now };
+        const prev = seen.current.get(key);
+        seen.current.set(key, now);
         failures = 0;
-        if (prev && prev.key === key && (prev.team !== now.team || prev.inbox !== now.inbox)) router.refresh();
+        if (prev && (prev.team !== now.team || prev.inbox !== now.inbox)) router.refresh();
       } catch {
         failures++;
       }
