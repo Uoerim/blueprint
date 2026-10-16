@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useState, type ReactNode } from "react";
 import { btn, cx } from "@/components/ui/primitives";
 import type { IncomingInvite } from "@/lib/types";
+import { CopyUsername } from "../_components/copy-username";
 import { CreateTeamDialog } from "../_components/create-team-dialog";
 import { InviteList } from "../_components/invites-bell";
 
@@ -55,40 +56,13 @@ export function NoTeamScreen({ focus, username, invites }: { focus: Focus; usern
 
 /** For joining someone else's team: they invite you by @username, so make it one tap to share. */
 function ShareUsername({ username }: { username: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(username);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
     <div className="card mt-8 flex items-center gap-3 rounded-2xl p-4">
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-medium text-ink">Joining a friend&apos;s team?</p>
         <p className="mt-0.5 text-[13px] leading-snug text-ink-3">Send them your username so they can invite you. Invites show up here.</p>
       </div>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={`Copy your username, ${username}`}
-        className={cx(btn.outline, "h-10 shrink-0 px-3 font-mono text-[13px]", copied && "text-emerald")}
-      >
-        {/* Both labels share one cell, so the button keeps its width when the text changes. */}
-        <span className="grid">
-          <span className={cx("col-start-1 row-start-1 transition-opacity", copied && "opacity-0")}>@{username}</span>
-          <span aria-hidden className={cx("col-start-1 row-start-1 text-center transition-opacity", !copied && "opacity-0")}>
-            Copied
-          </span>
-        </span>
-      </button>
-      <span role="status" className="sr-only">
-        {copied ? "Username copied" : ""}
-      </span>
+      <CopyUsername username={username} />
     </div>
   );
 }

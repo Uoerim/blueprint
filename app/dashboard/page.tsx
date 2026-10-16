@@ -2,6 +2,7 @@ import { readable } from "@/components/ui/primitives";
 import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { firstName } from "@/lib/names";
+import { NoInvites, NoTeams } from "./_components/home-empty";
 import { InviteList } from "./_components/invites-bell";
 import { NewTeamButton } from "./_components/new-team-button";
 import { TeamHome, type HomeTeam } from "./_components/team-home";
@@ -62,6 +63,9 @@ export default async function DashboardHome() {
     activityAt: m.team.activityAt.toISOString(),
   }));
 
+  // A brand-new account has no teams yet: show what's empty instead of a blank page.
+  const fresh = teams.length === 0;
+
   return (
     <div className="relative">
       <div aria-hidden className="bg-architect pointer-events-none absolute inset-0 h-[50vh] [mask-image:radial-gradient(60%_80%_at_30%_0%,black,transparent)]" />
@@ -70,34 +74,53 @@ export default async function DashboardHome() {
           {/* The installed app already greets you in its header. */}
           <div className="app:hidden">
             <h1 className="text-[clamp(1.75rem,4.5vw,2.75rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
-              Welcome back, <span style={{ color: readable(user.accentColor) }}>{firstName(user)}</span>
+              {fresh && !invites.length ? "Welcome" : "Welcome back"},{" "}
+              <span style={{ color: readable(user.accentColor) }}>{firstName(user)}</span>
             </h1>
             <p className="mt-2 text-[15px] text-ink-2">
-              {teams.length ? "Pick a team to jump in, or start a new one." : "Start a team of your own, or accept an invite below."}
+              {!fresh
+                ? "Pick a team to jump in, or start a new one."
+                : invites.length
+                  ? "Accept an invite below, or start a team of your own."
+                  : "Start a team of your own, or ask a friend to invite you."}
             </p>
           </div>
           <NewTeamButton />
         </div>
 
-        {invites.length > 0 && (
+        {/* Invites: always shown to someone without a team, so "nothing yet" is explicit. */}
+        {(invites.length > 0 || fresh) && (
           <section aria-labelledby="invites-h" className="mt-8">
             <h2 id="invites-h" className="text-sm font-medium text-ink-2">
               Invites <span className="font-mono text-[11px] text-ink-3">{invites.length}</span>
             </h2>
-            <div className="card mt-2 rounded-2xl p-2">
-              <InviteList
-                invites={invites.map((i) => ({
-                  id: i.id,
-                  createdAt: i.createdAt.toISOString(),
-                  team: i.team,
-                  inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor, imageUrl: i.inviter.imageUrl },
-                }))}
-              />
-            </div>
+            {invites.length === 0 ? (
+              <NoInvites username={user.username!} />
+            ) : (
+              <div className="card mt-2 rounded-2xl p-2">
+                <InviteList
+                  invites={invites.map((i) => ({
+                    id: i.id,
+                    createdAt: i.createdAt.toISOString(),
+                    team: i.team,
+                    inviter: { username: i.inviter.username ?? "someone", accentColor: i.inviter.accentColor, imageUrl: i.inviter.imageUrl },
+                  }))}
+                />
+              </div>
+            )}
           </section>
         )}
 
-        <TeamHome teams={teams} />
+        {fresh ? (
+          <section aria-labelledby="teams-h" className="mt-8">
+            <h2 id="teams-h" className="text-sm font-medium text-ink-2">
+              Your teams <span className="font-mono text-[11px] text-ink-3">0</span>
+            </h2>
+            <NoTeams />
+          </section>
+        ) : (
+          <TeamHome teams={teams} />
+        )}
       </div>
     </div>
   );
