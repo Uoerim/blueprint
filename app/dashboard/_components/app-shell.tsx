@@ -84,7 +84,10 @@ export function AppHeader({
   invites: IncomingInvite[];
 }) {
   return (
-    <header className="hidden px-4 pb-1 pt-[max(0.75rem,env(safe-area-inset-top))] app:block">
+    // iOS 26 draws a soft blur under the status bar of home-screen apps that reaches a little
+    // way into the page and can't be switched off from the web, so on iPhone (the only browser
+    // with -webkit-touch-callout) the greeting starts just below it instead of inside it.
+    <header className="hidden px-4 pb-1 pt-[max(0.75rem,env(safe-area-inset-top))] app:block supports-[-webkit-touch-callout:none]:pt-[max(2.5rem,calc(env(safe-area-inset-top)_+_1.5rem))]">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/me" aria-label="Your profile" className="shrink-0 rounded-full active:scale-95">
           <Monogram name={username} color={accentColor} src={imageUrl} size={38} className="!rounded-full" />
