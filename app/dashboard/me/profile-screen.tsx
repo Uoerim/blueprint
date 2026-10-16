@@ -9,13 +9,14 @@ import { Dialog } from "@/components/ui/dialog";
 import { Monogram, readable } from "@/components/ui/primitives";
 import { UsagePage } from "../_components/account-menu";
 import { useMe } from "../_components/app-shell";
-import { ThemePicker } from "../_components/theme-picker";
+import { ThemePicker, useTheme } from "../_components/theme-picker";
 
 type Sheet = "appearance" | "usage" | "support" | null;
 
 /** A native-style settings list: your photo and @username, then grouped rows. */
 export function ProfileScreen() {
-  const { username, displayName, accentColor, imageUrl, theme, staff } = useMe();
+  const { username, displayName, accentColor, imageUrl, theme: serverTheme, staff } = useMe();
+  const theme = useTheme(serverTheme);
   const { openUserProfile, signOut } = useClerk();
   const [sheet, setSheet] = useState<Sheet>(null);
 

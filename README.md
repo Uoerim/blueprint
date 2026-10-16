@@ -85,7 +85,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Dashboard home.** After signing in you land on a home page with all your teams: search them, star favourites to keep them on top, see how many open tasks are yours in each, and accept invites.
 
-- **Account window.** Appearance (dark, light or system theme) and Usage live inside the standard account window alongside your profile and security settings.
+- **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
 - **Support.** A *Contact support* button in the dashboard and user menu, plus Privacy Policy and Terms pages.
 

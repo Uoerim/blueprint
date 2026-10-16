@@ -1,14 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { cx } from "@/components/ui/primitives";
-import { THEME_COOKIE, type Theme } from "@/lib/theme";
+import { parseTheme, THEME_COOKIE, type Theme } from "@/lib/theme";
 
 const OPTIONS: { id: Theme; label: string; note: string }[] = [
-  { id: "dark", label: "Dark", note: "The default" },
+  { id: "system", label: "System", note: "Follows your device (default)" },
   { id: "light", label: "Light", note: "Easy in daylight" },
-  { id: "system", label: "System", note: "Follows your device" },
+  { id: "dark", label: "Dark", note: "Easy on the eyes" },
 ];
+
+/*
+ * The theme on <html data-theme> is the single source of truth once the page is
+ * running. Server-rendered props can be stale (screens are cached between tabs),
+ * so the picker and anything that shows the current theme read it from there.
+ */
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
+/** The theme currently applied, kept in step with every picker on the page. */
+export function useTheme(serverTheme: Theme): Theme {
+  return useSyncExternalStore(
+    subscribe,
+    () => parseTheme(document.documentElement.dataset.theme),
+    () => serverTheme,
+  );
+}
 
 /** Swatch drawn with fixed colours so each option previews its own theme. */
 function Swatch({ id }: { id: Theme }) {
@@ -36,12 +56,8 @@ function applyTheme(t: Theme) {
 }
 
 export function ThemePicker({ initial }: { initial: Theme }) {
-  const [theme, setTheme] = useState<Theme>(initial);
-
-  const pick = (t: Theme) => {
-    setTheme(t);
-    applyTheme(t);
-  };
+  const theme = useTheme(initial);
+  const pick = (t: Theme) => applyTheme(t);
 
   return (
     <div role="radiogroup" aria-label="Theme" className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-3">
