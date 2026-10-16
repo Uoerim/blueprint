@@ -59,6 +59,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ClerkProvider
           dynamic
+          // Sign-in stays on Blueprint's own pages (never Clerk's hosted portal), so Google
+          // sign-in returns straight to the app, the installed app included.
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/onboarding"
           appearance={{
             variables: {
               // CSS variables, so Clerk's widgets follow the light/dark theme too.

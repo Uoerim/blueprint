@@ -431,7 +431,8 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 **Notes**
 
 - The Ideas and Tasks tabs open the team you were last in (remembered in a `bp-last-team` cookie, checked against your memberships on the server).
-- The Profile tab lives at `/dashboard/me`, so `me` and `admin` are reserved and can't be used as team slugs.
+- Before you're in any team, Ideas and Tasks open a short screen that explains what lives there, with **Create a team**, your pending invites, or your @username to share so someone can invite you (`/dashboard/new`).
+- The Profile tab lives at `/dashboard/me`, so `me`, `new` and `admin` are reserved and can't be used as team slugs.
 - Switching tabs is built to feel instant:
   - Ideas ↔ Tasks within the same team switch on the device without asking the server;
   - every other tab shows its loading screen the moment you tap;

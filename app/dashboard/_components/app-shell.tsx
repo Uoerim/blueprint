@@ -114,7 +114,8 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   const params = useSearchParams();
   const teams = useTeams();
   const onTeam = /^\/dashboard\/([a-z0-9-]+)(\/|$)/.exec(path);
-  const slugHere = onTeam && onTeam[1] !== "me" ? onTeam[1] : null;
+  // "me" (Profile) and "new" (the no-team screen) are reserved, never team slugs.
+  const slugHere = onTeam && onTeam[1] !== "me" && onTeam[1] !== "new" ? onTeam[1] : null;
   const team = slugHere ?? lastTeam ?? teams[0]?.slug ?? null;
   const view = params.get("view");
   const here = `${path}?${params.toString()}`;
@@ -126,6 +127,8 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
       ? "home"
       : path.startsWith("/dashboard/me")
         ? "profile"
+        : path.startsWith("/dashboard/new")
+          ? params.get("for") === "tasks" ? "tasks" : "ideas"
         : slugHere && !path.endsWith("/settings")
           ? view === "board" || view === "shipped" ? "tasks" : "ideas"
           : null;
@@ -133,8 +136,9 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
 
   const tabs: { id: Tab; label: string; href: string; icon: ReactNode }[] = [
     { id: "home", label: "Home", href: "/dashboard", icon: <HomeIcon /> },
-    { id: "ideas", label: "Ideas", href: team ? `/dashboard/${team}?view=vault` : "/dashboard", icon: <IdeasIcon /> },
-    { id: "tasks", label: "Tasks", href: team ? `/dashboard/${team}?view=board` : "/dashboard", icon: <TasksIcon /> },
+    // Before you're in any team, Ideas and Tasks explain what lives there and how to start one.
+    { id: "ideas", label: "Ideas", href: team ? `/dashboard/${team}?view=vault` : "/dashboard/new?for=ideas", icon: <IdeasIcon /> },
+    { id: "tasks", label: "Tasks", href: team ? `/dashboard/${team}?view=board` : "/dashboard/new?for=tasks", icon: <TasksIcon /> },
     { id: "profile", label: "Profile", href: "/dashboard/me", icon: <ProfileIcon /> },
   ];
 

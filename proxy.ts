@@ -50,6 +50,10 @@ export default clerkMiddleware(
     return res;
   },
   {
+    // Signed-out visitors always land on Blueprint's own sign-in page, never on
+    // Clerk's hosted Account Portal, whatever the environment variables say.
+    signInUrl: "/sign-in",
+    signUpUrl: "/sign-up",
     // Nonce-based CSP generated per request (Clerk's strict mode adds
     // 'strict-dynamic' + a fresh nonce; Next applies it to its own scripts).
     contentSecurityPolicy: {
