@@ -64,6 +64,8 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
     signout: reachable && can(me.siteRole, "users.signout"),
     role: reachable && can(me.siteRole, "users.role"),
     delete: reachable && can(me.siteRole, "users.delete"),
+    // Renaming can't lock anyone out, so admins may also rename their own account.
+    rename: !user.deletedAt && !!user.username && (isMe || outranks(me.siteRole, user.siteRole)) && can(me.siteRole, "users.rename"),
   };
   const showIp = me.siteRole === "ADMIN";
 

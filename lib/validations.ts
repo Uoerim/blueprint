@@ -208,6 +208,8 @@ export function slugify(name: string): string {
 export const adminUserSchema = z.strictObject({ userId: id });
 export const adminSuspendSchema = z.strictObject({ userId: id, reason: clearableText(500) });
 export const adminRoleSchema = z.strictObject({ userId: id, role: z.enum(["USER", "SUPPORT", "MODERATOR", "ADMIN"]) });
+/** Same rules as claiming a username at sign-up: format, length and the reserved list. */
+export const adminRenameSchema = z.strictObject({ userId: id, username: usernameSchema });
 export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
 export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
 

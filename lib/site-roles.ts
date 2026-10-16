@@ -5,7 +5,7 @@
  *   USER       everyone; no access to /admin
  *   SUPPORT    read-only admin panel: accounts, teams, audit log (never team content)
  *   MODERATOR  SUPPORT + suspend / unsuspend accounts, sign accounts out everywhere
- *   ADMIN      everything: change site roles, delete accounts, delete teams
+ *   ADMIN      everything: change site roles and usernames, delete accounts, delete teams
  *
  * Shared by server code and client components, so no server-only imports here.
  */
@@ -19,6 +19,7 @@ export type Permission =
   | "users.suspend"
   | "users.signout"
   | "users.role"
+  | "users.rename"
   | "users.delete"
   | "teams.delete";
 
@@ -27,6 +28,7 @@ const NEEDS: Record<Permission, SiteRole> = {
   "users.suspend": "MODERATOR",
   "users.signout": "MODERATOR",
   "users.role": "ADMIN",
+  "users.rename": "ADMIN",
   "users.delete": "ADMIN",
   "teams.delete": "ADMIN",
 };
@@ -55,5 +57,5 @@ export const ROLE_NOTE: Record<SiteRole, string> = {
   USER: "No admin access.",
   SUPPORT: "Can look up accounts, teams and the audit log. Can't change anything.",
   MODERATOR: "Support, plus suspend accounts and sign them out everywhere.",
-  ADMIN: "Everything: roles, deleting accounts and teams.",
+  ADMIN: "Everything: roles, usernames, deleting accounts and teams.",
 };

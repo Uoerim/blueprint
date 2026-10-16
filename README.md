@@ -155,7 +155,7 @@ Deleting projects and the team always stays with the owner. Every rule is enforc
 | `USER` | Everyone. No admin access. |
 | `SUPPORT` | Read-only admin panel: look up accounts, teams and the audit log. |
 | `MODERATOR` | Support, plus suspend and unsuspend accounts and sign them out everywhere. |
-| `ADMIN` | Everything: change site roles, delete accounts, delete teams. |
+| `ADMIN` | Everything: change site roles and usernames, delete accounts, delete teams. |
 
 Staff can only act on accounts ranked below them (admins can act on anyone), never on themselves, and the last admin can't be removed. **No site role can read the text of ideas, projects or tasks.** The admin panel shows accounts, memberships and counts only.
 
@@ -409,11 +409,12 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 | --- | --- |
 | **Overview** | Platform HUD: accounts, new this week, suspended, staff, teams, ideas, tasks, tasks shipped, people in focus right now and security events in the last 24 hours, plus newest accounts and recent staff actions |
 | **Accounts** | Username, colour, email, site role, status, team count and join date; search by username, name or email; filter staff, suspended or deleted accounts |
-| **Account** | Details, teams, activity, and actions: change site role, suspend with a reason, sign out everywhere, delete |
+| **Account** | Details, teams, activity, and actions: change username (admins), change site role, suspend with a reason, sign out everywhere, delete |
 | **Teams** | Name, slug, owner, member/idea/task counts and created date; admins can delete a team |
-| **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see IP addresses. |
+| **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see the shortened IP addresses. |
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
+- **Renaming** (admins only, their own account included) follows the same rules as sign-up: 3 to 20 characters of a to z, 0 to 9 and _, no reserved names, not already taken. The old name becomes free to claim, teammates see the new one on their next live update, and the change is recorded as `ADMIN_USER_RENAMED`. Useful for reclaiming names that impersonate someone.
 - **Deleting** removes the login, memberships and invites. Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
 - **The first admin** can only be created from the terminal with `npm run site:role`. The script shows which database it will change and asks you to type the username back. There is no web route or secret that grants a role.
 

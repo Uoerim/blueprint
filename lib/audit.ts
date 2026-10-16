@@ -16,6 +16,7 @@ export type AuditAction =
   | "admin.user.unsuspended"
   | "admin.user.signed_out"
   | `admin.user.role.${SiteRole}`
+  | "admin.user.renamed"
   | "admin.user.deleted"
   | "admin.team.deleted"
   | `cli.site.role.${SiteRole}`

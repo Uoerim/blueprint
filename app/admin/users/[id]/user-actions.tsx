@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
-import { deleteUser, setSiteRole, signOutEverywhere, suspendUser, unsuspendUser } from "@/app/actions/admin";
+import { deleteUser, renameUser, setSiteRole, signOutEverywhere, suspendUser, unsuspendUser } from "@/app/actions/admin";
 import { ConfirmDialog, type ConfirmLevel } from "@/components/ui/confirm-dialog";
 import { inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
@@ -18,7 +18,7 @@ export function UserActions({
   isMe,
 }: {
   user: { id: string; username: string | null; siteRole: SiteRole; banned: boolean; deleted: boolean };
-  perms: { suspend: boolean; signout: boolean; role: boolean; delete: boolean };
+  perms: { suspend: boolean; signout: boolean; role: boolean; delete: boolean; rename: boolean };
   isMe: boolean;
 }) {
   const router = useRouter();
@@ -27,7 +27,10 @@ export function UserActions({
   const [ask, setAsk] = useState<Ask | null>(null);
   const [role, setRole] = useState<SiteRole>(user.siteRole);
   const [reason, setReason] = useState("");
+  const [newName, setNewName] = useState(user.username ?? "");
   const name = user.username ? `@${user.username}` : "this account";
+  const nameValid = USERNAME.test(newName);
+  const nameChanged = newName !== user.username;
 
   const run = <T,>(fn: () => Promise<ActionResult<T>>, ok: string, after?: (data: T) => void) =>
     start(async () => {
@@ -42,20 +45,86 @@ export function UserActions({
     if (!d.clerk) show("Saved, but Clerk didn't confirm. The app still enforces it.", "error");
   };
 
+  const overlays = (
+    <>
+      <ConfirmDialog
+        open={!!ask}
+        onClose={() => setAsk(null)}
+        title={ask?.title ?? ""}
+        description={ask?.description}
+        confirmLabel={ask?.confirmLabel ?? ""}
+        level={ask?.level ?? { kind: "plain" }}
+        tone={ask?.tone}
+        onConfirm={() => ask?.run()}
+      />
+      <ToastView toast={toast} />
+    </>
+  );
+
+  const renamePanel = perms.rename && (
+    <Panel title="Username">
+      <label htmlFor="new-username" className="block text-[13px] text-ink-2">
+        New username
+      </label>
+      <div className="field mt-1.5 flex h-10 items-center rounded-lg px-3">
+        <span className="font-mono text-[14px] text-ink-3">@</span>
+        <input
+          id="new-username"
+          value={newName}
+          onChange={(e) => setNewName(normalize(e.target.value))}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          maxLength={20}
+          className="h-full flex-1 bg-transparent font-mono text-[14px] text-ink outline-none"
+        />
+      </div>
+      <p className={cx("mt-1.5 text-[12px]", newName && !nameValid ? "text-rose" : "text-ink-3")}>
+        3 to 20 characters: a to z, 0 to 9 and _. Reserved names and names already in use are refused.
+      </p>
+      <button
+        type="button"
+        disabled={pending || !nameValid || !nameChanged}
+        onClick={() =>
+          setAsk({
+            title: `Change ${name} to @${newName}?`,
+            description: (
+              <>
+                {isMe ? "Your" : "Their"} old username becomes free for anyone to claim. Teammates see the new name right away;
+                teams, invites and history aren&apos;t affected.
+              </>
+            ),
+            confirmLabel: "Change username",
+            tone: "neutral",
+            level: { kind: "plain" },
+            run: () => run(() => renameUser({ userId: user.id, username: newName }), `Username changed to @${newName}.`),
+          })
+        }
+        className={cx(btn.primary, btn.sm, "mt-3 disabled:opacity-40")}
+      >
+        Change username
+      </button>
+    </Panel>
+  );
+
   if (user.deleted) {
     return <Panel title="Actions"><p className="text-[13px] text-ink-3">This account was deleted. There is nothing left to manage.</p></Panel>;
   }
   if (isMe) {
     return (
-      <Panel title="Actions">
-        <p className="text-[13px] leading-relaxed text-ink-2">
-          You can&apos;t change your own role, suspend or delete yourself from the panel. Use the CLI instead:
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg bg-surface-2 p-3 font-mono text-[12px] text-ink">npm run site:role -- {user.username ?? "username"} USER</pre>
-      </Panel>
+      <div className="space-y-4">
+        {renamePanel}
+        <Panel title="Actions">
+          <p className="text-[13px] leading-relaxed text-ink-2">
+            You can&apos;t change your own role, suspend or delete yourself from the panel. Use the CLI instead:
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-surface-2 p-3 font-mono text-[12px] text-ink">npm run site:role -- {user.username ?? "username"} USER</pre>
+        </Panel>
+        {overlays}
+      </div>
     );
   }
-  if (!perms.suspend && !perms.signout && !perms.role && !perms.delete) {
+  if (!perms.suspend && !perms.signout && !perms.role && !perms.delete && !perms.rename) {
     return (
       <Panel title="Actions">
         <p className="text-[13px] text-ink-3">Your role can view this account but not change it.</p>
@@ -65,6 +134,7 @@ export function UserActions({
 
   return (
     <div className="space-y-4">
+      {renamePanel}
       {perms.role && (
         <Panel title="Site role">
           <fieldset className="space-y-1.5">
@@ -191,20 +261,14 @@ export function UserActions({
         </Panel>
       )}
 
-      <ConfirmDialog
-        open={!!ask}
-        onClose={() => setAsk(null)}
-        title={ask?.title ?? ""}
-        description={ask?.description}
-        confirmLabel={ask?.confirmLabel ?? ""}
-        level={ask?.level ?? { kind: "plain" }}
-        tone={ask?.tone}
-        onConfirm={() => ask?.run()}
-      />
-      <ToastView toast={toast} />
+      {overlays}
     </div>
   );
 }
+
+// Mirrors usernameSchema (lib/validations.ts); the server checks again, plus reserved names and uniqueness.
+const USERNAME = /^[a-z0-9_]{3,20}$/;
+const normalize = (v: string) => v.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_]/g, "").slice(0, 20);
 
 function Panel({ title, children, danger }: { title: string; children: ReactNode; danger?: boolean }) {
   return (

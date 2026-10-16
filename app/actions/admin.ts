@@ -1,7 +1,9 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { audit, runAction } from "@/lib/action";
+import { inboxChanged } from "@/lib/activity";
 import { ActionError, requirePermission } from "@/lib/auth";
 import { clerkBan, clerkDelete, clerkSignOutEverywhere, clerkUnban } from "@/lib/clerk-admin";
 import { db } from "@/lib/db";
@@ -9,6 +11,7 @@ import { outranks, type Permission } from "@/lib/site-roles";
 import {
   adminDeleteTeamSchema,
   adminDeleteUserSchema,
+  adminRenameSchema,
   adminRoleSchema,
   adminSuspendSchema,
   adminUserSchema,
@@ -91,6 +94,45 @@ export async function setSiteRole(input: unknown) {
     await db.user.update({ where: { id: target.id }, data: { siteRole: role } });
     await audit(ctx, { action: `admin.user.role.${role}`, entityType: "User", entityId: target.id });
     return done();
+  });
+}
+
+/**
+ * Changes someone's @username, for example to reclaim one that impersonates a
+ * person or brand. Admins only. The new name follows the same rules as at
+ * sign-up and must be free. Admins may rename their own account here too:
+ * unlike a role change, it can't lock anyone out. Their profile colour stays
+ * the same, and teammates see the new name on their next live check.
+ */
+export async function renameUser(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { userId, username } = adminRenameSchema.parse(input);
+    requirePermission(ctx.user, "users.rename");
+    const target = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, onboarded: true, siteRole: true, deletedAt: true },
+    });
+    if (!target || target.deletedAt) throw new ActionError("Account not found.");
+    if (!target.onboarded || !target.username) throw new ActionError("They haven't picked a username yet.");
+    if (target.id !== ctx.user.id && !outranks(ctx.user.siteRole, target.siteRole)) {
+      throw new ActionError("You can only act on accounts below your own role.");
+    }
+    if (target.username === username) return { username };
+    try {
+      await db.user.update({ where: { id: target.id }, data: { username } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new ActionError(`@${username} is already taken.`);
+      }
+      throw e;
+    }
+    // Their teammates' screens and their own pick up the new name on the next live check.
+    await db.team.updateMany({ where: { members: { some: { userId: target.id } } }, data: { activityAt: new Date() } });
+    await inboxChanged([target.id]);
+    await audit(ctx, { action: "admin.user.renamed", entityType: "User", entityId: target.id });
+    revalidatePath("/dashboard", "layout");
+    done();
+    return { username };
   });
 }
 
