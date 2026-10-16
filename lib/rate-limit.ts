@@ -8,7 +8,7 @@ import { LRUCache } from "lru-cache";
  * bot screening, origin checks, auth and per-team checks don't depend on it.
  */
 
-export type Tier = "global" | "username" | "invite" | "write" | "auth" | "pulse";
+export type Tier = "global" | "username" | "invite" | "write" | "auth" | "report" | "pulse";
 
 /**
  * `limit` applies per signed-in user (and per IP when there's no user);
@@ -27,6 +27,8 @@ export const TIERS: Record<Tier, { limit: number; ipLimit?: number; windowMs: nu
   write: { limit: 30, ipLimit: 60, windowMs: 60_000 },
   // Onboarding (claiming a username) and profile refreshes.
   auth: { limit: 5, windowMs: 60_000 },
+  // Bug reports: plenty for real problems, too few to flood the staff inbox.
+  report: { limit: 5, ipLimit: 10, windowMs: 60 * 60_000 },
   // The live change-check: one tiny request every ~4s per open tab, a few tabs at once.
   pulse: { limit: 90, windowMs: 60_000 },
 };

@@ -19,6 +19,8 @@ export type AuditAction =
   | "admin.user.renamed"
   | "admin.user.deleted"
   | "admin.team.deleted"
+  | "admin.report.resolved"
+  | "admin.report.reopened"
   | `cli.site.role.${SiteRole}`
   | "cli.user.unsuspended"
   // Teams, membership and roles
@@ -55,6 +57,8 @@ export type AuditAction =
   | "tag.created"
   | "tag.updated"
   | "tag.deleted"
+  // Support
+  | "report.submitted"
   // Security
   | "security.rate_limited";
 

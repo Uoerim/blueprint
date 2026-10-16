@@ -3,7 +3,8 @@
  * MEMBER), which only apply inside one team.
  *
  *   USER       everyone; no access to /admin
- *   SUPPORT    read-only admin panel: accounts, teams, audit log (never team content)
+ *   SUPPORT    read-only admin panel: accounts, teams, audit log (never team content),
+ *              plus reading and resolving bug reports
  *   MODERATOR  SUPPORT + suspend / unsuspend accounts, sign accounts out everywhere
  *   ADMIN      everything: change site roles and usernames, delete accounts, delete teams
  *
@@ -16,6 +17,8 @@ const RANK: Record<SiteRole, number> = { USER: 0, SUPPORT: 1, MODERATOR: 2, ADMI
 
 export type Permission =
   | "admin.view"
+  | "reports.view"
+  | "reports.resolve"
   | "users.suspend"
   | "users.signout"
   | "users.role"
@@ -25,6 +28,8 @@ export type Permission =
 
 const NEEDS: Record<Permission, SiteRole> = {
   "admin.view": "SUPPORT",
+  "reports.view": "SUPPORT",
+  "reports.resolve": "SUPPORT",
   "users.suspend": "MODERATOR",
   "users.signout": "MODERATOR",
   "users.role": "ADMIN",
@@ -55,7 +60,7 @@ export const ROLE_LABEL: Record<SiteRole, string> = {
 
 export const ROLE_NOTE: Record<SiteRole, string> = {
   USER: "No admin access.",
-  SUPPORT: "Can look up accounts, teams and the audit log. Can't change anything.",
+  SUPPORT: "Can look up accounts, teams and the audit log, and handle bug reports. Can't change accounts.",
   MODERATOR: "Support, plus suspend accounts and sign them out everywhere.",
   ADMIN: "Everything: roles, usernames, deleting accounts and teams.",
 };

@@ -15,6 +15,7 @@ import {
   adminRoleSchema,
   adminSuspendSchema,
   adminUserSchema,
+  resolveReportSchema,
 } from "@/lib/validations";
 
 /**
@@ -201,6 +202,23 @@ export async function adminDeleteTeam(input: unknown) {
     await db.team.delete({ where: { id: teamId } });
     await audit(ctx, { action: "admin.team.deleted", entityType: "Team", entityId: teamId });
     revalidatePath("/dashboard", "layout");
+    return done();
+  });
+}
+
+/** Marks a bug report resolved, or reopens it. Support staff and above. */
+export async function resolveBugReport(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { reportId, resolved } = resolveReportSchema.parse(input);
+    requirePermission(ctx.user, "reports.resolve");
+    const { count } = await db.bugReport.updateMany({
+      where: { id: reportId, status: resolved ? "OPEN" : "RESOLVED" },
+      data: resolved
+        ? { status: "RESOLVED", resolvedAt: new Date(), resolvedById: ctx.user.id }
+        : { status: "OPEN", resolvedAt: null, resolvedById: null },
+    });
+    if (!count) throw new ActionError(resolved ? "That report is already resolved." : "That report is already open.");
+    await audit(ctx, { action: resolved ? "admin.report.resolved" : "admin.report.reopened", entityType: "BugReport", entityId: reportId });
     return done();
   });
 }

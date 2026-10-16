@@ -212,6 +212,21 @@ export const adminRenameSchema = z.strictObject({ userId: id, username: username
 export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
 export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
 
+/* ── Bug reports ────────────────────────────────────────────────────────── */
+
+export const bugReportSchema = z.strictObject({
+  body: text(10, 2000),
+  /** The page they were on: a path only, no query string or other site. */
+  page: z
+    .string()
+    .max(200)
+    .regex(/^\/(?!\/)[A-Za-z0-9/_.~-]*$/, "Invalid page")
+    .optional(),
+  /** Whether it was sent from the installed app (only used for the device summary). */
+  installed: z.boolean().optional(),
+});
+export const resolveReportSchema = z.strictObject({ reportId: id, resolved: z.boolean() });
+
 /* ── Team roles ─────────────────────────────────────────────────────────── */
 
 export const permissionsSchema = z

@@ -88,7 +88,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
-- **Support.** A *Contact support* button in the dashboard and user menu, plus Privacy Policy and Terms pages.
+- **Support and bug reports.** A *Contact support* window in the dashboard, user menu and app Profile tab: report a bug right there (it lands in the admin panel's **Bug reports** inbox) or email support. Plus Privacy Policy and Terms pages.
 
 ### Phones and installing
 
@@ -154,7 +154,7 @@ Deleting projects and the team always stays with the owner. Every rule is enforc
 | Role | Can do |
 | --- | --- |
 | `USER` | Everyone. No admin access. |
-| `SUPPORT` | Read-only admin panel: look up accounts, teams and the audit log. |
+| `SUPPORT` | Admin panel: look up accounts, teams and the audit log (read-only), and read and resolve bug reports. |
 | `MODERATOR` | Support, plus suspend and unsuspend accounts and sign them out everywhere. |
 | `ADMIN` | Everything: change site roles and usernames, delete accounts, delete teams. |
 
@@ -175,6 +175,7 @@ Idea and task text is encrypted in the application before it's written to Postgr
 - **Fresh IV on every write.** Values are stored as `enc:v1:<iv>:<authTag>:<ciphertext>` with a random 12-byte IV, so identical text never looks the same twice. The GCM auth tag rejects any altered or moved ciphertext.
 - **Validate first, then encrypt.** Zod validation, sanitising and tag parsing run on the plaintext inside each server action, before encryption.
 - **Fails closed in production.** The app refuses to start, and Vercel builds fail, without a valid `ENCRYPTION_KEY`. In local development it falls back to plaintext with a warning.
+- **Bug reports too.** Reports sent from the Contact support window are encrypted with a separate key derived for bug reports only, so the admin panel can read them without being able to open any team's content.
 - **Backwards compatible.** Rows written before encryption are read as-is. Run `npm run db:encrypt -- --apply` to encrypt them in place.
 
 ```mermaid
@@ -217,6 +218,7 @@ flowchart LR
 | Invites and search | 15 per user, 30 per IP | Team invites and `@username` search |
 | Mutations | 30 per user, 60 per IP | Ideas, tasks, subtasks, focus, teams, tags, roles |
 | Onboarding | 5 per IP and per user | Claiming a username, refreshing your profile picture |
+| Bug reports | 5 an hour per user, 10 per IP | Sending a report from the Contact support window |
 | Live change-check | 90 per IP and per user | `/api/pulse` |
 
 The per-IP ceiling is higher than the per-user one where people often share a network (an office, a classroom), so teammates don't use up each other's allowance. Sign-in and sign-up themselves are submitted to Clerk, which applies its own rate limits; turn on Clerk's **bot sign-up protection** in the Clerk dashboard as well.
@@ -240,7 +242,7 @@ The per-IP ceiling is higher than the per-user one where people often share a ne
 | **Typed confirmations** | Destructive actions check the typed team, project or username on the server, not only in the browser. |
 | **Safe errors** | Unexpected errors are logged on the server with a short reference code, with connection strings and secrets scrubbed from the log line. People only ever see "An unexpected error occurred. Please try again." plus that code, never a stack trace, Prisma code or file path. |
 | **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser. |
-| **Metadata-only admin panel** | The admin panel shows counts, account and team metadata, and the audit trail. It never selects, decrypts or renders idea or task text, and a lint rule stops admin code from importing `lib/crypto.ts`. Staff permissions are re-read on every admin action, and non-staff get a `404`. |
+| **Metadata-only admin panel** | The admin panel shows counts, account and team metadata, the audit trail and bug reports. It never selects, decrypts or renders idea or task text, and a lint rule stops admin code from importing `lib/crypto.ts`. Bug reports are opened through `lib/bug-reports.ts`, which can only use the bug-report key. Staff permissions are re-read on every admin action, and non-staff get a `404`. |
 
 #### Layer 4: live focus and the audit trail (`app/actions/tasks.ts`, `lib/audit.ts`)
 
@@ -412,6 +414,7 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 | **Accounts** | Username, colour, email, site role, status, team count and join date; search by username, name or email; filter staff, suspended or deleted accounts |
 | **Account** | Details, teams, activity, and actions: change username (admins), change site role, suspend with a reason, sign out everywhere, delete |
 | **Teams** | Name, slug, owner, member/idea/task counts and created date; admins can delete a team |
+| **Bug reports** | Reports sent from the Contact support window, newest first: who sent it, when, the page and a short device summary, and the text. Filter open, resolved or all; support staff and above can mark them resolved or reopen them |
 | **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see the shortened IP addresses. |
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
@@ -447,10 +450,10 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 ```text
 app/
   page.tsx                 landing page and product tour
-  actions/                 server actions: ideas, tasks, tags, teams, admin, account
+  actions/                 server actions: ideas, tasks, tags, teams, admin, account, support
   api/pulse/               the live change-check
   manifest.ts sw (public/) install-as-app manifest and offline service worker
-  admin/                   staff panel: overview, accounts, teams, audit log
+  admin/                   staff panel: overview, accounts, teams, bug reports, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
   dashboard/me/            the installed app's Profile tab
   dashboard/_components/   app-shell.tsx (app header, tab bar, preview switch), app-team-bar.tsx
@@ -469,6 +472,7 @@ lib/
   request.ts               client IP, origin checks, bot screening
   rate-limit.ts            in-memory sliding-window rate limits
   audit.ts                 append-only audit trail and its action list
+  bug-reports.ts           bug report encryption (its own key) and device summaries
   errors.ts                safe error messages and scrubbed server logs
   validations.ts           Zod schemas and sanitising
   app-mode.ts              detects the installed phone app (or the ?app=1 preview)

@@ -33,6 +33,12 @@ export default function PrivacyPage() {
             assignments and invites.
           </li>
           <li>
+            <strong>Bug reports.</strong> If you report a bug from the Contact support window: what you write, the page you
+            were on (its address only) and a short device summary such as &ldquo;iPhone · Safari&rdquo;. The text is encrypted
+            before it&apos;s stored. Only Blueprint staff can read reports, and we keep them only as long as we need them to fix
+            the problem.
+          </li>
+          <li>
             <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s
             role or archiving a project) with the time, your username and a shortened form of the IP address it came from
             (the network only, not your exact address). These records can&apos;t be edited.
@@ -94,7 +100,8 @@ export default function PrivacyPage() {
           <li>
             <strong>Blueprint staff</strong> (support, moderators and site admins) can see account details such as your email,
             @username, teams and activity records, to help you and to enforce the Terms. They can suspend or delete accounts
-            that break the rules. The admin tools never show the text of your ideas, projects or tasks.
+            that break the rules. They also read the bug reports you send. The admin tools never show the text of your ideas,
+            projects or tasks.
           </li>
         </ul>
       </Section>

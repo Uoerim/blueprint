@@ -46,6 +46,7 @@ model User {
   tasksDone          Task[]            @relation("TaskCompletedBy")
   taskAssignments    TaskAssignee[]
   subtaskAssignments SubtaskAssignee[]
+  bugReports         BugReport[]       @relation("BugReports")
 
   @@index([siteRole])
 }
@@ -288,4 +289,32 @@ model AuditLog {
   createdAt     DateTime @default(now())
 
   @@index([teamId, createdAt])
+}
+
+/// A bug report sent from the Contact support window, read by staff in the
+/// admin panel. The text is encrypted at rest with its own key, separate from
+/// every team's (lib/bug-reports.ts).
+model BugReport {
+  id           String          @id @default(cuid())
+  userId       String?
+  user         User?           @relation("BugReports", fields: [userId], references: [id], onDelete: SetNull)
+  /// The reporter's @username when they sent it, kept after a rename or deletion.
+  username     String?
+  /// Encrypted (enc:v1:…). Up to 2,000 characters before encryption.
+  body         String
+  /// The page they were on, path only (no query string), e.g. /dashboard/night-shift.
+  page         String?
+  /// A short device summary like "iPhone · Safari · installed app", never the full user agent.
+  device       String?
+  status       BugReportStatus @default(OPEN)
+  createdAt    DateTime        @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  @@index([status, createdAt])
+}
+
+enum BugReportStatus {
+  OPEN
+  RESOLVED
 }

@@ -17,7 +17,7 @@ export default async function AdminOverview() {
   const live = { deletedAt: null };
 
   // Counts and metadata only: the admin panel never reads or decrypts team content.
-  const [accounts, newThisWeek, suspended, staff, teams, ideas, tasks, shipped, focus, security, recent, actions] = await Promise.all([
+  const [accounts, newThisWeek, suspended, staff, teams, ideas, tasks, shipped, focus, security, openReports, recent, actions] = await Promise.all([
     db.user.count({ where: { ...live, onboarded: true } }),
     db.user.count({ where: { ...live, createdAt: { gte: weekAgo } } }),
     db.user.count({ where: { ...live, bannedAt: { not: null } } }),
@@ -28,6 +28,7 @@ export default async function AdminOverview() {
     db.task.count({ where: { status: "DONE" } }),
     db.taskAssignee.count({ where: { focusedAt: { not: null }, task: { status: "IN_PROGRESS" } } }),
     db.auditLog.count({ where: { action: { startsWith: "security." }, createdAt: { gte: daysAgo(1) } } }),
+    db.bugReport.count({ where: { status: "OPEN" } }),
     db.user.findMany({
       where: live,
       orderBy: { createdAt: "desc" },
@@ -64,6 +65,7 @@ export default async function AdminOverview() {
         <Stat label="Tasks shipped" value={shipped} />
         <Stat label="In focus now" value={focus} tone="emerald" />
         <Stat label="Security events (24h)" value={security} tone={security ? "rose" : undefined} />
+        <Stat label="Open bug reports" value={openReports} tone={openReports ? "amber" : undefined} />
       </div>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
