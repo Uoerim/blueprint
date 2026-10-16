@@ -7,6 +7,7 @@ import { KOFI_URL } from "@/components/kofi-button";
 import { HelpIcon, SupportDialog } from "@/components/support";
 import type { Theme } from "@/lib/theme";
 import { OPEN_INSTALL } from "./install-prompt";
+import { promptInstall, useInstallState } from "./install-state";
 import { ThemePicker } from "./theme-picker";
 
 /**
@@ -15,6 +16,7 @@ import { ThemePicker } from "./theme-picker";
  */
 export function AccountMenu({ theme }: { theme: Theme }) {
   const [support, setSupport] = useState(false);
+  const install = useInstallState();
   return (
     <>
       <UserButton>
@@ -22,7 +24,14 @@ export function AccountMenu({ theme }: { theme: Theme }) {
           <UserButton.Action label="Appearance" labelIcon={<PaletteIcon />} open="appearance" />
           <UserButton.Action label="Usage" labelIcon={<GaugeIcon />} open="usage" />
           <UserButton.Action label="Contact support" labelIcon={<HelpIcon size={16} />} onClick={() => setSupport(true)} />
-          <UserButton.Action label="Install app" labelIcon={<PhoneIcon />} onClick={() => window.dispatchEvent(new Event(OPEN_INSTALL))} />
+          {/* Hidden on any device where the app is already installed (or when you're inside it). */}
+          {!install.installed && (
+            <UserButton.Action
+              label="Install app"
+              labelIcon={<PhoneIcon />}
+              onClick={() => (install.deferred ? void promptInstall(install.deferred) : window.dispatchEvent(new Event(OPEN_INSTALL)))}
+            />
+          )}
         </UserButton.MenuItems>
         <UserButton.UserProfilePage label="Appearance" url="appearance" labelIcon={<PaletteIcon />}>
           <Page title="Appearance" note="Saved on this device. Applies everywhere in Blueprint.">

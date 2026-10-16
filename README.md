@@ -91,7 +91,7 @@ When something ships, it stays on the record with your `@username` on it.
 ### Phones and installing
 
 - **Built for phones.** Every screen fits a phone without sideways scrolling, buttons are large enough to tap, fields never zoom the page when you type, and the page doesn't bounce past its edges.
-- **Install as an app.** On phones the dashboard offers once to add Blueprint to the home screen (Android shows the real install button; iPhone shows the two taps in Safari). It's also under **Install app** in the profile menu. Installed, it opens full screen with its own icon.
+- **Install as an app.** On phones the dashboard offers once to add Blueprint to the home screen (Android shows the real install button; iPhone shows the two taps in Safari). It's also under **Install app** in the profile menu. Installed, it opens full screen with its own icon. The offer and the menu item disappear on devices where it's already installed: always inside the app itself, and in the browser too on Android and desktop Chrome/Edge (iPhone Safari gives websites no way to tell).
 - **Offline screen.** A tiny service worker shows a friendly "You're offline" screen instead of a browser error. It caches only the logo, never pages or team data.
 
 ### Platform

@@ -3,17 +3,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { btn, cx } from "@/components/ui/primitives";
-
-/** Chrome/Edge/Samsung fire this when the app can be installed; Safari never does. */
-type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
+import { promptInstall, useInstallState } from "./install-state";
 
 const DISMISS_KEY = "bp-install-dismissed";
 const DISMISS_DAYS = 30;
 export const OPEN_INSTALL = "bp:install";
 
-const isStandalone = () =>
-  window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const isPhone = () => window.matchMedia("(max-width: 767px)").matches && window.matchMedia("(pointer: coarse)").matches;
 
 function dismissedRecently() {
@@ -27,44 +22,26 @@ function dismissedRecently() {
 
 /**
  * "Add Blueprint to your home screen". On phones it appears once on the
- * dashboard (hidden for 30 days after "Not now", never once installed). The
- * profile menu's "Install app" opens it any time.
+ * dashboard (hidden for 30 days after "Not now"). It never appears, and the
+ * profile menu's "Install app" is hidden, once the app is installed on this
+ * device (see install-state.ts for how that's detected on each platform).
  *  - Android / Chrome: a real Install button (the browser's own dialog).
  *  - iPhone / iPad: Safari has no install API, so it shows the two taps to do it.
  */
 export function InstallPrompt() {
   const [open, setOpen] = useState(false);
-  // Read once on the client. The card renders nothing until it opens, so server and client markup always match.
-  const [platform] = useState<"ios" | "android" | "other">(() =>
-    typeof window === "undefined" ? "other" : isIOS() ? "ios" : /android/i.test(navigator.userAgent) ? "android" : "other",
-  );
-  const [deferred, setDeferred] = useState<InstallEvent | null>(null);
-  const [installed, setInstalled] = useState(() => typeof window !== "undefined" && isStandalone());
+  const { installed, platform, deferred } = useInstallState();
 
   useEffect(() => {
     if (installed) return;
-
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as InstallEvent);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setOpen(false);
-    };
     const onOpen = () => setOpen(true);
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
     window.addEventListener(OPEN_INSTALL, onOpen);
-
-    // Show once on phones, a moment after the dashboard settles.
+    // Show once on phones, a moment after the dashboard settles (and after detection has run).
     const t = window.setTimeout(() => {
       if (isPhone() && !dismissedRecently()) setOpen(true);
     }, 2500);
     return () => {
       window.clearTimeout(t);
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
       window.removeEventListener(OPEN_INSTALL, onOpen);
     };
   }, [installed]);
@@ -77,11 +54,7 @@ export function InstallPrompt() {
   };
 
   const install = async () => {
-    if (!deferred) return;
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    setDeferred(null);
-    if (outcome === "accepted") setOpen(false);
+    if (deferred && (await promptInstall(deferred))) setOpen(false);
   };
 
   if (installed) return null;
