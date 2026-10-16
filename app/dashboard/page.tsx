@@ -65,9 +65,10 @@ export default async function DashboardHome() {
   return (
     <div className="relative">
       <div aria-hidden className="bg-architect pointer-events-none absolute inset-0 h-[50vh] [mask-image:radial-gradient(60%_80%_at_30%_0%,black,transparent)]" />
-      <div className="relative mx-auto w-full max-w-[1100px] px-4 pb-24 pt-10 sm:px-6 sm:pt-14">
+      <div className="relative mx-auto w-full max-w-[1100px] px-4 pb-24 pt-10 sm:px-6 sm:pt-14 app:pb-6 app:pt-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          {/* The installed app already greets you in its header. */}
+          <div className="app:hidden">
             <h1 className="text-[clamp(1.75rem,4.5vw,2.75rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
               Welcome back, <span style={{ color: readable(user.accentColor) }}>@{user.username}</span>
             </h1>

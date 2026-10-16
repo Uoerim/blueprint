@@ -81,6 +81,20 @@
   }
 }
 
+/* `app:` styles apply only in the installed phone app (home-screen launch on a
+   phone-sized screen), or on a phone while the ?app=1 preview is switched on
+   (which adds .app-preview to <html>). Browsers, tablets and desktop never match. */
+@custom-variant app {
+  @media (display-mode: standalone) and (max-width: 767px) {
+    @slot;
+  }
+  @media (max-width: 767px) {
+    &:where(.app-preview, .app-preview *) {
+      @slot;
+    }
+  }
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

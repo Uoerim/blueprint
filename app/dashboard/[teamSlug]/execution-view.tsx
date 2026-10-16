@@ -10,7 +10,7 @@ import type { IdeaDTO, TaskDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
 import { useWorkspace } from "./workspace";
 
-type Tab = "projects" | "all" | "mine";
+export type Tab = "projects" | "all" | "mine";
 const TABS: { id: Tab; label: string }[] = [
   { id: "projects", label: "Projects" },
   { id: "mine", label: "My tasks" },
@@ -26,28 +26,18 @@ export function ExecutionView({ projectId }: { projectId: string | null }) {
 }
 
 function ExecutionHome({ missing }: { missing: boolean }) {
-  const [tab, setTab] = useState<Tab>("projects");
+  const { execTab: tab, setExecTab: setTab, setView } = useWorkspace();
+  const openShipped = () => setView("shipped");
   return (
     <div>
       {missing && (
         <p className="mb-4 rounded-xl bg-amber/10 px-4 py-3 text-[14px] text-amber">That project no longer exists or was archived.</p>
       )}
-      <div className="flex rounded-lg bg-surface p-0.5 shadow-highlight sm:w-fit" role="tablist" aria-label="Execution views">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={cx(
-              "h-8 flex-1 rounded-md px-4 text-[13px] transition-colors sm:flex-none",
-              tab === t.id ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="app:hidden">
+        <Segments tabs={TABS} active={tab} onPick={(t) => setTab(t as Tab)} />
+      </div>
+      <div className="hidden app:block">
+        <ExecutionAppSegments active={tab} onPick={(t) => (t === "shipped" ? openShipped() : setTab(t))} />
       </div>
       <div className="mt-5">
         {tab === "projects" && <ProjectList />}
@@ -408,5 +398,39 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
         </button>
       </div>
     </form>
+  );
+}
+
+/** A segmented control (the website's Execution tabs). */
+function Segments({ tabs, active, onPick }: { tabs: readonly { id: string; label: string }[]; active: string; onPick: (id: string) => void }) {
+  return (
+    <div className="flex rounded-lg bg-surface p-0.5 shadow-highlight sm:w-fit" role="tablist" aria-label="Execution views">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={active === t.id}
+          onClick={() => onPick(t.id)}
+          className={cx(
+            "h-8 flex-1 rounded-md px-4 text-[13px] transition-colors sm:flex-none app:h-10 app:px-2",
+            active === t.id ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2",
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const APP_SEGMENTS = [...TABS.map((t) => ({ id: t.id, label: t.id === "mine" ? "Mine" : t.id === "all" ? "All" : t.label })), { id: "shipped", label: "Shipped" }] as const;
+
+/** The installed app's Tasks segments: Projects · Mine · All · Shipped. */
+export function ExecutionAppSegments({ active, onPick }: { active: string; onPick: (id: Tab | "shipped") => void }) {
+  return (
+    <div className="hidden app:block">
+      <Segments tabs={APP_SEGMENTS} active={active} onPick={(id) => onPick(id as Tab | "shipped")} />
+    </div>
   );
 }

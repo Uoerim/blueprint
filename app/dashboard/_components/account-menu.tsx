@@ -66,7 +66,7 @@ const LABELS: [keyof Usage, string][] = [
   ["shipped", "Tasks you shipped"],
 ];
 
-function UsagePage() {
+export function UsagePage() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [error, setError] = useState<string | null>(null);
 

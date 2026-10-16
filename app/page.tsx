@@ -2,6 +2,7 @@ import { Show, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FocusHud, InviteDemo, PipelineDemo } from "@/components/landing/bento";
+import { AppLandingRedirect } from "@/components/landing/app-redirect";
 import { EncryptionDemo } from "@/components/landing/encryption-demo";
 import { LivePreview } from "@/components/landing/live-preview";
 import { MaskedHeadline, Rise } from "@/components/landing/motion";
@@ -15,6 +16,7 @@ const REPO = "https://github.com/Uoerim/blueprint";
 export default function Home() {
   return (
     <>
+      <AppLandingRedirect />
       <LandingNav />
       <main className="flex-1">
         <Hero />

@@ -34,6 +34,7 @@ Capture ideas, agree on the good ones, turn them into projects, and ship them to
 - [Self-hosting](#self-hosting)
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Administration](#administration)
+- [Installed phone app](#installed-phone-app)
 - [Project structure](#project-structure)
 - [Contributing](#contributing)
 - [Support](#support)
@@ -92,6 +93,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Built for phones.** Every screen fits a phone without sideways scrolling, buttons are large enough to tap, fields never zoom the page when you type, and the page doesn't bounce past its edges.
 - **Install as an app.** On phones the dashboard offers once to add Blueprint to the home screen (Android shows the real install button; iPhone shows the two taps in Safari). It's also under **Install app** in the profile menu. Installed, it opens full screen with its own icon. The offer and the menu item disappear on devices where it's already installed: always inside the app itself, and in the browser too on Android and desktop Chrome/Edge (iPhone Safari gives websites no way to tell).
+- **A real app layout once installed.** Opened from the home screen on a phone, Blueprint swaps the website chrome for an app layout in the same theme and with the same features. You get a greeting with your photo, first name, the date and your invites; a floating tab bar with **Home · Ideas · Tasks · Profile**; and a team chip that opens a team switcher, starred teams first. Tasks shows Live focus above *Projects · Mine · All · Shipped*, and ⚙ opens team settings. Profile is a settings list: Account, Appearance, Usage, support, Ko-fi, Privacy and Terms, Admin for staff, and Sign out. Pop-ups become bottom sheets you can swipe down to close. Tablets, desktop and phone browsers keep the website. Signed out, the app goes straight to sign-in. See [Installed phone app](#installed-phone-app).
 - **Offline screen.** A tiny service worker shows a friendly "You're offline" screen instead of a browser error. It caches only the logo, never pages or team data.
 
 ### Platform
@@ -366,6 +368,23 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 - **Deleting** removes the login, memberships and invites. Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
 - **The first admin** can only be created from the terminal with `npm run site:role`. The script shows which database it will change and asks you to type the username back. There is no web route or secret that grants a role.
 
+## Installed phone app
+
+The app layout applies when **both** are true:
+
+- Blueprint was launched from the home screen (`display-mode: standalone`);
+- and the screen is phone-sized (narrower than 768px).
+
+Everything is built with one Tailwind variant, `app:`, defined in `app/globals.css`. The app pieces are rendered for everyone but only shown under `app:`, and website pieces they replace carry `app:hidden`. That means the website itself never changes.
+
+**Previewing without installing.** On a phone browser (or a desktop browser narrowed to phone width), open `/dashboard?app=1`. A cookie keeps the preview on for that browser; `/dashboard?app=0` turns it off. The preview is cosmetic only and grants nothing.
+
+**Notes**
+
+- The Ideas and Tasks tabs open the team you were last in (remembered in a `bp-last-team` cookie, checked against your memberships on the server).
+- The Profile tab lives at `/dashboard/me`, so `me` and `admin` are reserved and can't be used as team slugs.
+- After an update, fully close the installed app and reopen it to pick up the new layout.
+
 ## Project structure
 
 ```text
@@ -376,6 +395,8 @@ app/
   manifest.ts sw (public/) install-as-app manifest and offline service worker
   admin/                   staff panel: overview, accounts, teams, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
+  dashboard/me/            the installed app's Profile tab
+  dashboard/_components/   app-shell.tsx (app header, tab bar, preview switch), app-team-bar.tsx
   onboarding/ suspended/   username setup, suspended-account page
   privacy/ terms/          legal pages
 components/
@@ -389,6 +410,7 @@ lib/
   team-access.ts           per-action team membership and permission checks
   action.ts api.ts         server action and API guards (origin, rate limit, auth)
   validations.ts           Zod schemas and sanitising
+  app-mode.ts              detects the installed phone app (or the ?app=1 preview)
 prisma/
   schema.prisma migrations/
   seed.ts                  demo data

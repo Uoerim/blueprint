@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { ServiceWorker } from "@/components/service-worker";
+import { APP_PREVIEW_COOKIE } from "@/lib/app-preview";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
@@ -23,6 +24,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Lets the installed app draw edge to edge; app chrome pads itself with the safe-area insets.
+  viewportFit: "cover",
   // Pinch-zoom stays allowed for accessibility; inputs are 16px on phones so focusing one never zooms.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f7f5" },
@@ -33,9 +36,16 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Every response carries a fresh CSP nonce (proxy.ts), so render per request.
   await connection();
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const jar = await cookies();
+  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
+  // The ?app=1 test switch: lets a phone browser preview the installed-app layout.
+  const preview = jar.get(APP_PREVIEW_COOKIE)?.value === "1";
   return (
-    <html lang="en" data-theme={theme} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-theme={theme}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased${preview ? " app-preview" : ""}`}
+    >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
           dynamic

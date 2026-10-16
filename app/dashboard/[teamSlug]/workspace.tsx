@@ -2,7 +2,7 @@
 
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createContext,
   use,
@@ -18,7 +18,9 @@ import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { ActionResult } from "@/lib/action-types";
 import type { TeamPermission } from "@/lib/team-permissions";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TagDTO, TaskDTO, Viewer } from "@/lib/types";
-import { ExecutionView } from "./execution-view";
+import { AppTeamBar } from "../_components/app-team-bar";
+import { rememberTeam } from "../_components/app-shell";
+import { ExecutionAppSegments, ExecutionView, type Tab as ExecTab } from "./execution-view";
 import { InviteDialog } from "./invite-dialog";
 import { ShippedView } from "./shipped-view";
 import { VaultView } from "./vault-view";
@@ -49,6 +51,10 @@ type Ctx = {
   /** Open one raw idea's page inside the vault (null = back to the vault). */
   openIdea: (id: string | null) => void;
   tags: TagDTO[];
+  /** Which Execution segment is open (kept here so the app's Shipped segment can return to it). */
+  execTab: ExecTab;
+  setExecTab: (t: ExecTab) => void;
+  setView: (v: View) => void;
 };
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -119,6 +125,26 @@ export function Workspace(props: {
     syncUrl("vault", id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  // The installed app's tab bar links to ?view=vault / ?view=board; follow it when it changes.
+  // Our own syncUrl() keeps the address in step with state, so only a real navigation
+  // (a tab-bar tap, back/forward) makes the two disagree; then the address wins.
+  const params = useSearchParams();
+  const urlView = params.get("view") ?? undefined;
+  const urlKey = `${isView(urlView) && urlView !== "vault" ? urlView : ""}|${params.get("project") ?? ""}|${params.get("idea") ?? ""}`;
+  const stateKey = `${view === "vault" ? "" : view}|${view === "board" ? (project ?? "") : ""}|${view === "vault" ? (idea ?? "") : ""}`;
+  const [seenUrlKey, setSeenUrlKey] = useState(urlKey);
+  if (urlKey !== seenUrlKey) {
+    setSeenUrlKey(urlKey);
+    if (urlKey !== stateKey) {
+      const next: View = isView(urlView) ? urlView : "vault";
+      setViewState(next);
+      setProject(next === "board" ? params.get("project") : null);
+      setIdea(next === "vault" ? params.get("idea") : null);
+    }
+  }
+  useEffect(() => rememberTeam(props.team.slug), [props.team.slug]);
+
+  const [execTab, setExecTab] = useState<ExecTab>("projects");
   const [inviteOpen, setInviteOpen] = useState(!!props.initialInvite);
   // ?invite=1 (from team settings) opens the invite dialog once, then leaves the URL.
   useEffect(() => {
@@ -165,6 +191,9 @@ export function Workspace(props: {
     openProject,
     openIdea,
     tags: props.tags,
+    execTab,
+    setExecTab,
+    setView,
     run: (fn, opts) =>
       startTransition(async () => {
         opts?.optimistic?.();
@@ -187,9 +216,15 @@ export function Workspace(props: {
 
   return (
     <WorkspaceContext value={ctx}>
-      <div className="mx-auto w-full max-w-[1400px] px-3 pb-24 pt-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[1400px] px-3 pb-24 pt-6 sm:px-6 app:px-4 app:pb-4 app:pt-2">
+        {/* Installed app: team chip, invite and settings in one compact row. */}
+        <AppTeamBar
+          team={props.team}
+          canInvite={props.perms.includes("members.invite")}
+          onInvite={() => setInviteOpen(true)}
+        />
         {/* Team header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between app:hidden">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{props.team.name}</h1>
             {props.team.description && (
@@ -232,10 +267,13 @@ export function Workspace(props: {
           </div>
         </div>
 
-        <FocusDock />
+        {/* In the app, Live focus belongs to the Tasks tab. */}
+        <div className={cx(view === "vault" && "app:hidden")}>
+          <FocusDock />
+        </div>
 
         {/* View switcher */}
-        <div className="mt-8 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none]" role="tablist" aria-label="Workspace views">
+        <div className="mt-8 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none] app:hidden" role="tablist" aria-label="Workspace views">
           {VIEWS.map((v) => (
             <button
               key={v.id}
@@ -263,10 +301,23 @@ export function Workspace(props: {
           ))}
         </div>
 
-        <div className="pt-6">
+        <div className="pt-6 app:pt-4">
           {view === "vault" && <VaultView ideaId={idea} />}
           {view === "board" && <ExecutionView projectId={project} />}
-          {view === "shipped" && <ShippedView />}
+          {view === "shipped" && (
+            <>
+              {/* In the app, Shipped is one of the Tasks segments, so keep the segment bar on screen. */}
+              <ExecutionAppSegments
+                active="shipped"
+                onPick={(seg) => {
+                  if (seg === "shipped") return;
+                  setExecTab(seg);
+                  setView("board");
+                }}
+              />
+              <ShippedView />
+            </>
+          )}
         </div>
       </div>
 
