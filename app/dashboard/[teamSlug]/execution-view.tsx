@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { archiveIdea, createProject, deleteIdea, updateIdea } from "@/app/actions/ideas";
+import { archiveIdea, createProject, deleteIdea, returnToIdeas, updateIdea } from "@/app/actions/ideas";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
@@ -150,9 +150,9 @@ function ProjectList() {
 /* ── One project ────────────────────────────────────────────────────────── */
 
 function ProjectPage({ project }: { project: IdeaDTO }) {
-  const { tasks, member, openProject, team, viewer, can, run, removeIdea, removeTask } = useWorkspace();
+  const { tasks, member, openProject, openIdea, team, viewer, can, run, removeIdea, removeTask, patchIdea, patchTask } = useWorkspace();
   const [editing, setEditing] = useState(false);
-  const [confirm, setConfirm] = useState<"archive" | "delete" | null>(null);
+  const [confirm, setConfirm] = useState<"archive" | "delete" | "return" | null>(null);
   const [withTasks, setWithTasks] = useState(false);
   const s = projectStats(tasks, project.id);
   const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
@@ -167,6 +167,27 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
     run(() => archiveIdea({ teamId: team.id, itemId: project.id }), {
       optimistic: () => removeIdea(project.id),
       success: "Project archived. Restore it from team settings.",
+    });
+  };
+
+  // Back to the vault as a fresh idea: tasks stay, every bit of progress is reset.
+  const backToIdeas = () => {
+    const projectTasks = tasks.filter((t) => t.idea?.id === project.id);
+    run(() => returnToIdeas({ teamId: team.id, itemId: project.id }), {
+      optimistic: () => {
+        patchIdea(project.id, { status: "VAULT", doneCount: 0 });
+        projectTasks.forEach((t) =>
+          patchTask(t.id, {
+            status: "TODO",
+            completedAt: null,
+            completedById: null,
+            focus: [],
+            subtasks: t.subtasks.map((st) => ({ ...st, done: false, completedAt: null })),
+          }),
+        );
+        openIdea(project.id);
+      },
+      success: "Back in the idea vault, with its tasks reset.",
     });
   };
 
@@ -201,8 +222,11 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
             </p>
           )}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           {canEdit && <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>}
+          {canArchive && project.status === "PROMOTED" && (
+            <button type="button" onClick={() => setConfirm("return")} className={cx(btn.ghost, btn.sm)}>Back to ideas</button>
+          )}
           {canArchive && <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.ghost, btn.sm)}>Archive</button>}
           {canDelete && (
             <button type="button" onClick={() => setConfirm("delete")} className={cx(btn.ghost, btn.sm, "text-rose hover:text-rose")}>Delete</button>
@@ -253,6 +277,46 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
         level={{ kind: "plain" }}
         onConfirm={archive}
       />
+      <ConfirmDialog
+        open={confirm === "return"}
+        onClose={() => setConfirm(null)}
+        title="Move back to ideas?"
+        description={
+          <>
+            &ldquo;{project.title}&rdquo; goes back to the idea vault as if it had just been captured.
+            {s.total > 0 ? (
+              <>
+                {" "}Its {s.total} task{s.total === 1 ? " stays" : "s stay"}, but all progress is reset: every task goes back to
+                Backlog, subtasks are unticked and live focus stops.
+              </>
+            ) : (
+              <> It has no tasks yet, so nothing is lost.</>
+            )}
+          </>
+        }
+        confirmLabel="Move back to ideas"
+        level={s.total > 0 ? { kind: "ack" } : { kind: "plain" }}
+        onConfirm={backToIdeas}
+      >
+        {s.total > 0 && (
+          <div role="note" className="flex items-start gap-3 rounded-xl bg-amber/10 p-3 text-[14px] text-ink">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="mt-0.5 shrink-0 text-amber">
+              <path d="M8 1.75 15 14.25H1L8 1.75Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+              <path d="M8 6.25v3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              <circle cx="8" cy="11.9" r=".8" fill="currentColor" />
+            </svg>
+            <span className="min-w-0 flex-1">
+              Want to keep everything as it is?
+              <span className="block text-[13px] text-ink-3">
+                Archive it instead: it leaves Execution with all its progress, and you can restore it later from team settings.
+              </span>
+            </span>
+            <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.outline, btn.sm, "shrink-0")}>
+              Archive instead
+            </button>
+          </div>
+        )}
+      </ConfirmDialog>
       <ConfirmDialog
         open={confirm === "delete"}
         onClose={() => {

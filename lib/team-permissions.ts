@@ -47,7 +47,7 @@ export const PERMISSION_INFO: Record<Grantable, { label: string; note: string; g
   "tags.manage": { group: "Ideas", label: "Manage tags", note: "Add, rename, recolour and delete the team's tags." },
   "projects.create": { group: "Projects", label: "Create projects", note: "Start projects and promote ideas into them." },
   "projects.edit": { group: "Projects", label: "Edit projects", note: "Change any project's name and description." },
-  "projects.archive": { group: "Projects", label: "Archive projects", note: "Archive and restore projects." },
+  "projects.archive": { group: "Projects", label: "Archive projects", note: "Archive and restore projects, or move them back to ideas." },
   "tasks.create": { group: "Tasks", label: "Create tasks", note: "Add tasks and subtasks, choose assignees and visibility." },
   "tasks.edit": { group: "Tasks", label: "Edit any task", note: "Change details, assignees, priority, visibility and subtasks." },
   "tasks.status": { group: "Tasks", label: "Move any task", note: "Start, move and finish tasks they aren't assigned to." },

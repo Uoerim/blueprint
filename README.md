@@ -61,7 +61,8 @@ When something ships, it stays on the record with your `@username` on it.
 - **Idea pages.** Open any raw idea to edit it and plan it with tasks and subtasks while it's still in the vault.
 - **Promote to a project.** One click moves an idea, with any tasks it already has, into Execution and opens its project page. Or start a project from scratch.
 - **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks.
-- **Archive and restore.** Archive ideas or projects to tidy up, and bring them back any time from team settings.
+- **Back to ideas.** Send a project in Execution back to the idea vault as if it had just been captured. Its tasks stay, but progress is reset: every task returns to Backlog, subtasks are unticked and live focus stops. The warning offers **Archive instead** for keeping everything as it is.
+- **Archive and restore.** Archive ideas or projects to tidy up, with all their progress, and bring them back any time from team settings.
 
 ### Getting work done
 
@@ -135,7 +136,7 @@ Permissions a custom role can grant:
 | | Manage tags | Add, rename, recolour and delete the team's tags |
 | Projects | Create projects | Start projects and promote ideas |
 | | Edit projects | Change any project's name and description |
-| | Archive projects | Archive and restore projects |
+| | Archive projects | Archive and restore projects, and move them back to ideas |
 | Tasks | Create tasks | Add tasks and subtasks, choose assignees and visibility, and edit tasks they created |
 | | Edit any task | Change details, assignees, priority, visibility and subtasks |
 | | Move any task | Start, move and finish tasks they aren't assigned to |

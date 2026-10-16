@@ -5,6 +5,7 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { returnProjectToIdeas } from "@/lib/projects";
 import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
 import {
   createIdeaSchema,
@@ -174,6 +175,28 @@ export async function updateIdea(input: unknown) {
         ...(tags !== undefined && { tags: [...new Set(tags)] }),
       },
     });
+    await teamChanged(teamId);
+    return null;
+  });
+}
+
+/**
+ * Sends a project in Execution back to the idea vault, as if it had just been
+ * captured. Its tasks stay attached, but all progress is reset: every task goes
+ * back to Backlog, subtasks are unticked and live focus stops. (Archiving is
+ * the way to set a project aside with its progress intact.) Allowed for the
+ * project's author and anyone who can archive projects, like archiving.
+ */
+export async function returnToIdeas(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, itemId } = teamScoped.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    const idea = await loadIdea(teamId, itemId);
+    if (idea.status !== "PROMOTED") throw new ActionError("Only projects in Execution can go back to ideas.");
+    if (idea.createdById !== access.userId && !access.can("projects.archive")) forbid("move this project back to ideas");
+    // One transaction: the project never ends up half reset.
+    if (!(await returnProjectToIdeas(teamId, itemId))) throw new ActionError("Only projects in Execution can go back to ideas.");
+    await audit(ctx, { teamId, action: "project.returned_to_ideas", entityType: "Idea", entityId: itemId });
     await teamChanged(teamId);
     return null;
   });

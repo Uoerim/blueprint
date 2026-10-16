@@ -195,7 +195,6 @@ function CaptureBar() {
     });
   };
 
-  const hint = tags.slice(0, 3).map((t) => `#${t.name}`).join(", ");
   return (
     <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent),0_0_0_4px_rgba(99,102,241,0.18)]">
       <div className="flex items-center gap-2 px-2">
@@ -207,7 +206,7 @@ function CaptureBar() {
           onChange={(e) => setDraft(e.target.value)}
           maxLength={200}
           aria-label="Capture a raw idea"
-          placeholder={hint ? `Dump a raw idea… add ${hint}` : "Dump a raw idea…"}
+          placeholder="Dump a raw idea…"
           className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-ink-3 focus:outline-none"
         />
         <button type="submit" disabled={!draft.trim()} className={cx(btn.primary, btn.sm)}>Drop it</button>
