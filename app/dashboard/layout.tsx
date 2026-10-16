@@ -6,6 +6,7 @@ import { SupportButton } from "@/components/support";
 import { BrandMark } from "@/components/ui/primitives";
 import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { firstName } from "@/lib/names";
 import { isStaff } from "@/lib/site-roles";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
@@ -46,7 +47,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     remembered = decodeURIComponent(jar.get("bp-last-team")?.value ?? "");
   } catch {}
   const lastTeam = memberships.some((m) => m.team.slug === remembered) ? remembered : (memberships[0]?.team.slug ?? null);
-  const firstName = user.displayName?.trim().split(/\s+/)[0] || user.username!;
   const teams: TeamSummary[] = memberships.map((m) => ({ ...m.team, role: m.role, favorite: m.favorite }));
   const incoming: IncomingInvite[] = invites.map((i) => ({
     id: i.id,
@@ -97,7 +97,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             </div>
           </div>
         </header>
-        <AppHeader name={firstName} username={user.username!} accentColor={user.accentColor} imageUrl={user.imageUrl} invites={incoming} />
+        <AppHeader name={firstName(user)} username={user.username!} accentColor={user.accentColor} imageUrl={user.imageUrl} invites={incoming} />
         {/* In the installed app, leave room under the content for the floating tab bar. */}
         <div className="flex-1 app:pb-[calc(6rem+env(safe-area-inset-bottom))]">{children}</div>
         <Suspense>

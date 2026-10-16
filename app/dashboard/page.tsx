@@ -1,6 +1,7 @@
 import { readable } from "@/components/ui/primitives";
 import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { firstName } from "@/lib/names";
 import { InviteList } from "./_components/invites-bell";
 import { NewTeamButton } from "./_components/new-team-button";
 import { TeamHome, type HomeTeam } from "./_components/team-home";
@@ -69,7 +70,7 @@ export default async function DashboardHome() {
           {/* The installed app already greets you in its header. */}
           <div className="app:hidden">
             <h1 className="text-[clamp(1.75rem,4.5vw,2.75rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
-              Welcome back, <span style={{ color: readable(user.accentColor) }}>@{user.username}</span>
+              Welcome back, <span style={{ color: readable(user.accentColor) }}>{firstName(user)}</span>
             </h1>
             <p className="mt-2 text-[15px] text-ink-2">
               {teams.length ? "Pick a team to jump in, or start a new one." : "Start a team of your own, or accept an invite below."}
