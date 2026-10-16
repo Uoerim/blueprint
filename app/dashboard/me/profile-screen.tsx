@@ -9,6 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Monogram, readable } from "@/components/ui/primitives";
 import { UsagePage } from "../_components/account-menu";
 import { useMe } from "../_components/app-shell";
+import { useReplayTours } from "@/components/tour/replay";
 import { ThemePicker, useTheme } from "../_components/theme-picker";
 
 type Sheet = "appearance" | "usage" | "support" | null;
@@ -17,6 +18,7 @@ type Sheet = "appearance" | "usage" | "support" | null;
 export function ProfileScreen() {
   const { username, displayName, accentColor, imageUrl, theme: serverTheme, staff } = useMe();
   const theme = useTheme(serverTheme);
+  const replay = useReplayTours();
   const { openUserProfile, signOut } = useClerk();
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -36,6 +38,7 @@ export function ProfileScreen() {
 
       <Group>
         <Row icon={<IconHelp />} label="Contact support" onClick={() => setSheet("support")} />
+        <Row icon={<IconCompass />} label="Take the tour" note="A quick look around Blueprint" onClick={() => void replay()} />
         <Row icon={<IconCup />} label="Support on Ko-fi" href={KOFI_URL} external />
         <Row icon={<IconDoc />} label="Privacy Policy" href="/privacy" />
         <Row icon={<IconDoc />} label="Terms of Service" href="/terms" />
@@ -128,4 +131,5 @@ const IconGauge = () => (<svg {...ic}><path d="M3 14.5a7.25 7.25 0 1 1 14 0" /><
 const IconHelp = () => (<svg {...ic}><circle cx="10" cy="10" r="7.25" /><path d="M7.9 7.8a2.15 2.15 0 0 1 4.2.6c0 1.45-2.1 1.8-2.1 3.1" /><circle cx="10" cy="14.1" r=".9" fill="currentColor" /></svg>);
 const IconCup = () => (<svg {...ic}><path d="M3.5 6.5h10v5.5a3.5 3.5 0 0 1-3.5 3.5H7a3.5 3.5 0 0 1-3.5-3.5V6.5ZM13.5 7.5h.9a2 2 0 0 1 0 4h-.9" /></svg>);
 const IconDoc = () => (<svg {...ic}><path d="M5.5 2.75h6l3 3v11.5h-9V2.75Z" /><path d="M8 10h4.5M8 13h4.5" /></svg>);
+const IconCompass = () => (<svg {...ic}><circle cx="10" cy="10" r="7.25" /><path d="m12.6 7.4-1.5 3.7-3.7 1.5 1.5-3.7 3.7-1.5Z" /></svg>);
 const IconShield = () => (<svg {...ic}><path d="M10 2.5 4 4.75V9c0 3.7 2.5 6.6 6 7.75 3.5-1.15 6-4.05 6-7.75V4.75L10 2.5Z" /></svg>);

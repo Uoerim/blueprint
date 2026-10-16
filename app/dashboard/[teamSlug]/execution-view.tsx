@@ -461,12 +461,13 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
 /** A segmented control (the website's Execution tabs). */
 function Segments({ tabs, active, onPick }: { tabs: readonly { id: string; label: string }[]; active: string; onPick: (id: string) => void }) {
   return (
-    <div className="flex rounded-lg bg-surface p-0.5 shadow-highlight sm:w-fit" role="tablist" aria-label="Execution views">
+    <div data-tour="exec-views" className="flex rounded-lg bg-surface p-0.5 shadow-highlight sm:w-fit" role="tablist" aria-label="Execution views">
       {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
           role="tab"
+          data-tour={t.id === "shipped" ? "shipped" : undefined}
           aria-selected={active === t.id}
           onClick={() => onPick(t.id)}
           className={cx(

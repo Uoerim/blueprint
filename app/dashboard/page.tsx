@@ -3,6 +3,7 @@ import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { firstName } from "@/lib/names";
 import { NoInvites, NoTeams } from "./_components/home-empty";
+import { WelcomeTour } from "./_components/welcome-tour";
 import { InviteList } from "./_components/invites-bell";
 import { NewTeamButton } from "./_components/new-team-button";
 import { TeamHome, type HomeTeam } from "./_components/team-home";
@@ -90,7 +91,7 @@ export default async function DashboardHome() {
 
         {/* Invites: always shown to someone without a team, so "nothing yet" is explicit. */}
         {(invites.length > 0 || fresh) && (
-          <section aria-labelledby="invites-h" className="mt-8">
+          <section aria-labelledby="invites-h" data-tour="invites" className="mt-8">
             <h2 id="invites-h" className="text-sm font-medium text-ink-2">
               Invites <span className="font-mono text-[11px] text-ink-3">{invites.length}</span>
             </h2>
@@ -122,6 +123,7 @@ export default async function DashboardHome() {
           <TeamHome teams={teams} />
         )}
       </div>
+      <WelcomeTour name={firstName(user)} username={user.username!} show={!user.toursDone.includes("welcome")} />
     </div>
   );
 }

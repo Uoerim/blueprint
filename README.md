@@ -85,6 +85,7 @@ When something ships, it stays on the record with your `@username` on it.
 ### Account and home
 
 - **Dashboard home.** After signing in you land on a home page with all your teams: search them, star favourites to keep them on top, see how many open tasks are yours in each, and accept invites.
+- **Guided tours.** New accounts get a short welcome tour of the dashboard, and a team tour the first time they open a team (capture, promote, plan, live focus, shipped, invites). Each step spotlights the real control and adapts to the layout: a card beside it on desktop, a bottom card on phones, and the tab bar and Profile tab in the installed app. Finished tours are saved to the account, and **Take the tour** (account menu or Profile) replays them. Keyboard friendly: arrows to move, Esc to skip.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
@@ -461,6 +462,7 @@ app/
   privacy/ terms/          legal pages
 components/
   landing/                 interactive landing demos
+  tour/                    guided tours: spotlight engine, launcher, replay
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
   crypto.ts                per-team AES-256-GCM field encryption

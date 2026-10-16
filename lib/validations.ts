@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ACCENT_HEXES, LIMITS, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
 import { GRANTABLE } from "./team-permissions";
+import { TOURS } from "./tours";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 const HTML_TAGS = /<\/?[a-z][^>]*>/gi;
@@ -211,6 +212,10 @@ export const adminRoleSchema = z.strictObject({ userId: id, role: z.enum(["USER"
 export const adminRenameSchema = z.strictObject({ userId: id, username: usernameSchema });
 export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
 export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
+
+/* ── Guided tours ───────────────────────────────────────────────────────── */
+
+export const tourSchema = z.strictObject({ tour: z.enum(TOURS) });
 
 /* ── Bug reports ────────────────────────────────────────────────────────── */
 

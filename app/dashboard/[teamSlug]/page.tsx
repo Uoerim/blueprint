@@ -164,6 +164,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
       initialIdea={one(sp.idea)}
       initialProject={one(sp.project)}
       initialInvite={one(sp.invite) === "1"}
+      showTour={!user.toursDone.includes("team")}
     />
   );
 }

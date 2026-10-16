@@ -73,7 +73,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <BrandMark size={20} />
             </Link>
             <span className="hidden text-ink-3 sm:inline" aria-hidden>/</span>
-            <TeamSwitcher teams={teams} />
+            <div data-tour="nav" className="flex min-w-0">
+              <TeamSwitcher teams={teams} />
+            </div>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
               {isStaff(user.siteRole) && (
                 <Link
@@ -88,12 +90,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               )}
               <KofiButton label="Ko-fi" className="hidden h-8 px-2.5 md:inline-flex" />
               {/* On phones support lives in the profile menu, so the bar stays uncluttered. */}
-              <div className="hidden sm:block">
+              <div data-tour="help" className="hidden sm:block">
                 <SupportButton />
               </div>
               <InvitesBell invites={incoming} />
               <UsernameChip username={user.username!} color={user.accentColor} imageUrl={user.imageUrl} />
-              <AccountMenu theme={theme} />
+              <div data-tour="help" className="flex">
+                <AccountMenu theme={theme} />
+              </div>
             </div>
           </div>
         </header>

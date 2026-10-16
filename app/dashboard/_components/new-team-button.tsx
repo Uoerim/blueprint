@@ -8,7 +8,7 @@ export function NewTeamButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={cx(btn.primary, "h-11 px-5")}>
+      <button type="button" data-tour="create-team" onClick={() => setOpen(true)} className={cx(btn.primary, "h-11 px-5")}>
         + Create new team
       </button>
       <CreateTeamDialog open={open} onClose={() => setOpen(false)} />

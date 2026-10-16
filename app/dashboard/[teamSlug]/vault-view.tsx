@@ -196,7 +196,7 @@ function CaptureBar() {
   };
 
   return (
-    <form onSubmit={submit} className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent),0_0_0_4px_rgba(99,102,241,0.18)]">
+    <form onSubmit={submit} data-tour="capture" className="card rounded-2xl p-2 transition-shadow focus-within:shadow-[inset_0_0_0_1px_var(--accent),0_0_0_4px_rgba(99,102,241,0.18)]">
       <div className="flex items-center gap-2 px-2">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0 text-ink-3">
           <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -350,7 +350,7 @@ function IdeaCard({ idea }: { idea: IdeaDTO }) {
         <span className="flex-1" />
         <SparkButton idea={idea} disabled={temp} />
         {can("projects.create") && (
-          <button type="button" disabled={temp} onClick={() => promote(idea)} className={cx(btn.outline, btn.sm)}>
+          <button type="button" data-tour="promote" disabled={temp} onClick={() => promote(idea)} className={cx(btn.outline, btn.sm)}>
             Promote →
           </button>
         )}

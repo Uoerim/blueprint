@@ -26,7 +26,7 @@ export function AppTeamBar({
   const sorted = [...teams].sort((a, b) => Number(b.favorite) - Number(a.favorite));
 
   return (
-    <div className="hidden items-center gap-2 app:flex">
+    <div data-tour="team-actions" className="hidden items-center gap-2 app:flex">
       <button
         type="button"
         onClick={() => setOpen(true)}

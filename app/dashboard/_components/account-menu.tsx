@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { getUsage, type Usage } from "@/app/actions/account";
 import { KOFI_URL } from "@/components/kofi-button";
+import { useReplayTours } from "@/components/tour/replay";
 import { HelpIcon, SupportDialog } from "@/components/support";
 import type { Theme } from "@/lib/theme";
 import { OPEN_INSTALL } from "./install-prompt";
@@ -17,6 +18,7 @@ import { ThemePicker } from "./theme-picker";
 export function AccountMenu({ theme }: { theme: Theme }) {
   const [support, setSupport] = useState(false);
   const install = useInstallState();
+  const replay = useReplayTours();
   return (
     <>
       <UserButton>
@@ -24,6 +26,7 @@ export function AccountMenu({ theme }: { theme: Theme }) {
           <UserButton.Action label="Appearance" labelIcon={<PaletteIcon />} open="appearance" />
           <UserButton.Action label="Usage" labelIcon={<GaugeIcon />} open="usage" />
           <UserButton.Action label="Contact support" labelIcon={<HelpIcon size={16} />} onClick={() => setSupport(true)} />
+          <UserButton.Action label="Take the tour" labelIcon={<CompassIcon />} onClick={() => void replay()} />
           {/* Hidden on any device where the app is already installed (or when you're inside it). */}
           {!install.installed && (
             <UserButton.Action
@@ -145,6 +148,15 @@ function PhoneIcon() {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
       <rect x="4" y="1.5" width="8" height="13" rx="2" stroke="currentColor" strokeWidth="1.3" />
       <path d="M7 12.25h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CompassIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m12.6 7.4-1.5 3.7-3.7 1.5 1.5-3.7 3.7-1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     </svg>
   );
 }

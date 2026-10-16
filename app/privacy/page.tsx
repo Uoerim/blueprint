@@ -26,7 +26,8 @@ export default function PrivacyPage() {
             email address, name and profile picture. We never see your Google or GitHub password.
           </li>
           <li>
-            <strong>Your profile.</strong> The @username, display name and colour you choose.
+            <strong>Your profile.</strong> The @username, display name and colour you choose, and which guided tours
+            you&apos;ve finished, so they don&apos;t show again.
           </li>
           <li>
             <strong>What you put in Blueprint.</strong> Teams, ideas, projects, tasks, descriptions, notes, tags, sparks,

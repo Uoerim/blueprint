@@ -21,6 +21,7 @@ import type { IdeaDTO, MemberDTO, OutgoingInvite, TagDTO, TaskDTO, Viewer } from
 import { AppTeamBar } from "../_components/app-team-bar";
 import { rememberTeam } from "../_components/app-shell";
 import { ExecutionAppSegments, ExecutionView, type Tab as ExecTab } from "./execution-view";
+import { TeamTour } from "./team-tour";
 import { InviteDialog } from "./invite-dialog";
 import { ShippedView } from "./shipped-view";
 import { VaultView } from "./vault-view";
@@ -98,6 +99,8 @@ export function Workspace(props: {
   initialProject?: string;
   initialIdea?: string;
   initialInvite?: boolean;
+  /** First visit to a team: walk them through it. */
+  showTour?: boolean;
 }) {
   const router = useRouter();
   const [view, setViewState] = useState<View>(
@@ -231,7 +234,7 @@ export function Workspace(props: {
               <p className="mt-1 max-w-[70ch] text-[15px] text-ink-2">{props.team.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div data-tour="team-actions" className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => (props.perms.includes("members.invite") ? setInviteOpen(true) : router.push(`/dashboard/${props.team.slug}/settings#members`))}
@@ -279,6 +282,7 @@ export function Workspace(props: {
               key={v.id}
               role="tab"
               type="button"
+              data-tour={v.id === "shipped" ? "shipped" : undefined}
               aria-selected={view === v.id}
               onClick={() => setView(v.id)}
               className={cx(
@@ -342,6 +346,7 @@ export function Workspace(props: {
           )}
         </AnimatePresence>
       </div>
+      <TeamTour show={!!props.showTour} />
     </WorkspaceContext>
   );
 }
@@ -379,7 +384,7 @@ function FocusDock() {
     .sort((x, y) => x.since.localeCompare(y.since));
 
   return (
-    <section aria-label="Live team focus" className="card mt-6 rounded-2xl p-3 sm:p-4">
+    <section aria-label="Live team focus" data-tour="focus" className="card mt-6 rounded-2xl p-3 sm:p-4">
       <div className="flex items-center gap-2.5">
         <span className="relative flex size-2 text-emerald">
           <span className={cx("relative size-2 rounded-full", focused.length ? "pulse-ring bg-emerald" : "bg-ink-3")} />

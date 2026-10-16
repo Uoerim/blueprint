@@ -159,6 +159,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   return (
     <nav
       aria-label="App"
+      data-tour="nav"
       className="glass-solid fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto hidden h-[4.25rem] max-w-md items-center justify-around rounded-full border border-line-strong px-2 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.7)] app:flex"
     >
       {tabs.map((t) => {
@@ -169,6 +170,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
             href={t.href}
             onClick={(e) => go(e, t.id, t.href)}
             aria-label={t.label}
+            data-tour={t.id === "profile" ? "help" : undefined}
             aria-current={on ? "page" : undefined}
             className={cx(
               "grid size-[3.25rem] place-items-center rounded-full transition-[background-color,color,transform] active:scale-90",

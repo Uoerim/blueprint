@@ -28,6 +28,8 @@ model User {
   inboxAt            DateTime          @default(now())
   accentColor        String            @default("#6366F1")
   onboarded          Boolean           @default(false)
+  /// Guided tours this person has finished or skipped ("welcome", "team"). See components/tour.
+  toursDone          String[]          @default([])
   /// Site-wide staff role (separate from per-team roles). See lib/site-roles.ts.
   siteRole           SiteRole          @default(USER)
   /// Set when staff suspend the account; blocks every page, action and API call.
