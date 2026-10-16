@@ -29,8 +29,9 @@ export async function generateViewport(): Promise<Viewport> {
   return {
     width: "device-width",
     initialScale: 1,
-    // Lets the installed app draw edge to edge; app chrome pads itself with the safe-area insets.
-    viewportFit: "cover",
+    // No viewport-fit=cover: the installed app is laid out below the phone's status bar instead of
+    // under it. Drawn edge to edge, newer Android puts a see-through scrim over the top of the page
+    // that smears whatever sits there, and some phones don't report the inset needed to avoid it.
     // Pinch-zoom stays allowed for accessibility; inputs are 16px on phones so focusing one never zooms.
     themeColor:
       theme === "system"

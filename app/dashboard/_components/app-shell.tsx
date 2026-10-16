@@ -84,28 +84,22 @@ export function AppHeader({
   invites: IncomingInvite[];
 }) {
   return (
-    <>
-      {/* The app draws edge to edge, so the phone's status bar floats over the page. A solid strip in
-          the page colour sits behind it, so nothing scrolls up under the clock and looks smeared.
-          Its height is the status bar's own inset, so it's zero wherever the bar doesn't overlap. */}
-      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden h-[env(safe-area-inset-top)] bg-bg app:block" />
-      <header className="hidden px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))] app:block">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/me" aria-label="Your profile" className="shrink-0 rounded-full active:scale-95">
-            <Monogram name={username} color={accentColor} src={imageUrl} size={44} className="!rounded-full" />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[17px] font-semibold tracking-tight text-ink">Hello, {name}</p>
-            <p className="truncate text-[13px] text-ink-3" suppressHydrationWarning>
-              {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
-            </p>
-          </div>
-          <div className="grid size-11 shrink-0 place-items-center rounded-full bg-surface shadow-highlight">
-            <InvitesBell invites={invites} />
-          </div>
+    <header className="hidden px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))] app:block">
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard/me" aria-label="Your profile" className="shrink-0 rounded-full active:scale-95">
+          <Monogram name={username} color={accentColor} src={imageUrl} size={44} className="!rounded-full" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[17px] font-semibold tracking-tight text-ink">Hello, {name}</p>
+          <p className="truncate text-[13px] text-ink-3" suppressHydrationWarning>
+            {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+          </p>
         </div>
-      </header>
-    </>
+        <div className="grid size-11 shrink-0 place-items-center rounded-full bg-surface shadow-highlight">
+          <InvitesBell invites={invites} />
+        </div>
+      </div>
+    </header>
   );
 }
 
