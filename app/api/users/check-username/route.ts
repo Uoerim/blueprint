@@ -1,10 +1,10 @@
-import { guardRead, json } from "@/lib/api";
+import { guardRead, json, withErrors } from "@/lib/api";
 import { db } from "@/lib/db";
 import { usernameSchema } from "@/lib/validations";
 
-export async function GET(req: Request) {
-  const guard = await guardRead(req, "search");
-  if ("error" in guard) return guard.error;
+export const GET = withErrors(async (req: Request): Promise<Response> => {
+  const guard = await guardRead(req, "username");
+  if (guard.error) return guard.error;
 
   const raw = new URL(req.url).searchParams.get("u") ?? "";
   const parsed = usernameSchema.safeParse(raw);
@@ -25,4 +25,4 @@ export async function GET(req: Request) {
     200,
     guard.headers,
   );
-}
+});

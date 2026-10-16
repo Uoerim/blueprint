@@ -20,6 +20,9 @@ In plain words (this summary is not part of the license text):
   (and other official Raqameen domains) and may offer paid tiers, paid ad
   removal or lightweight ads there to cover domain, database and hosting costs.
   These terms limit what licensees may do; they do not limit the licensor.
+- This license covers the code only. It grants no rights to the Blueprint
+  name or logo: a modified or self-hosted copy must not present itself as the
+  official Blueprint service.
 - Contributions (pull requests, patches and similar) are covered by the
   Inbound Contributor License Grant in the appendix.
 

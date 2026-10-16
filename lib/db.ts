@@ -1,8 +1,7 @@
 import "server-only";
-import type { PrismaClient } from "@prisma/client";
-import { createPrisma } from "./prisma";
+import { createPrisma, type Db } from "./prisma";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma?: Db };
 
 export const db =
   globalForPrisma.prisma ??

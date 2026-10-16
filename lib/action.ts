@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 import type { User } from "@prisma/client";
+import { writeAudit, type AuditEntry } from "./audit";
 import { ActionError, getViewer, isLockedOut, requireOnboarded } from "./auth";
-import { db } from "./db";
+import { GENERIC_ERROR, logServerError } from "./errors";
 import { rateLimitRequest, type Tier } from "./rate-limit";
 import { getClientIp, isSameOrigin } from "./request";
 import { logRateLimited } from "./security-log";
@@ -34,7 +35,7 @@ export async function runAction<T>(
 
     const rl = await rateLimitRequest(options.tier, ip, viewer.id);
     if (!rl.success) {
-      await logRateLimited(viewer.id, ip, options.tier);
+      await logRateLimited(viewer, ip, options.tier);
       const secs = Math.max(1, Math.ceil((rl.reset - Date.now()) / 1000));
       return { ok: false, error: `Slow down — try again in ${secs}s.` };
     }
@@ -47,20 +48,13 @@ export async function runAction<T>(
     if (e instanceof ZodError) {
       return { ok: false, error: e.issues[0]?.message ?? "Invalid input." };
     }
-    console.error("[action]", e);
-    return { ok: false, error: "Something went wrong. Please try again." };
+    // Anything else is unexpected: log it in full on the server, show a reference code only.
+    const ref = logServerError("action", e);
+    return { ok: false, error: `${GENERIC_ERROR} (ref ${ref})` };
   }
 }
 
-export async function audit(
-  ctx: Ctx,
-  entry: { teamId?: string | null; action: string; entityType: string; entityId: string },
-) {
-  try {
-    await db.auditLog.create({
-      data: { ...entry, userId: ctx.user.id, ipAddress: ctx.ip },
-    });
-  } catch (e) {
-    console.error("[audit]", e);
-  }
+/** Records a team or account event in the append-only audit trail (see lib/audit.ts). */
+export async function audit(ctx: Ctx, entry: AuditEntry) {
+  await writeAudit(ctx.user, ctx.ip, entry);
 }

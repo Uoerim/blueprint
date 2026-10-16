@@ -1,5 +1,6 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
+import { logServerError } from "./errors";
 
 /**
  * Mirrors staff actions onto Clerk so they also hold at the sign-in layer.
@@ -17,7 +18,7 @@ async function attempt(clerkId: string, fn: (c: Awaited<ReturnType<typeof clerkC
     return true;
   } catch (e) {
     if (notFound(e)) return true;
-    console.error("[clerk-admin]", e);
+    logServerError("clerk-admin", e);
     return false;
   }
 }

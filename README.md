@@ -191,22 +191,62 @@ flowchart LR
 
 ### Security architecture
 
-| Layer | What it does | Where |
+Blueprint is built in layers, so no single check is the only thing standing between an attacker and your data. Each request passes the edge, then the app, then the database's own rules.
+
+```mermaid
+flowchart LR
+  R[Request] --> E["Edge (proxy.ts)<br/>bot screen · origin and fetch metadata<br/>rate limits · CSP nonce"]
+  E --> A["App (server actions, API)<br/>Clerk session · Zod .strict() · 32 KB cap<br/>team membership and permissions"]
+  A --> D[("Postgres<br/>per-team AES-256-GCM<br/>append-only audit trigger")]
+```
+
+#### Layer 1: edge and anti-bot (`proxy.ts`, `lib/request.ts`, `lib/rate-limit.ts`)
+
+| Defence | What it does |
+| --- | --- |
+| **Bot screening** | On the app's private routes (`/dashboard`, `/onboarding`, `/admin`, `/api`, `/sign-in`, `/sign-up`) and on every mutation, requests from HTTP libraries, scanners and headless browsers are refused with `403` (`curl`, `python-requests`, `Go-http-client`, `HeadlessChrome`, Puppeteer, Playwright, `sqlmap` and so on), as are requests with no `User-Agent`. Mutations must also carry a real browser `Accept-Language`. The public pages stay open to search engines and link previews. |
+| **Request-forgery (CSRF) protection** | Every non-GET request, server actions included, must have an `Origin` that matches the site (or `ALLOWED_ORIGINS`), browser fetch metadata (`Sec-Fetch-Site`) of `same-origin` when present, and a `Referer` from the same origin when present. Checked at the edge and again inside every action. |
+| **Distributed rate limits** | Sliding windows in Upstash Redis, shared by every serverless instance, falling back to an in-memory window only if Redis is unreachable. Every `429` carries `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. |
+| **Trusted client IP** | Read in the order `x-vercel-forwarded-for` → `x-real-ip` → first `x-forwarded-for`, and each candidate must look like an IP address. On Vercel the first header is set by Vercel and can't be spoofed. |
+
+| Rate-limit tier | Limit (per minute) | Applies to |
 | --- | --- | --- |
-| **Per-team AES-256-GCM field encryption** | Idea and task contents are encrypted with per-team HKDF-derived keys before they reach Postgres, so raw ideas are never stored in plaintext in the database or the audit log. | `lib/crypto.ts`, `instrumentation.ts` |
-| **Zero-trust team isolation** | Every team-scoped action resolves the session to a Prisma user, re-proves membership and reloads the caller's team permissions from Postgres. URL slugs and client ids are never trusted. | `lib/team-access.ts`, `app/actions/*` |
-| **Team permissions and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered in the database query, so they never reach people who can't see them, and acting on one behaves exactly as if it didn't exist. | `lib/team-permissions.ts`, `lib/task-visibility.ts` |
-| **Anti-IDOR** | Every update and delete is scoped with `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. | `app/actions/*` |
-| **Metadata-only admin panel** | The site admin dashboard is metadata-only by design: it shows counts (`count()` / `_count`), account and team metadata, and operational logs. It never selects, decrypts or renders idea, task or focus text, and a lint rule forbids admin code from importing `lib/crypto.ts`, which is only used inside verified team-member flows. | `app/admin/*`, `eslint.config.mjs` |
-| **Site roles and suspensions** | Staff permissions are re-read from the database on every admin action. Suspended accounts are blocked from every page, action and API route, and banned in Clerk too. Non-staff get a 404 for `/admin`. | `lib/site-roles.ts`, `app/actions/admin.ts` |
-| **Rate limiting** | Sliding windows per IP and per user: 100 req/min globally, 30/min for search and username checks, 40/min for writes, 90/min for the live change-check. Returns `429` with `Retry-After`. In memory by default; shared through Upstash or Vercel KV when configured. | `lib/rate-limit.ts`, `proxy.ts` |
-| **CSRF and origin checks** | Every server action verifies `Origin` against `Host`. Read endpoints reject cross-site `Sec-Fetch-Site`. | `lib/action.ts`, `lib/api.ts` |
-| **Strict validation** | Zod `.strict()` schemas on every input. Control characters, bidi overrides and HTML are stripped. Parameterised queries only. 64 KB action body limit. | `lib/validations.ts` |
-| **Hardened headers** | Per-request nonce CSP with `strict-dynamic`, `object-src 'none'` and `frame-ancestors 'none'`; HSTS preload; `X-Frame-Options: DENY`; `nosniff`; strict referrer and permissions policies. | `proxy.ts`, `next.config.ts` |
-| **Typed confirmations** | Destructive actions check the typed project, team or username on the server, not only in the UI. | `app/actions/*` |
-| **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser, and only `img.clerk.com` images are allowed by the CSP. | `app/actions/onboarding.ts`, `proxy.ts` |
-| **Safe errors** | Errors are logged server-side and mapped to generic messages. Stack traces and database codes never reach the browser. | `lib/action.ts` |
-| **Audit log** | Team, membership and staff actions are recorded with the actor and IP, and signed-in callers who hit a rate limit are logged as security events (at most once a minute each, so floods can't flood the database). Entries hold ids, action names and IPs, never content. | `lib/action.ts`, `lib/security-log.ts`, `/admin/audit` |
+| Global | 120 per IP | Every page and read |
+| Username checks | 25 per IP and per user | Live "is this username free?" checks, so names can't be harvested |
+| Invites and search | 15 per user, 30 per IP | Team invites and `@username` search |
+| Mutations | 30 per user, 60 per IP | Ideas, tasks, subtasks, focus, teams, tags, roles |
+| Onboarding | 5 per IP and per user | Claiming a username, refreshing your profile picture |
+| Live change-check | 90 per IP and per user | `/api/pulse` |
+
+The per-IP ceiling is higher than the per-user one where people often share a network (an office, a classroom), so teammates don't use up each other's allowance. Sign-in and sign-up themselves are submitted to Clerk, which applies its own rate limits; turn on Clerk's **bot sign-up protection** in the Clerk dashboard as well.
+
+#### Layer 2: HTTP headers and Content Security Policy (`proxy.ts`, `next.config.ts`)
+
+- **Per-request nonce CSP.** A fresh random nonce on every response, with `script-src 'self' 'nonce-…' 'strict-dynamic'`. Browsers that understand nonces ignore the `https:` and `'unsafe-inline'` fallbacks, so injected inline scripts don't run.
+- **The rest of the policy:** `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `font-src 'self' data:`, `img-src 'self' data: https://img.clerk.com https://images.clerk.dev`, `frame-src` limited to Clerk's bot check and the Ko-fi widget, and `connect-src` limited to the site itself and Clerk. Postgres and Redis are only ever reached from the server, so the policy deliberately gives the browser no route to them.
+- **Headers on every response:** `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy: same-origin`, and no `X-Powered-By`.
+
+#### Layer 3: application and server actions (`lib/action.ts`, `lib/team-access.ts`, `lib/validations.ts`, `app/actions/*`)
+
+| Defence | What it does |
+| --- | --- |
+| **One guarded path for every mutation** | Every server action runs through `runAction()`: origin check, Clerk session resolved on the server, suspension check, rate limit, onboarding check, then the handler. |
+| **Zero-trust team isolation (anti-IDOR)** | Team, task and idea ids from the browser are never trusted. Every team action re-reads the caller's membership and permissions from Postgres (`requireTeamAccess`), and every read, update and delete is scoped to `{ id, teamId: verifiedTeamId }`. Assignees must belong to that exact team. Team pages load your membership alongside the session and answer `404` to anyone outside the team. |
+| **Team roles and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered inside the database query, so they never reach people who can't see them. |
+| **Strict schemas** | Zod `.strict()` schemas reject unexpected fields on every payload. Server action bodies are capped at 32 KB. |
+| **Sanitising** | Control characters, zero-width and bidirectional-override characters (Trojan Source) and HTML tags are stripped before anything reaches the app logic. Queries are parameterised only. |
+| **Input limits** | Usernames `^[a-z0-9_]{3,20}$` with a reserved list (`admin`, `api`, `auth`, `app`, `system`, `root`, `null`, `undefined` and more). Titles up to 120 characters, idea bodies 500, descriptions 1,000, task notes 2,000, team names 40, at most 5 tags per idea. The same limits (`LIMITS` in `lib/constants.ts`) drive the form fields. |
+| **Typed confirmations** | Destructive actions check the typed team, project or username on the server, not only in the browser. |
+| **Safe errors** | Unexpected errors are logged on the server with a short reference code, with connection strings and secrets scrubbed from the log line. People only ever see "An unexpected error occurred. Please try again." plus that code, never a stack trace, Prisma code or file path. |
+| **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser. |
+| **Metadata-only admin panel** | The admin panel shows counts, account and team metadata, and the audit trail. It never selects, decrypts or renders idea or task text, and a lint rule stops admin code from importing `lib/crypto.ts`. Staff permissions are re-read on every admin action, and non-staff get a `404`. |
+
+#### Layer 4: live focus and the audit trail (`app/actions/tasks.ts`, `lib/audit.ts`)
+
+- **Focus can't be faked.** You can only focus on a task in a team you belong to, that you're assigned to (or allowed to edit). One focus per person across the whole site: starting one ends any other, in every team. The start time is the server's clock, and everyone's timer counts from that stored time, never from a time the browser sends.
+- **Audit trail.** Team creation, invites, membership removals and departures, role and custom-role changes, staff actions and rate-limit hits are recorded with a fixed list of action names (`AuditAction`), the actor's id and `@username`, the time, and a **shortened IP** (IPv4 `/24`, IPv6 `/48`: the network, not the person). Entries never contain idea or task content.
+- **Append-only, twice over.** The Prisma client refuses every update and delete on the audit table, and a Postgres trigger refuses `UPDATE`, `DELETE` and `TRUNCATE` even from raw SQL or scripts.
+- **No denial-of-wallet through logging.** Rate-limit hits by signed-in people are written at most once a minute per person and tier. Anonymous floods stopped at the edge are only written to the server log with a shortened IP, so an attack spread over many addresses can't turn into a flood of database writes.
 
 Found a vulnerability? Please email **support@raqameen.com** instead of opening a public issue.
 
@@ -301,7 +341,8 @@ npm run site:role -- your_username ADMIN
 | `POSTGRES_PRISMA_URL` | ✅ | Neon pooled connection string (`DATABASE_URL` also works) |
 | `POSTGRES_URL_NON_POOLING` | ✅ | Neon direct connection string, used for migrations (`DATABASE_URL_UNPOOLED` also works) |
 | `ENCRYPTION_KEY` | ✅ in production | 32 bytes as 64 hex characters. Encrypts idea and task text. |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`) | | Shared rate limits across serverless instances |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`) | Recommended | Upstash Redis for rate limits shared across serverless instances. Without it each instance keeps its own window. |
+| `ALLOWED_ORIGINS` | Recommended | Comma-separated origins allowed to send mutations, e.g. `https://blueprint.raqameen.com`. Without it the origin must match the host the request reached. |
 | `SEED_INVITE_USERNAME` | | Your username, to receive invites to the seeded demo teams |
 
 ### Scripts
@@ -446,10 +487,13 @@ By submitting a pull request you agree to the Inbound Contributor License Grant 
 
 **Blueprint is free for non-commercial use**, under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
 
+Blueprint is **source-available**: every line of code is public and free to use, change and self-host for non-commercial purposes. It isn't "open source" in the strict OSI sense, because commercial use is reserved for the author.
+
 - ✅ Clone, modify, and self-host on your own database/Vercel for free with your friends, classes, or squad.
 - ✅ Share your changes under the same non-commercial license, with credit (keep the `LICENSE` file and its `Required Notice` line).
 - 💡 **Official hosted version ([blueprint.raqameen.com](https://blueprint.raqameen.com)):** Only the official hosted app may offer paid options or lightweight ads, to support domain, database, and hosting costs. Want it completely free? Self-host it in a few minutes with the [Quick start](#quick-start) above.
 - ❌ Third parties may not sell Blueprint, run ads on it, offer it as a paid hosted SaaS, or use it commercially without written permission.
+- ™️ The license covers the code, not the Blueprint name or logo. A modified or self-hosted copy mustn't present itself as the official Blueprint service.
 - 🤝 **Contributions:** By submitting a PR, you grant the author the right to use your contribution in both the open repository and the official hosted instance. See the Inbound Contributor License Grant at the end of [`LICENSE`](./LICENSE).
 
 For commercial permission, open an issue or email support@raqameen.com.

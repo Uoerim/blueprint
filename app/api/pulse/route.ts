@@ -1,4 +1,4 @@
-import { guardRead, json } from "@/lib/api";
+import { guardRead, json, withErrors } from "@/lib/api";
 import { db } from "@/lib/db";
 import { slugSchema } from "@/lib/validations";
 
@@ -8,9 +8,9 @@ import { slugSchema } from "@/lib/validations";
  * teams) and when the caller's notifications
  * last changed. Tabs compare them and re-fetch only when one moves.
  */
-export async function GET(req: Request) {
+export const GET = withErrors(async (req: Request): Promise<Response> => {
   const guard = await guardRead(req, "pulse");
-  if ("error" in guard) return guard.error;
+  if (guard.error) return guard.error;
 
   const slug = slugSchema.safeParse(new URL(req.url).searchParams.get("team") ?? "");
   let team: number | null = null;
@@ -26,4 +26,4 @@ export async function GET(req: Request) {
     team = all._max.activityAt?.getTime() ?? null;
   }
   return json({ team, inbox: guard.viewer.inboxAt.getTime() }, 200, guard.headers);
-}
+});

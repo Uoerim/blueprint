@@ -118,7 +118,7 @@ export async function createTeam(input: unknown) {
 }
 
 export async function sendInvite(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
+  return runAction({ tier: "invite" }, async (ctx) => {
     const { teamId, inviteeId } = inviteSchema.parse(input);
     await requireTeamAccess(teamId, ctx.user.id, "members.invite");
     if (inviteeId === ctx.user.id) throw new ActionError("You're already on this team.");

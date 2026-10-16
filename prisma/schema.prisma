@@ -271,15 +271,21 @@ enum Priority {
   HIGH
 }
 
+/// Append-only security trail: metadata only, never idea or task content.
+/// Updates and deletes are refused by the Prisma client (lib/prisma.ts) and by
+/// a database trigger (migration 6_audit_append_only).
 model AuditLog {
-  id         String   @id @default(cuid())
-  teamId     String?
-  userId     String
-  action     String
-  entityType String
-  entityId   String
-  ipAddress  String
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  teamId        String?
+  userId        String
+  /// The actor's @username when the event happened, kept after renames and deletions.
+  actorUsername String?
+  action        String
+  entityType    String
+  entityId      String
+  /// Shortened to the network (IPv4 /24, IPv6 /48), never the full address.
+  ipAddress     String
+  createdAt     DateTime @default(now())
 
   @@index([teamId, createdAt])
 }

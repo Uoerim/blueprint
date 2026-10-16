@@ -34,7 +34,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s
-            role or archiving a project) with the time and the IP address it came from.
+            role or archiving a project) with the time, your username and a shortened form of the IP address it came from
+            (the network only, not your exact address). These records can&apos;t be edited.
           </li>
           <li>
             <strong>Technical data.</strong> Our hosting provider processes your IP address and basic request information to

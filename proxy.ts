@@ -1,11 +1,24 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { rateLimitHeaders, rateLimitRequest } from "@/lib/rate-limit";
-import { getClientIp } from "@/lib/request";
+import { anonymizeIp, automationReason, getClientIp, mutationBlockReason } from "@/lib/request";
 
 // Coarse gate only: pages redirect to sign-in here, and every page, action and
 // /api handler still runs its own resource-level check (lib/auth.ts, lib/api.ts).
 const PROTECTED_PAGES = /^\/(dashboard|onboarding|admin)(\/|$)/;
+// Where only real browsers belong: the app itself, its API and the sign-in screens.
+// Public pages (landing, privacy, terms) stay open to search engines and link previews.
+const PRIVATE_ROUTES = /^\/(dashboard|onboarding|admin|api|sign-in|sign-up|suspended)(\/|$)/;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function refuse(status: 403 | 429, reason: string, ip: string, path: string, headers?: Record<string, string>) {
+  // Logged with a shortened IP only; never request bodies or cookies.
+  console.warn(`[edge] ${status} ${reason} ip=${anonymizeIp(ip)} path=${path}`);
+  return new NextResponse(status === 429 ? "Too Many Requests" : "Forbidden", {
+    status,
+    headers: { ...headers, "Content-Type": "text/plain", "Cache-Control": "no-store" },
+  });
+}
 
 export default clerkMiddleware(
   async (auth, req) => {
@@ -13,13 +26,22 @@ export default clerkMiddleware(
     // change-check (/api/pulse) has its own per-user tier instead, so a few open
     // tabs can't starve the rest of the app.
     const ip = getClientIp(req.headers);
-    const rl = await rateLimitRequest(req.nextUrl.pathname === "/api/pulse" ? "pulse" : "global", ip);
-    if (!rl.success) {
-      return new NextResponse("Too Many Requests", {
-        status: 429,
-        headers: { ...rateLimitHeaders(rl), "Content-Type": "text/plain" },
-      });
+    const path = req.nextUrl.pathname;
+    const mutation = !SAFE_METHODS.has(req.method);
+
+    // Tier 0: obvious bots and scripts never reach the app's private routes or any mutation.
+    if (mutation || PRIVATE_ROUTES.test(path)) {
+      const bot = automationReason(req.headers, mutation);
+      if (bot) return refuse(403, bot, ip, path);
     }
+    // Every mutation (server actions included) must come from this site's own pages.
+    if (mutation) {
+      const forged = mutationBlockReason(req.headers);
+      if (forged) return refuse(403, forged, ip, path);
+    }
+
+    const rl = await rateLimitRequest(path === "/api/pulse" ? "pulse" : "global", ip);
+    if (!rl.success) return refuse(429, "rate limited", ip, path, rateLimitHeaders(rl));
 
     if (PROTECTED_PAGES.test(req.nextUrl.pathname)) await auth.protect();
 
@@ -36,8 +58,10 @@ export default clerkMiddleware(
         "object-src": ["none"],
         "base-uri": ["self"],
         "frame-ancestors": ["none"],
-        "font-src": ["self"],
-        "img-src": ["self", "data:", "https://img.clerk.com"],
+        "default-src": ["self"],
+        "font-src": ["self", "data:"],
+        "img-src": ["self", "data:", "https://img.clerk.com", "https://images.clerk.dev"],
+        "form-action": ["self"],
         // Ko-fi donation embed (components/kofi-button.tsx).
         "frame-src": ["https://ko-fi.com"],
         ...(process.env.NODE_ENV === "production" && { "upgrade-insecure-requests": [] }),

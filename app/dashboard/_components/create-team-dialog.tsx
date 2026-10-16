@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createTeam } from "@/app/actions/teams";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
+import { LIMITS } from "@/lib/constants";
 
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -57,7 +58,7 @@ export function CreateTeamDialog({ open, onClose }: { open: boolean; onClose: ()
             autoFocus
             required
             minLength={2}
-            maxLength={50}
+            maxLength={LIMITS.teamName}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Night Shift"
@@ -81,7 +82,7 @@ export function CreateTeamDialog({ open, onClose }: { open: boolean; onClose: ()
           <textarea
             id="team-desc"
             rows={2}
-            maxLength={2000}
+            maxLength={LIMITS.description}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className={cx(inputCls, "resize-none py-2.5")}

@@ -27,6 +27,7 @@ import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, Pill, readable } from "@/components/ui/primitives";
 import { ToastView, useToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/action-types";
+import { LIMITS } from "@/lib/constants";
 import {
   DEFAULT_MEMBER,
   GRANTABLE,
@@ -237,7 +238,7 @@ function General({ team, canEdit, pending, run }: { team: Team; canEdit: boolean
       <form onSubmit={save} className="space-y-4">
         <div>
           <label htmlFor="team-name" className="block text-sm font-medium text-ink">Team name</label>
-          <input id="team-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} required minLength={2} maxLength={50} className={cx(inputCls, "mt-1.5 h-10 disabled:opacity-60")} />
+          <input id="team-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} required minLength={2} maxLength={LIMITS.teamName} className={cx(inputCls, "mt-1.5 h-10 disabled:opacity-60")} />
         </div>
         <div>
           <label htmlFor="team-desc" className="block text-sm font-medium text-ink">Description</label>
@@ -246,7 +247,7 @@ function General({ team, canEdit, pending, run }: { team: Team; canEdit: boolean
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={!canEdit}
-            maxLength={2000}
+            maxLength={LIMITS.description}
             rows={3}
             placeholder="What is this team working on?"
             className={cx(inputCls, "mt-1.5 resize-y py-2.5 leading-relaxed disabled:opacity-60")}

@@ -37,7 +37,7 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: { id: true, action: true, userId: true, teamId: true, entityType: true, entityId: true, ipAddress: true, createdAt: true },
+      select: { id: true, action: true, userId: true, actorUsername: true, teamId: true, entityType: true, entityId: true, ipAddress: true, createdAt: true },
     }),
   ]);
   const userIds = [...new Set(rows.flatMap((r) => [r.userId, ...(r.entityType === "User" ? [r.entityId] : [])]))];
@@ -52,7 +52,7 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
 
   return (
     <>
-      <PageTitle title="Audit log" note="Who did what, when and from where. Entries hold ids, action names and IP addresses only, never idea or task text." />
+      <PageTitle title="Audit log" note="Who did what, when and from which network. Entries hold ids, action names and shortened IP addresses only, never idea or task text. The log is append-only." />
       <nav aria-label="Scope" className="mt-5 flex gap-1.5 text-[13px]">
         {SCOPES.map(([s, label]) => (
           <Link
@@ -75,7 +75,7 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
             <td className="whitespace-nowrap px-4 py-2 text-ink-3">{fmtDateTime(r.createdAt)}</td>
             <td className="px-4 py-2">
               <Link href={`/admin/users/${r.userId}`} className="font-mono text-ink hover:underline">
-                @{uname.get(r.userId) ?? "deleted"}
+                @{uname.get(r.userId) ?? r.actorUsername ?? "deleted"}
               </Link>
             </td>
             <td className={cx("px-4 py-2 font-mono text-[12px]", r.action.startsWith("security.") ? "text-rose" : "text-ink-2")}>{label(r.action)}</td>

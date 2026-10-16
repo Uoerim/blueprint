@@ -205,8 +205,11 @@ export async function setTaskStatus(input: unknown) {
 }
 
 /**
- * "Start working": the caller's Live focus moves to this task (one focus per
- * person per team). Assignees can always; editors join the task first.
+ * "Start working": the caller's Live focus moves to this task. One focus per
+ * person across the whole site, so starting here ends any focus they had in
+ * any team. The start time is the server's clock, never the browser's, so the
+ * timer on everyone's screen can't be spoofed. Assignees can always start;
+ * editors join the task first.
  */
 export async function startFocus(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
@@ -217,8 +220,14 @@ export async function startFocus(input: unknown) {
     const assigned = facts.assigneeIds.includes(access.userId);
     if (!assigned && !canEditTask(facts)) deny("Only people assigned to this task can work on it.");
     const now = new Date();
+    // Other teams where this focus is about to end, so their live views update too.
+    const elsewhere = await db.taskAssignee.findMany({
+      where: { userId: access.userId, focusedAt: { not: null }, teamId: { not: teamId } },
+      select: { teamId: true },
+      distinct: ["teamId"],
+    });
     await db.$transaction([
-      db.taskAssignee.updateMany({ where: { teamId, userId: access.userId, focusedAt: { not: null } }, data: { focusedAt: null } }),
+      db.taskAssignee.updateMany({ where: { userId: access.userId, focusedAt: { not: null } }, data: { focusedAt: null } }),
       db.taskAssignee.upsert({
         where: { taskId_userId: { taskId: itemId, userId: access.userId } },
         create: { taskId: itemId, userId: access.userId, teamId, focusedAt: now },
@@ -227,6 +236,7 @@ export async function startFocus(input: unknown) {
       db.task.updateMany({ where: { id: itemId, teamId }, data: { status: "IN_PROGRESS", completedAt: null, completedById: null } }),
     ]);
     await audit(ctx, { teamId, action: "task.focus", entityType: "Task", entityId: itemId });
+    await Promise.all(elsewhere.map((e) => teamChanged(e.teamId)));
     return done(teamId);
   });
 }

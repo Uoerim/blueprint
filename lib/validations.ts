@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACCENT_HEXES, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
+import { ACCENT_HEXES, LIMITS, RESERVED_SLUGS, RESERVED_USERNAMES } from "./constants";
 import { GRANTABLE } from "./team-permissions";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
@@ -15,19 +15,21 @@ export function sanitize(input: string): string {
     .trim();
 }
 
+const tooLong = (max: number) => `Keep it to ${max} characters or fewer.`;
+
 const text = (min: number, max: number) =>
   z
     .string()
-    .max(max * 2)
+    .max(max * 2, tooLong(max))
     .transform(sanitize)
-    .pipe(z.string().min(min).max(max));
+    .pipe(z.string().min(min, min === 1 ? "This can't be empty." : `Use at least ${min} characters.`).max(max, tooLong(max)));
 
 const optionalText = (max: number) =>
   z
     .string()
-    .max(max * 2)
+    .max(max * 2, tooLong(max))
     .transform(sanitize)
-    .pipe(z.string().max(max))
+    .pipe(z.string().max(max, tooLong(max)))
     .optional()
     .transform((v) => (v ? v : undefined));
 
@@ -35,9 +37,9 @@ const optionalText = (max: number) =>
 const clearableText = (max: number) =>
   z
     .string()
-    .max(max * 2)
+    .max(max * 2, tooLong(max))
     .transform(sanitize)
-    .pipe(z.string().max(max))
+    .pipe(z.string().max(max, tooLong(max)))
     .transform((v) => (v ? v : null));
 
 export const id = z.string().regex(/^c[a-z0-9]{20,32}$/, "Invalid id");
@@ -77,17 +79,17 @@ export const slugSchema = z
   .refine((s) => !RESERVED_SLUGS.has(s), "That slug is reserved");
 
 export const createTeamSchema = z.strictObject({
-  name: text(2, 50),
+  name: text(2, LIMITS.teamName),
   slug: slugSchema.optional().or(z.literal("").transform(() => undefined)),
-  description: optionalText(2000),
+  description: optionalText(LIMITS.description),
   /** People to invite straight away (up to 20). */
   inviteeIds: z.array(id).max(20).default([]).transform((ids) => [...new Set(ids)]),
 });
 
 export const updateTeamSchema = z.strictObject({
   teamId: id,
-  name: text(2, 50),
-  description: clearableText(2000),
+  name: text(2, LIMITS.teamName),
+  description: clearableText(LIMITS.description),
 });
 
 export const teamOnly = z.strictObject({ teamId: id });
@@ -110,9 +112,9 @@ export const tagSchema = z
 
 export const createIdeaSchema = z.strictObject({
   teamId: id,
-  title: text(1, 140),
-  description: optionalText(2000),
-  tags: z.array(tagSchema).max(5).default([]),
+  title: text(1, LIMITS.title),
+  description: optionalText(LIMITS.ideaBody),
+  tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).default([]),
 });
 
 export const taskStatusSchema = z.enum(["TODO", "READY", "IN_PROGRESS", "DONE"]);
@@ -126,7 +128,7 @@ export const assigneeIdsSchema = z
   .transform((ids) => [...new Set(ids)]);
 
 export const taskDraftSchema = z.strictObject({
-  title: text(1, 140),
+  title: text(1, LIMITS.title),
   assigneeIds: assigneeIdsSchema.default([]),
   priority: prioritySchema.default("MEDIUM"),
 });
@@ -140,9 +142,9 @@ export const promoteIdeaSchema = z.strictObject({
 
 export const createTaskSchema = z.strictObject({
   teamId: id,
-  title: text(1, 140),
-  description: optionalText(4000),
-  notes: optionalText(4000),
+  title: text(1, LIMITS.title),
+  description: optionalText(LIMITS.description),
+  notes: optionalText(LIMITS.notes),
   priority: prioritySchema.default("MEDIUM"),
   assigneeIds: assigneeIdsSchema.default([]),
   visibility: visibilitySchema.default("TEAM"),
@@ -153,9 +155,9 @@ export const updateTaskSchema = z
   .strictObject({
     teamId: id,
     itemId: id,
-    title: text(1, 140).optional(),
-    description: clearableText(4000).optional(),
-    notes: clearableText(4000).optional(),
+    title: text(1, LIMITS.title).optional(),
+    description: clearableText(LIMITS.description).optional(),
+    notes: clearableText(LIMITS.notes).optional(),
     projectId: id.nullable().optional(),
     priority: prioritySchema.optional(),
     visibility: visibilitySchema.optional(),
@@ -167,20 +169,20 @@ export const taskAssigneesSchema = z.strictObject({ teamId: id, itemId: id, user
 export const createSubtaskSchema = z.strictObject({
   teamId: id,
   taskId: id,
-  title: text(1, 140),
-  description: optionalText(2000),
+  title: text(1, LIMITS.title),
+  description: optionalText(LIMITS.description),
   assigneeIds: assigneeIdsSchema.default([]),
 });
 export const updateSubtaskSchema = z
-  .strictObject({ teamId: id, itemId: id, title: text(1, 140).optional(), description: clearableText(2000).optional() })
+  .strictObject({ teamId: id, itemId: id, title: text(1, LIMITS.title).optional(), description: clearableText(LIMITS.description).optional() })
   .refine((v) => v.title !== undefined || v.description !== undefined, "Nothing to update");
 export const toggleSubtaskSchema = z.strictObject({ teamId: id, itemId: id, done: z.boolean() });
 export const subtaskAssigneesSchema = taskAssigneesSchema;
 
 export const createProjectSchema = z.strictObject({
   teamId: id,
-  title: text(1, 140),
-  description: optionalText(2000),
+  title: text(1, LIMITS.title),
+  description: optionalText(LIMITS.description),
 });
 
 export const teamScoped = z.strictObject({ teamId: id, itemId: id });
@@ -217,14 +219,14 @@ export const permissionsSchema = z
   .transform((p) => [...new Set(p)]);
 export const createRoleSchema = z.strictObject({
   teamId: id,
-  name: text(2, 30),
+  name: text(2, LIMITS.roleName),
   color: hexColorSchema,
   permissions: permissionsSchema,
 });
 export const updateRoleSchema = z.strictObject({
   teamId: id,
   itemId: id,
-  name: text(2, 30),
+  name: text(2, LIMITS.roleName),
   color: hexColorSchema,
   permissions: permissionsSchema,
 });
@@ -237,9 +239,9 @@ export const updateIdeaSchema = z
   .strictObject({
     teamId: id,
     itemId: id,
-    title: text(1, 140).optional(),
-    description: clearableText(2000).optional(),
-    tags: z.array(tagSchema).max(5).optional(),
+    title: text(1, LIMITS.title).optional(),
+    description: clearableText(LIMITS.ideaBody).optional(),
+    tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).optional(),
   })
   .refine((v) => v.title !== undefined || v.description !== undefined || v.tags !== undefined, "Nothing to update");
 

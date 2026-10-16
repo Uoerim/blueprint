@@ -1,4 +1,4 @@
-import { guardRead, json } from "@/lib/api";
+import { guardRead, json, withErrors } from "@/lib/api";
 import { db } from "@/lib/db";
 import { id, searchQuerySchema } from "@/lib/validations";
 
@@ -9,9 +9,9 @@ import { id, searchQuerySchema } from "@/lib/validations";
  * whether they're already a member or invited; without it (creating a new team)
  * every result is simply invitable.
  */
-export async function GET(req: Request) {
-  const guard = await guardRead(req, "search");
-  if ("error" in guard) return guard.error;
+export const GET = withErrors(async (req: Request): Promise<Response> => {
+  const guard = await guardRead(req, "invite");
+  if (guard.error) return guard.error;
 
   const params = new URL(req.url).searchParams;
   const q = searchQuerySchema.safeParse(params.get("q") ?? "");
@@ -70,4 +70,4 @@ export async function GET(req: Request) {
     200,
     guard.headers,
   );
-}
+});

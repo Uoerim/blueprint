@@ -10,14 +10,25 @@ import { LRUCache } from "lru-cache";
  * over the REST API, giving one shared window across every instance.
  */
 
-export type Tier = "global" | "search" | "write" | "auth" | "pulse";
+export type Tier = "global" | "username" | "invite" | "write" | "auth" | "pulse";
 
-export const TIERS: Record<Tier, { limit: number; windowMs: number }> = {
-  global: { limit: 100, windowMs: 60_000 },
-  search: { limit: 30, windowMs: 60_000 },
-  // Ticking subtasks and moving cards adds up quickly in a real work session.
-  write: { limit: 40, windowMs: 60_000 },
-  auth: { limit: 10, windowMs: 60_000 },
+/**
+ * `limit` applies per signed-in user (and per IP when there's no user);
+ * `ipLimit`, when set, is the per-IP ceiling instead. It's higher than the
+ * per-user one so a few teammates on the same office or home network don't
+ * use up each other's allowance.
+ */
+export const TIERS: Record<Tier, { limit: number; ipLimit?: number; windowMs: number }> = {
+  // Every page and read, checked in proxy.ts before any auth work.
+  global: { limit: 120, windowMs: 60_000 },
+  // Live "is this username free?" checks: tight, so names can't be harvested from a dictionary.
+  username: { limit: 25, windowMs: 60_000 },
+  // Team invites and @username search: stops invite spam and profile scraping.
+  invite: { limit: 15, ipLimit: 30, windowMs: 60_000 },
+  // Ideas, tasks, subtasks, focus, teams: every mutation.
+  write: { limit: 30, ipLimit: 60, windowMs: 60_000 },
+  // Onboarding (claiming a username) and profile refreshes.
+  auth: { limit: 5, windowMs: 60_000 },
   // The live change-check: one tiny request every ~4s per open tab, a few tabs at once.
   pulse: { limit: 90, windowMs: 60_000 },
 };
@@ -85,8 +96,8 @@ async function redisHit(key: string, limit: number, windowMs: number): Promise<R
   };
 }
 
-export async function rateLimit(tier: Tier, identifier: string): Promise<RateLimitResult> {
-  const { limit, windowMs } = TIERS[tier];
+export async function rateLimit(tier: Tier, identifier: string, limit = TIERS[tier].limit): Promise<RateLimitResult> {
+  const { windowMs } = TIERS[tier];
   const key = `rl:${tier}:${identifier}`;
   if (redisUrl && redisToken) {
     try {
@@ -104,7 +115,7 @@ export async function rateLimitRequest(
   ip: string,
   userId?: string | null,
 ): Promise<RateLimitResult> {
-  const byIp = await rateLimit(tier, `ip:${ip}`);
+  const byIp = await rateLimit(tier, `ip:${ip}`, TIERS[tier].ipLimit ?? TIERS[tier].limit);
   if (!byIp.success || !userId) return byIp;
   const byUser = await rateLimit(tier, `user:${userId}`);
   return byUser.success ? (byUser.remaining < byIp.remaining ? byUser : byIp) : byUser;

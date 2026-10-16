@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, Pill, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
-import { PRIORITY_LABEL } from "@/lib/constants";
+import { LIMITS, PRIORITY_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/time";
 import type { IdeaDTO, Priority, TagDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
@@ -450,10 +450,10 @@ function IdeaForm({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
   return (
     <form onSubmit={submit} className="space-y-4 pt-1">
       <Field label="Title" htmlFor="idea-title">
-        <input id="idea-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} required className={cx(inputCls, "h-10")} />
+        <input id="idea-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={LIMITS.title} required className={cx(inputCls, "h-10")} />
       </Field>
       <Field label="Description" htmlFor="idea-desc">
-        <textarea id="idea-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={4} className={cx(inputCls, "resize-y py-2.5 leading-relaxed")} />
+        <textarea id="idea-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={LIMITS.ideaBody} rows={4} className={cx(inputCls, "resize-y py-2.5 leading-relaxed")} />
       </Field>
       <div>
         <p className="text-sm font-medium text-ink">Tags</p>

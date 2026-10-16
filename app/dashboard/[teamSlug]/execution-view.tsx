@@ -6,6 +6,7 @@ import { archiveIdea, createProject, deleteIdea, updateIdea } from "@/app/action
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
+import { LIMITS } from "@/lib/constants";
 import type { IdeaDTO, TaskDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
 import { useWorkspace } from "./workspace";
@@ -375,7 +376,7 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           id="project-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          maxLength={140}
+          maxLength={LIMITS.title}
           required
           placeholder="Tilt-controlled arpeggiator"
           className={cx(inputCls, "h-10")}
@@ -386,7 +387,7 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           id="project-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          maxLength={2000}
+          maxLength={LIMITS.description}
           rows={4}
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />

@@ -20,7 +20,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
-import { PRIORITY_LABEL, TASK_COLUMNS } from "@/lib/constants";
+import { LIMITS, PRIORITY_LABEL, TASK_COLUMNS } from "@/lib/constants";
 import {
   canDeleteTask,
   canEditTask,
@@ -202,7 +202,7 @@ function NewTask({ projectId }: { projectId?: string }) {
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        maxLength={140}
+        maxLength={LIMITS.title}
         aria-label="New task title"
         placeholder={projectId ? "+ Add a task to this project" : "+ New task straight into the backlog"}
         className={cx(inputCls, "h-10 min-w-0 flex-1 basis-full bg-surface sm:basis-auto")}
@@ -774,14 +774,14 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
   return (
     <form onSubmit={submit} className="space-y-4">
       <Field label="Title" htmlFor="task-title">
-        <input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} required className={cx(inputCls, "h-10")} />
+        <input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={LIMITS.title} required className={cx(inputCls, "h-10")} />
       </Field>
       <Field label="Description" htmlFor="task-desc" hint="What needs doing and what done looks like.">
         <textarea
           id="task-desc"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          maxLength={4000}
+          maxLength={LIMITS.description}
           rows={3}
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />
@@ -791,7 +791,7 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
           id="task-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          maxLength={4000}
+          maxLength={LIMITS.notes}
           rows={3}
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />
@@ -907,7 +907,7 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            maxLength={140}
+            maxLength={LIMITS.title}
             aria-label="New subtask"
             placeholder="+ Add a subtask"
             className={cx(inputCls, "h-9 min-w-0 flex-1")}
@@ -976,7 +976,7 @@ function SubtaskRow({
             onChange={(e) => setTitle(e.target.value)}
             onBlur={commitTitle}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), (e.target as HTMLInputElement).blur())}
-            maxLength={140}
+            maxLength={LIMITS.title}
             aria-label="Subtask title"
             className={cx("h-8 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-[14px] outline-none focus:bg-surface-2", sub.done ? "text-ink-3 line-through" : "text-ink")}
           />
@@ -1014,7 +1014,7 @@ function SubtaskRow({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={commitDescription}
-              maxLength={2000}
+              maxLength={LIMITS.description}
               rows={2}
               autoFocus={!hasDetails}
               aria-label={`Description for "${sub.title}"`}

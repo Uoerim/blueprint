@@ -9,8 +9,28 @@ export const ACCENTS = [
 
 export const ACCENT_HEXES = ACCENTS.map((a) => a.hex) as unknown as readonly [string, ...string[]];
 
+/**
+ * Input limits, shared by the server schemas (lib/validations.ts) and the form
+ * fields, so what a field lets you type is exactly what the server accepts.
+ */
+export const LIMITS = {
+  /** Idea, task, subtask and project titles. */
+  title: 120,
+  /** An idea's body. */
+  ideaBody: 500,
+  /** Task, subtask, project and team descriptions. */
+  description: 1000,
+  /** A task's notes. */
+  notes: 2000,
+  teamName: 40,
+  roleName: 30,
+  tagsPerIdea: 5,
+} as const;
+
 export const RESERVED_USERNAMES = new Set([
   "admin",
+  "app",
+  "auth",
   "root",
   "support",
   "system",
