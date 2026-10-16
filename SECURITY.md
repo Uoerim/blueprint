@@ -15,7 +15,7 @@ You'll get a reply within 7 days. Please give us a reasonable chance to fix the 
 - The official hosted service at [blueprint.raqameen.com](https://blueprint.raqameen.com).
 - The code in this repository.
 
-Out of scope: denial-of-service and volume testing against the hosted service, social engineering, and findings in third-party services (Clerk, Neon, Vercel, Upstash) that should go to those vendors.
+Out of scope: denial-of-service and volume testing against the hosted service, social engineering, and findings in third-party services (Clerk, Neon, Vercel) that should go to those vendors.
 
 ## How Blueprint is protected
 

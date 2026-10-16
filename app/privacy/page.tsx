@@ -104,10 +104,6 @@ export default function PrivacyPage() {
           <li><strong>Clerk</strong>: sign-in and account management.</li>
           <li><strong>Neon</strong>: the database that stores your account and content.</li>
           <li><strong>Vercel</strong>: hosting and delivery of the website.</li>
-          <li>
-            <strong>Upstash</strong>: counts requests per IP address and per account over a one-minute window to stop abuse.
-            The counters delete themselves after a minute.
-          </li>
           <li><strong>Google and GitHub</strong>: only when you choose to sign in with them.</li>
           <li>
             <strong>Ko-fi</strong>: only if you choose to send a tip. Ko-fi handles the payment under its own privacy policy, and
