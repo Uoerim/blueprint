@@ -91,25 +91,30 @@ const NO_PAGE = "";
 const PROFILE = /^\/dashboard\/me(\/|$)/;
 
 /**
- * The pages a report can be about. "Recent": the one you're on and the ones you
- * visited just before it (on phones support lives on the Profile tab, so the
- * page before it is usually the one that matters). "All pages": every other
- * screen of the app, each of your teams and its settings included.
+ * The pages a report can be about, only ever ones this person can open: their
+ * own teams (and those teams' settings), their home and profile, the demo team,
+ * "Start a team" only while they have none, and the admin panel only for staff.
+ * "Recent": the page they're on and the ones visited just before it (on phones
+ * support lives on the Profile tab, so the page before it is usually the one
+ * that matters), checked against the same list, so nothing from someone else's
+ * session in this tab, or from a team they've left, ever shows up.
  */
 function pageChoices(teams: { slug: string }[], staff: boolean) {
-  const here = window.location.pathname;
-  const recent = [...new Set([here, ...recentPages()])].slice(0, 5);
-  const all = [
+  const mine = [
     "/dashboard",
     ...teams.flatMap((t) => [`/dashboard/${t.slug}`, `/dashboard/${t.slug}/settings`]),
     "/dashboard/me",
-    "/dashboard/new",
+    ...(teams.length ? [] : ["/dashboard/new"]),
     "/dashboard/tour",
     ...(staff ? ["/admin"] : []),
-  ].filter((p) => !recent.includes(p));
+  ];
+  const canOpen = (p: string) => mine.includes(p) || (staff && p.startsWith("/admin/"));
+  const here = window.location.pathname;
+  const recent = [...new Set([here, ...recentPages()])].filter(canOpen).slice(0, 5);
+  const all = mine.filter((p) => !recent.includes(p));
   // Start on the page you were on, or the one before Profile.
-  const initial = recent.find((p) => !PROFILE.test(p)) ?? here;
-  return { recent, all, initial };
+  const initial = recent.find((p) => !PROFILE.test(p)) ?? recent[0] ?? NO_PAGE;
+  return { recent, all, initial, here };
 }
 
 /** Bug reports and feature requests: both go straight to the staff inbox in the admin panel. */
@@ -126,7 +131,12 @@ function BugReportForm() {
   const teamNames = new Map(teams.map((t) => [t.slug, t.name]));
   // Read once when the form opens (it's only mounted while the window is open).
   const [choices] = useState(() =>
-    typeof window === "undefined" ? { recent: [], all: [], initial: NO_PAGE } : pageChoices(teams, !!me?.staff),
+    typeof window === "undefined"
+      ? { recent: [], all: [], initial: NO_PAGE, here: "" }
+      : // Outside the dashboard (the public pages) there's nothing of theirs to list but the page itself.
+        me
+        ? pageChoices(teams, me.staff)
+        : { recent: [window.location.pathname], all: [], initial: window.location.pathname, here: window.location.pathname },
   );
   const [page, setPage] = useState(choices.initial);
   const ready = body.trim().length >= MIN && !pending;
@@ -228,10 +238,10 @@ function BugReportForm() {
               >
                 {choices.recent.length > 0 && (
                   <optgroup label="Recent">
-                    {choices.recent.map((p, i) => (
+                    {choices.recent.map((p) => (
                       <option key={p} value={p}>
                         {describePage(p, teamNames)}
-                        {i === 0 ? " (this page)" : ""}
+                        {p === choices.here ? " (this page)" : ""}
                       </option>
                     ))}
                   </optgroup>

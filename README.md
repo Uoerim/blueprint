@@ -92,7 +92,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
-- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. You pick which page it's about: the one you're on, one you visited just before (handy on phones, where support lives on the Profile tab), any other page of the app (each of your teams and its settings included), or none. Plus Privacy Policy and Terms pages.
+- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. You pick which page it's about: the one you're on, one you visited just before (handy on phones, where support lives on the Profile tab), any other page you can open (your own teams and their settings, your profile, and the admin panel if you're staff), or none. Plus Privacy Policy and Terms pages.
 
 ### Phones and installing
 

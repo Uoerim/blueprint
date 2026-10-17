@@ -177,7 +177,11 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   };
 
   return (
-    <nav
+    // layoutRoot: the bar is fixed to the screen, so the gliding highlight is measured
+    // against the bar itself, not the page. Otherwise scrolling (and the new screen
+    // starting back at the top) makes it fly in from below.
+    <motion.nav
+      layoutRoot
       ref={navRef}
       aria-label="App"
       data-tour="nav"
@@ -213,7 +217,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
           </Link>
         );
       })}
-    </nav>
+    </motion.nav>
   );
 }
 

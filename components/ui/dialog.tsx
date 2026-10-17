@@ -119,15 +119,16 @@ export function Dialog({
               <div className="touch-none" onPointerDown={(e) => drag.start(e)}>
                 <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-tint/20" aria-hidden />
                 <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
                     {description && <p className="mt-0.5 text-sm text-ink-2">{description}</p>}
                   </div>
+                  {/* Never squeezed by a long title: always a full 44px circle. */}
                   <button
                     type="button"
                     onClick={onClose}
                     aria-label="Close"
-                    className="-mr-1 grid size-11 place-items-center rounded-full bg-tint/[0.08] text-ink transition-transform active:scale-90"
+                    className="-mr-1 grid size-11 shrink-0 place-items-center rounded-full bg-tint/[0.08] text-ink transition-transform active:scale-90"
                   >
                     <svg width="18" height="18" viewBox="0 0 14 14" aria-hidden>
                       <path d="m3.25 3.25 7.5 7.5M10.75 3.25l-7.5 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -176,7 +177,7 @@ export function Dialog({
             )}
           >
             <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5">
-              <div>
+              <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
                 {description && <p className="mt-0.5 text-sm text-ink-2">{description}</p>}
               </div>
@@ -184,7 +185,7 @@ export function Dialog({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="grid size-9 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-tint/[0.06] hover:text-ink active:scale-95"
+                className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-tint/[0.06] hover:text-ink active:scale-95"
               >
                 <svg width="16" height="16" viewBox="0 0 14 14" aria-hidden>
                   <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
