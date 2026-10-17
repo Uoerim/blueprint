@@ -6,7 +6,7 @@ import { importIdea } from "@/app/actions/ideas";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
 import { LIMITS } from "@/lib/constants";
-import { extractJson, importPrompt } from "@/lib/import-template";
+import { importPrompt, parseReply } from "@/lib/import-template";
 import { importPlanSchema, type ImportPlan } from "@/lib/validations";
 import { useWorkspace } from "./workspace";
 
@@ -24,7 +24,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   );
 }
 
-type Check = { state: "empty" } | { state: "error"; message: string } | { state: "ok"; plan: ImportPlan; dropped: string[]; projectTags: boolean };
+type Check = { state: "empty" } | { state: "error"; message: string } | { state: "ok"; plan: ImportPlan; dropped: string[]; projectTags: boolean; repaired: boolean };
 
 /** "tasks.3.subtasks.1.title" → "Task 4, subtask 2, title". */
 function where(path: PropertyKey[]): string {
@@ -54,13 +54,9 @@ function ImportBody({ onClose }: { onClose: () => void }) {
     if (raw.length > LIMITS.importChars) {
       return { state: "error", message: `That's too big to import at once (over ${LIMITS.importChars.toLocaleString("en")} characters). Ask for fewer or shorter tasks, or import it in parts.` };
     }
-    let data: unknown;
-    try {
-      data = JSON.parse(extractJson(raw));
-    } catch {
-      return { state: "error", message: "That isn't valid JSON yet. Paste the AI's whole reply; code fences are fine." };
-    }
-    const parsed = importPlanSchema.safeParse(data);
+    const reply = parseReply(raw);
+    if (!reply.ok) return { state: "error", message: reply.message };
+    const parsed = importPlanSchema.safeParse(reply.data);
     if (!parsed.success) {
       const issue = parsed.error.issues[0]!;
       return { state: "error", message: `${where(issue.path)}: ${issue.message}` };
@@ -68,7 +64,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
     const known = new Set(teamTags);
     const all = parsed.data.tasks.flatMap((t) => t.tags).map((t) => t.trim().toLowerCase().replace(/^#/, ""));
     const dropped = [...new Set(all.filter((t) => t && !known.has(t)))];
-    return { state: "ok", plan: parsed.data, dropped, projectTags: (parsed.data.tags?.length ?? 0) > 0 };
+    return { state: "ok", plan: parsed.data, dropped, projectTags: (parsed.data.tags?.length ?? 0) > 0, repaired: reply.repaired };
   }, [raw, teamTags]);
 
   const copy = async () => {
@@ -165,7 +161,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
               role={check.state === "error" ? "alert" : undefined}
               className={check.state === "error" ? "text-rose" : check.state === "ok" ? "text-emerald" : "text-ink-3"}
             >
-              {check.state === "error" ? check.message : check.state === "ok" ? "Looks good." : "Nothing is added until you press Add to the vault."}
+              {check.state === "error" ? check.message : check.state === "ok" ? (check.repaired ? "Looks good. We fixed a few small JSON slips from the AI." : "Looks good.") : "Nothing is added until you press Add to the vault."}
             </motion.span>
           </AnimatePresence>
           <span className="shrink-0 font-mono tabular-nums text-ink-3">{raw.length.toLocaleString("en")}</span>

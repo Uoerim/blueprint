@@ -54,6 +54,7 @@ export function importPrompt(teamTags: string[], about = ""): string {
     '- A subtask is a short string, or an object with "title" and an optional "description".',
     '- "priority" is "LOW", "MEDIUM" or "HIGH".',
     `- ${tagRule} Tags go on tasks only, never on the idea itself.`,
+    "- Strictly valid JSON: double quotes only, no comments, no trailing commas, and write every backslash as \\\\ (for example inside regular expressions).",
     "- Keep the whole reply under 25,000 characters.",
     "",
     "Planning guidance:",
@@ -66,6 +67,82 @@ export function importPrompt(teamTags: string[], about = ""): string {
     "My idea:",
     about.trim() || PROMPT_PLACEHOLDER,
   ].join("\n");
+}
+
+const ESCAPES = new Set(['"', "\\", "/", "b", "f", "n", "r", "t"]);
+const CONTROL: Record<string, string> = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
+
+/**
+ * Fixes the small JSON slips AI assistants often make, without touching
+ * anything that's already valid: a lone backslash in text (like \d in a regular
+ * expression), raw line breaks inside text, “curly” quotes around keys and
+ * values, comments, and trailing commas. Plain text processing only; the
+ * result still has to pass JSON.parse and the plan's own validation.
+ */
+export function repairJson(text: string): string {
+  let out = "";
+  let inString = false;
+  let closer = '"';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (inString) {
+      if (c === "\\") {
+        const next = text[i + 1] ?? "";
+        if (ESCAPES.has(next)) {
+          out += c + next;
+          i++;
+        } else if (next === "u" && /^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6))) {
+          out += text.slice(i, i + 6);
+          i += 5;
+        } else out += "\\\\"; // a lone backslash: keep it as a real backslash
+      } else if (c === closer || (closer === '"' && c === '"')) {
+        out += '"';
+        inString = false;
+      } else if (c === '"') out += '\\"'; // a straight quote inside a “curly-quoted” value
+      else out += CONTROL[c] ?? c;
+      continue;
+    }
+    if (c === '"' || c === "\u201C" || c === "\u201D") {
+      inString = true;
+      closer = c === '"' ? '"' : "\u201D";
+      out += '"';
+    } else if (c === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+    } else if (c === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end < 0 ? text.length : end + 1;
+    } else if (c === ",") {
+      // Drop a comma that only comes before a closing bracket.
+      let j = i + 1;
+      while (/\s/.test(text[j] ?? "")) j++;
+      if (text[j] !== "}" && text[j] !== "]") out += c;
+    } else out += c;
+  }
+  return out;
+}
+
+export type ParsedReply = { ok: true; data: unknown; repaired: boolean } | { ok: false; message: string };
+
+/**
+ * Reads an AI's reply as JSON: the JSON itself, or the JSON inside a code
+ * fence or a sentence, with small slips repaired. When it still can't be read,
+ * says where (line and a few words around the spot) so it's easy to fix.
+ */
+export function parseReply(raw: string): ParsedReply {
+  const text = extractJson(raw);
+  try {
+    return { ok: true, data: JSON.parse(text), repaired: false };
+  } catch (first) {
+    try {
+      return { ok: true, data: JSON.parse(repairJson(text)), repaired: true };
+    } catch {
+      const pos = Number(/position (\d+)/.exec(String((first as Error).message))?.[1]);
+      if (!Number.isFinite(pos)) return { ok: false, message: "That isn't valid JSON yet. Paste the AI's whole reply; code fences are fine." };
+      const line = text.slice(0, pos).split("\n").length;
+      const near = text.slice(Math.max(0, pos - 24), pos + 24).replace(/\s+/g, " ").trim();
+      return { ok: false, message: `That isn't valid JSON yet: something's off on line ${line}, near “${near}”. Ask the AI to fix it, or correct it here.` };
+    }
+  }
 }
 
 /** Pulls the JSON out of a reply even if the AI wrapped it in a code fence or a sentence. */
