@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { finishTour } from "@/app/actions/account";
+import { showTourDemos } from "@/lib/tour-demo";
 import type { TourId } from "@/lib/tours";
 import { Tour, type TourStep } from "./tour";
 
@@ -25,9 +26,12 @@ export function TourLauncher({
   label,
   finishLabel,
   onDone,
+  always,
 }: {
   tour: TourId;
   show: boolean;
+  /** Start even if this tour was finished earlier in this tab. */
+  always?: boolean;
   steps: TourStep[];
   label: string;
   finishLabel?: string;
@@ -36,11 +40,11 @@ export function TourLauncher({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!show || finished.has(tour)) return;
+    if (!show || (!always && finished.has(tour))) return;
     // Let the page settle (and its entrance animations finish) before starting.
     const t = window.setTimeout(() => setOpen(true), 700);
     return () => window.clearTimeout(t);
-  }, [show, tour]);
+  }, [show, tour, always]);
 
   if (!open) return null;
   return (
@@ -50,6 +54,7 @@ export function TourLauncher({
       finishLabel={finishLabel}
       onClose={(done) => {
         finished.add(tour);
+        showTourDemos();
         setOpen(false);
         void finishTour({ tour });
         onDone?.(done);

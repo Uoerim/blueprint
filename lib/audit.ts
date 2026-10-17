@@ -50,6 +50,7 @@ export type AuditAction =
   | "idea.deleted.with_tasks"
   | "project.created"
   | "project.returned_to_ideas"
+  | "project.imported"
   | "task.created"
   | "task.done"
   | "task.focus"

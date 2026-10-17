@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { submitBugReport } from "@/app/actions/support";
@@ -11,7 +12,7 @@ import { btn, cx } from "@/components/ui/primitives";
 /** Contact support: report a bug right here (signed in), or email us about anything else. */
 export function SupportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Contact support" description="Report a bug right here, or email us about anything else.">
+    <Dialog open={open} onClose={onClose} title="Contact support" description="Report a bug or request a feature right here, or email us about anything else.">
       {/* Mounted only while open, so the form starts fresh every time. */}
       {open && <SupportBody />}
     </Dialog>
@@ -59,9 +60,27 @@ function SupportBody() {
 const MAX = 2000;
 const MIN = 10;
 
-/** "Report a bug": goes straight to the staff inbox in the admin panel. */
+type Kind = "BUG" | "FEATURE";
+const KINDS: { id: Kind; label: string; placeholder: string; thanks: string }[] = [
+  {
+    id: "BUG",
+    label: "Report a bug",
+    placeholder: "What happened, and what did you expect? Steps to make it happen again help a lot.",
+    thanks: "Thanks, your report reached the team.",
+  },
+  {
+    id: "FEATURE",
+    label: "Request a feature",
+    placeholder: "What would you like Blueprint to do, and what would it help you with?",
+    thanks: "Thanks, your idea reached the team.",
+  },
+];
+
+/** Bug reports and feature requests: both go straight to the staff inbox in the admin panel. */
 function BugReportForm() {
   const { isLoaded, isSignedIn } = useAuth();
+  const [kind, setKind] = useState<Kind>("BUG");
+  const meta = KINDS.find((k) => k.id === kind)!;
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -74,6 +93,7 @@ function BugReportForm() {
     setError(null);
     start(async () => {
       const res = await submitBugReport({
+        kind,
         body,
         page: window.location.pathname,
         installed: window.matchMedia("(display-mode: standalone)").matches,
@@ -86,13 +106,39 @@ function BugReportForm() {
 
   return (
     <section aria-labelledby="bug-h">
-      <h3 id="bug-h" className="text-[14px] font-medium text-ink">Report a bug</h3>
+      <h3 id="bug-h" className="sr-only">Send feedback</h3>
+      <div role="radiogroup" aria-label="What would you like to send?" className="relative grid grid-cols-2 rounded-xl bg-surface-2 p-1 shadow-highlight">
+        {KINDS.map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            role="radio"
+            aria-checked={kind === k.id}
+            onClick={() => {
+              setKind(k.id);
+              setSent(false);
+              setError(null);
+            }}
+            className={cx("relative z-10 h-9 rounded-lg text-[13px] font-medium transition-colors", kind === k.id ? "text-ink" : "text-ink-3 hover:text-ink-2")}
+          >
+            {kind === k.id && (
+              <motion.span
+                layoutId="feedback-kind"
+                aria-hidden
+                className="absolute inset-0 -z-10 rounded-lg bg-surface shadow-highlight"
+                transition={{ type: "spring", stiffness: 520, damping: 40 }}
+              />
+            )}
+            {k.label}
+          </button>
+        ))}
+      </div>
       {!isLoaded ? (
         <div className="mt-3 h-28 animate-pulse rounded-xl bg-surface-2" />
       ) : !isSignedIn ? (
         <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
           <Link href="/sign-in" className="text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink">Sign in</Link>{" "}
-          to report a bug from inside Blueprint, or email us below.
+          to report a bug or request a feature from inside Blueprint, or email us below.
         </p>
       ) : sent ? (
         <div role="status" className="mt-3 flex items-start gap-3 rounded-xl bg-emerald/10 p-3.5">
@@ -101,7 +147,7 @@ function BugReportForm() {
             <path d="m6.75 10.25 2.25 2.25 4.25-4.75" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="min-w-0 flex-1 text-[14px] text-ink">
-            Thanks, your report reached the team.
+            {meta.thanks}
             <span className="block text-[13px] text-ink-3">We read every one. If we need more detail, we&apos;ll email you.</span>
           </span>
           <button type="button" onClick={() => setSent(false)} className={cx(btn.ghost, btn.sm, "shrink-0")}>
@@ -109,15 +155,15 @@ function BugReportForm() {
           </button>
         </div>
       ) : (
-        <form onSubmit={submit} className="mt-2">
-          <label htmlFor="bug-body" className="sr-only">What went wrong?</label>
+        <form onSubmit={submit} className="mt-3">
+          <label htmlFor="bug-body" className="sr-only">{kind === "BUG" ? "What went wrong?" : "What would you like?"}</label>
           <textarea
             id="bug-body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={MAX}
             rows={4}
-            placeholder="What happened, and what did you expect? Steps to make it happen again help a lot."
+            placeholder={meta.placeholder}
             className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
           />
           <div className="mt-1.5 flex items-start justify-between gap-3 text-[12px] text-ink-3">
@@ -132,7 +178,7 @@ function BugReportForm() {
             </p>
           )}
           <button type="submit" disabled={!ready} className={cx(btn.primary, "mt-3 w-full disabled:opacity-40")}>
-            {pending ? "Sending…" : "Send report"}
+            {pending ? "Sending…" : kind === "BUG" ? "Send report" : "Send request"}
           </button>
         </form>
       )}

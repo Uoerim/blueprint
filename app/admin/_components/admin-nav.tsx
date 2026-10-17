@@ -8,7 +8,7 @@ const LINKS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Accounts" },
   { href: "/admin/teams", label: "Teams" },
-  { href: "/admin/reports", label: "Bug reports" },
+  { href: "/admin/reports", label: "Feedback" },
   { href: "/admin/audit", label: "Audit log" },
 ];
 

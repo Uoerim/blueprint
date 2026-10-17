@@ -37,6 +37,8 @@ model User {
   banReason          String?
   /// Set when an admin deletes the account: personal fields are scrubbed and the row is kept as a tombstone.
   deletedAt          DateTime?
+  /// The @username an account had when staff deleted it, kept for the security record.
+  deletedUsername    String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   teamsOwned         Team[]            @relation("TeamOwner")
@@ -192,6 +194,8 @@ model Task {
   /// Encrypted (enc:v1:…), like description, notes and subtask titles.
   title         String
   description   String?
+  /// Team tag names (plain, like idea tags), so the board can filter and sort.
+  tags          String[]       @default([])
   notes         String?
   status        TaskStatus     @default(TODO)
   priority      Priority       @default(MEDIUM)
@@ -302,6 +306,8 @@ model BugReport {
   user         User?           @relation("BugReports", fields: [userId], references: [id], onDelete: SetNull)
   /// The reporter's @username when they sent it, kept after a rename or deletion.
   username     String?
+  /// A bug report or a feature request.
+  kind         FeedbackKind    @default(BUG)
   /// Encrypted (enc:v1:…). Up to 2,000 characters before encryption.
   body         String
   /// The page they were on, path only (no query string), e.g. /dashboard/night-shift.
@@ -314,6 +320,11 @@ model BugReport {
   resolvedById String?
 
   @@index([status, createdAt])
+}
+
+enum FeedbackKind {
+  BUG
+  FEATURE
 }
 
 enum BugReportStatus {

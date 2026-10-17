@@ -43,10 +43,11 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
   const userIds = [...new Set(rows.flatMap((r) => [r.userId, ...(r.entityType === "User" ? [r.entityId] : [])]))];
   const teamIds = [...new Set(rows.map((r) => r.teamId).filter((v): v is string => !!v))];
   const [users, teams] = await Promise.all([
-    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } }),
+    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true, deletedUsername: true } }),
     db.team.findMany({ where: { id: { in: teamIds } }, select: { id: true, slug: true } }),
   ]);
-  const uname = new Map(users.map((u) => [u.id, u.username]));
+  // Deleted accounts show the name they had, marked as deleted.
+  const uname = new Map(users.map((u) => [u.id, u.username ?? (u.deletedUsername ? `${u.deletedUsername} (deleted)` : null)]));
   const tslug = new Map(teams.map((t) => [t.id, t.slug]));
   const showIp = me.siteRole === "ADMIN";
 

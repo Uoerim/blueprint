@@ -61,6 +61,8 @@ export type TaskDTO = {
   status: TaskStatus;
   priority: Priority;
   visibility: Visibility;
+  /** Team tag names. */
+  tags: string[];
   createdById: string;
   assigneeIds: string[];
   /** Assignees currently working on it (Live focus), with when they started. */

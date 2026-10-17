@@ -42,6 +42,15 @@ export function assertCan(access: TeamAccess, p: TeamPermission) {
   if (!access.can(p)) throw new ActionError("You don't have permission to do that in this team.");
 }
 
+/** Ideas and tasks may only carry tags the team has defined. */
+export async function assertTeamTags(teamId: string, tags: readonly string[]) {
+  const unique = [...new Set(tags)];
+  if (!unique.length) return unique;
+  const n = await db.teamTag.count({ where: { teamId, name: { in: unique } } });
+  if (n !== unique.length) throw new ActionError("Use one of the team's tags. Owners can add more in team settings.");
+  return unique;
+}
+
 /** Every id must be a member of this exact team (used for assignees). */
 export async function assertMembers(teamId: string, userIds: readonly string[]) {
   const unique = [...new Set(userIds)];

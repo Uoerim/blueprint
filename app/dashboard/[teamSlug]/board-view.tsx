@@ -1,5 +1,19 @@
 "use client";
 
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  rectIntersection,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useState } from "react";
 import {
@@ -21,6 +35,7 @@ import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
 import { LIMITS, PRIORITY_LABEL, TASK_COLUMNS } from "@/lib/constants";
+import { newId } from "@/lib/live";
 import {
   canDeleteTask,
   canEditTask,
@@ -29,19 +44,23 @@ import {
   type TaskAccessFacts,
 } from "@/lib/team-permissions";
 import type { MemberDTO, SubtaskDTO, TaskDTO, TaskStatus, Visibility } from "@/lib/types";
-import { PriorityPicker } from "./vault-view";
+import { PriorityPicker, TagPicker, TagPill } from "./vault-view";
 import { useWorkspace } from "./workspace";
 
 const spring = { type: "spring", stiffness: 520, damping: 40 } as const;
 type Filter = { kind: "all" } | { kind: "mine" } | { kind: "unassigned" } | { kind: "member"; id: string };
 const PRIORITY_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
+/** Which task is open, and whether it's being looked at or edited. */
+type Open = { id: string; mode: "view" | "edit" };
+
 /** The task board. With projectId it shows only that project's tasks and adds new ones to it. */
 export function BoardView({ projectId, initialFilter = "all" }: { projectId?: string; initialFilter?: "all" | "mine" } = {}) {
-  const { tasks: allTasks, members, viewer, can } = useWorkspace();
+  const { tasks: allTasks, members, viewer, can, team, run, removeTask } = useWorkspace();
   const [layout, setLayout] = useState<"board" | "list">("board");
   const [filter, setFilter] = useState<Filter>({ kind: initialFilter });
-  const [editing, setEditing] = useState<string | null>(null);
+  const [open, setOpen] = useState<Open | null>(null);
+  const [deleting, setDeleting] = useState<TaskDTO | null>(null);
   const scoped = !!projectId;
   const tasks = projectId ? allTasks.filter((t) => t.idea?.id === projectId) : allTasks;
 
@@ -53,6 +72,14 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
       return true;
     })
     .sort((a, b) => Number(b.focus.length > 0) - Number(a.focus.length > 0) || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+
+  const view = (id: string) => setOpen({ id, mode: "view" });
+  const edit = (id: string) => setOpen({ id, mode: "edit" });
+  const askDelete = (t: TaskDTO) => {
+    setOpen(null);
+    setDeleting(t);
+  };
+  const actions = { onView: view, onEdit: edit, onDelete: askDelete };
 
   const pill = (active: boolean) =>
     cx("h-8 shrink-0 rounded-lg px-3 text-[13px] transition-colors active:scale-95", active ? "bg-ink text-bg" : "bg-surface text-ink-2 shadow-highlight hover:text-ink");
@@ -96,34 +123,12 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
         </div>
       </div>
 
-      {can("tasks.create") && <NewTask projectId={projectId} />}
+      {/* A new task opens in the editor straight away, for its details and subtasks. */}
+      {can("tasks.create") && <NewTask projectId={projectId} onCreated={edit} />}
 
       <LayoutGroup>
         {layout === "board" ? (
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {TASK_COLUMNS.map((col) => {
-              const all = visible.filter((t) => t.status === col.status);
-              // Done can grow forever; the board shows the latest, Shipped shows all.
-              const items = col.status === "DONE"
-                ? [...all].sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")).slice(0, 12)
-                : all;
-              return (
-                <section key={col.status} aria-label={col.label} className="flex min-h-40 flex-col rounded-2xl bg-surface/60 p-2">
-                  <header className="flex items-center gap-2 px-2 pb-2 pt-1">
-                    <StatusGlyph status={col.status} />
-                    <h3 className="text-[13px] font-medium text-ink">{col.label}</h3>
-                    <span className="font-mono text-[11px] text-ink-3">{all.length}</span>
-                  </header>
-                  <ul className="flex flex-col gap-2">
-                    <AnimatePresence initial={false} mode="popLayout">
-                      {items.map((t) => <TaskCard key={t.id} task={t} scoped={scoped} onOpen={() => setEditing(t.id)} />)}
-                    </AnimatePresence>
-                  </ul>
-                  {!items.length && <p className="px-2 py-4 text-xs text-ink-3">Nothing here.</p>}
-                </section>
-              );
-            })}
-          </div>
+          <Board tasks={visible} scoped={scoped} {...actions} />
         ) : (
           <div className="mt-5 space-y-6">
             {TASK_COLUMNS.map((col) => {
@@ -138,7 +143,7 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
                   </header>
                   <ul className="divide-y divide-line overflow-hidden rounded-xl bg-surface shadow-highlight">
                     <AnimatePresence initial={false}>
-                      {items.map((t) => <TaskRow key={t.id} task={t} scoped={scoped} onOpen={() => setEditing(t.id)} />)}
+                      {items.map((t) => <TaskRow key={t.id} task={t} scoped={scoped} {...actions} />)}
                     </AnimatePresence>
                   </ul>
                 </section>
@@ -149,20 +154,149 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
         )}
       </LayoutGroup>
 
-      <TaskDialog task={allTasks.find((t) => t.id === editing) ?? null} onClose={() => setEditing(null)} />
+      <TaskDialog
+        task={open ? (allTasks.find((t) => t.id === open.id) ?? null) : null}
+        mode={open?.mode ?? "view"}
+        onMode={(mode) => setOpen((o) => (o ? { ...o, mode } : o))}
+        onClose={() => setOpen(null)}
+        onDelete={askDelete}
+      />
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Delete task?"
+        description={<>&ldquo;{deleting?.title}&rdquo;, its notes and its subtasks will be deleted for everyone on the team.</>}
+        confirmLabel="Delete task"
+        level={{ kind: "ack" }}
+        onConfirm={() => {
+          const t = deleting;
+          if (!t) return;
+          run(() => deleteTask({ teamId: team.id, itemId: t.id }), {
+            optimistic: () => removeTask(t.id),
+            success: "Task deleted.",
+          });
+        }}
+      />
     </div>
+  );
+}
+
+type CardActions = { onView: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: TaskDTO) => void };
+
+// A pointer that's over a column wins; otherwise the column the card overlaps most.
+const collision: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length ? hits : rectIntersection(args);
+};
+
+/**
+ * Kanban with drag and drop: press and drag a card (long-press on touch) onto
+ * another column to move it. People who can't move a task simply can't pick
+ * it up; the server checks the move either way. The "Move to" menu does the
+ * same from the keyboard.
+ */
+function Board({ tasks, scoped, ...actions }: { tasks: TaskDTO[]; scoped: boolean } & CardActions) {
+  const setStatus = useSetStatus();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+  );
+  const active = activeId ? tasks.find((t) => t.id === activeId) : undefined;
+
+  const onDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
+    const task = tasks.find((t) => t.id === e.active.id);
+    const to = e.over?.id as TaskStatus | undefined;
+    if (task && to && to !== task.status) setStatus(task, to);
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collision}
+      onDragStart={(e) => setActiveId(String(e.active.id))}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveId(null)}
+      accessibility={{
+        announcements: {
+          onDragStart: () => "Picked up a task.",
+          onDragOver: ({ over }) => (over ? `Over ${TASK_COLUMNS.find((c) => c.status === over.id)?.label ?? "a column"}.` : "Not over a column."),
+          onDragEnd: ({ over }) => (over ? `Moved to ${TASK_COLUMNS.find((c) => c.status === over.id)?.label ?? "a column"}.` : "Put back."),
+          onDragCancel: () => "Move cancelled.",
+        },
+      }}
+    >
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {TASK_COLUMNS.map((col) => {
+          const all = tasks.filter((t) => t.status === col.status);
+          // Done can grow forever; the board shows the latest, Shipped shows all.
+          const items = col.status === "DONE" ? [...all].sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")).slice(0, 12) : all;
+          return (
+            <BoardColumn key={col.status} status={col.status} label={col.label} count={all.length} dragging={!!active}>
+              <AnimatePresence initial={false} mode="popLayout">
+                {items.map((t) => (
+                  <TaskCard key={t.id} task={t} scoped={scoped} {...actions} />
+                ))}
+              </AnimatePresence>
+              {!items.length && <p className="px-2 py-4 text-xs text-ink-3">{active ? "Drop it here." : "Nothing here."}</p>}
+            </BoardColumn>
+          );
+        })}
+      </div>
+      {/* The card you're holding: a tilted, lifted copy that follows the pointer. */}
+      <DragOverlay dropAnimation={null}>{active ? <CardGhost task={active} /> : null}</DragOverlay>
+    </DndContext>
+  );
+}
+
+function BoardColumn({ status, label, count, dragging, children }: { status: TaskStatus; label: string; count: number; dragging: boolean; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  return (
+    <section
+      ref={setNodeRef}
+      aria-label={label}
+      className={cx(
+        "flex min-h-40 flex-col rounded-2xl p-2 transition-[background-color,box-shadow] duration-200",
+        isOver ? "bg-accent/10 shadow-[inset_0_0_0_1.5px_var(--accent)]" : dragging ? "bg-surface/80 shadow-[inset_0_0_0_1px_var(--line-strong)]" : "bg-surface/60",
+      )}
+    >
+      <header className="flex items-center gap-2 px-2 pb-2 pt-1">
+        <StatusGlyph status={status} />
+        <h3 className="text-[13px] font-medium text-ink">{label}</h3>
+        <span className="font-mono text-[11px] text-ink-3">{count}</span>
+      </header>
+      <ul className="flex flex-col gap-2">{children}</ul>
+    </section>
+  );
+}
+
+function CardGhost({ task }: { task: TaskDTO }) {
+  return (
+    <motion.div
+      initial={{ scale: 1, rotate: 0 }}
+      animate={{ scale: 1.04, rotate: -2 }}
+      transition={{ type: "spring", stiffness: 420, damping: 26 }}
+      className="cursor-grabbing rounded-xl bg-surface-2 p-3 shadow-[0_24px_50px_-18px_rgba(0,0,0,0.8),inset_0_0_0_1px_var(--accent)]"
+    >
+      <p className="text-[14px] leading-snug text-ink">{task.title}</p>
+      <div className="mt-2.5 flex items-center gap-2">
+        <AvatarStack ids={task.assigneeIds} />
+        <PriorityBadge value={task.priority} />
+      </div>
+    </motion.div>
   );
 }
 
 /* ── Quick add (people who can create tasks) ────────────────────────────── */
 
-function NewTask({ projectId }: { projectId?: string }) {
-  const { team, run, addTask, ideas, viewer } = useWorkspace();
+function NewTask({ projectId, onCreated }: { projectId?: string; onCreated: (id: string) => void }) {
+  const { team, run, addTask, ideas, viewer, isPending } = useWorkspace();
   const [title, setTitle] = useState("");
   const [picked, setPicked] = useState("");
   const [assignees, setAssignees] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<Visibility>("TEAM");
-  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !i.id.startsWith("tmp-"));
+  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !isPending(i.id));
   const target = projectId ?? (picked || null);
 
   const submit = (e: React.FormEvent) => {
@@ -173,16 +307,19 @@ function NewTask({ projectId }: { projectId?: string }) {
     const ids = assignees;
     const now = new Date().toISOString();
     const proj = target ? projects.find((p) => p.id === target) : undefined;
-    run(() => createTask({ teamId: team.id, title: t, projectId: target, assigneeIds: ids, visibility }), {
+    const taskId = newId();
+    run(() => createTask({ id: taskId, teamId: team.id, title: t, projectId: target, assigneeIds: ids, visibility }), {
+      pendingId: taskId,
       optimistic: () =>
         addTask({
-          id: `tmp-${now}`,
+          id: taskId,
           title: t,
           description: null,
           notes: null,
           status: "TODO",
           priority: "MEDIUM",
           visibility,
+          tags: [],
           createdById: viewer.id,
           assigneeIds: ids,
           focus: [],
@@ -194,6 +331,7 @@ function NewTask({ projectId }: { projectId?: string }) {
           updatedAt: now,
         }),
       success: visibility === "ASSIGNEES" ? "Private task added." : undefined,
+      onOk: () => onCreated(taskId),
     });
   };
 
@@ -262,7 +400,7 @@ export function StatusGlyph({ status }: { status: TaskStatus }) {
 
 /** What the viewer may do with a task. Mirrors the server rules exactly; the server still enforces them. */
 export function useTaskAccess(task: TaskDTO) {
-  const { viewer, perms } = useWorkspace();
+  const { viewer, perms, isPending } = useWorkspace();
   const facts: TaskAccessFacts = {
     me: viewer.id,
     perms,
@@ -271,7 +409,7 @@ export function useTaskAccess(task: TaskDTO) {
     visibility: task.visibility,
     subtaskAssigneeIds: task.subtasks.flatMap((s) => s.assigneeIds),
   };
-  const temp = task.id.startsWith("tmp-");
+  const temp = isPending(task.id);
   const edit = !temp && canEditTask(facts);
   return {
     facts,
@@ -284,13 +422,10 @@ export function useTaskAccess(task: TaskDTO) {
   };
 }
 
-function useTaskControls(task: TaskDTO) {
-  const { team, viewer, run, patchTask, tasks } = useWorkspace();
-  const access = useTaskAccess(task);
-  const [striking, setStriking] = useState(false);
-  const inFocus = task.focus.some((f) => f.userId === viewer.id);
-
-  const setStatus = (status: TaskStatus) =>
+/** Moves any task to a column, optimistically. Used by the cards and by drag and drop. */
+function useSetStatus() {
+  const { team, viewer, run, patchTask } = useWorkspace();
+  return (task: TaskDTO, status: TaskStatus) =>
     run(() => setTaskStatus({ teamId: team.id, itemId: task.id, status }), {
       optimistic: () =>
         patchTask(task.id, {
@@ -300,6 +435,15 @@ function useTaskControls(task: TaskDTO) {
           completedById: status === "DONE" ? viewer.id : null,
         }),
     });
+}
+
+function useTaskControls(task: TaskDTO) {
+  const { team, viewer, run, patchTask, tasks } = useWorkspace();
+  const access = useTaskAccess(task);
+  const change = useSetStatus();
+  const [striking, setStriking] = useState(false);
+  const inFocus = task.focus.some((f) => f.userId === viewer.id);
+  const setStatus = (status: TaskStatus) => change(task, status);
 
   const markDone = () => {
     setStriking(true);
@@ -419,22 +563,51 @@ export function AssigneesPicker({
   );
 }
 
-function MoveMenu({ task, onMove }: { task: TaskDTO; onMove: (s: TaskStatus) => void }) {
+/** The ⋯ menu on a task: edit it, move it, or delete it (each only when allowed). */
+function TaskMenu({
+  task,
+  can,
+  onEdit,
+  onMove,
+  onDelete,
+}: {
+  task: TaskDTO;
+  can: { edit: boolean; move: boolean; remove: boolean };
+  onEdit: () => void;
+  onMove: (s: TaskStatus) => void;
+  onDelete: () => void;
+}) {
+  if (!can.edit && !can.move && !can.remove) return null;
   return (
     <Popover
-      label="Move task"
+      label="Task actions"
       align="end"
       triggerClassName="size-7 justify-center text-ink-3 hover:text-ink"
       trigger={<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><circle cx="3" cy="7" r="1.2" fill="currentColor" /><circle cx="7" cy="7" r="1.2" fill="currentColor" /><circle cx="11" cy="7" r="1.2" fill="currentColor" /></svg>}
     >
       {(close) => (
         <>
-          <p className="px-2.5 pb-1 pt-1 text-xs text-ink-3">Move to</p>
-          {TASK_COLUMNS.filter((c) => c.status !== task.status).map((c) => (
-            <MenuItem key={c.status} onSelect={() => { onMove(c.status); close(); }}>
-              <StatusGlyph status={c.status} /> {c.label}
+          {can.edit && (
+            <MenuItem onSelect={() => { close(); onEdit(); }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+              Edit task
             </MenuItem>
-          ))}
+          )}
+          {can.move && (
+            <>
+              <p className="px-2.5 pb-1 pt-2 text-xs text-ink-3">Move to</p>
+              {TASK_COLUMNS.filter((c) => c.status !== task.status).map((c) => (
+                <MenuItem key={c.status} onSelect={() => { onMove(c.status); close(); }}>
+                  <StatusGlyph status={c.status} /> {c.label}
+                </MenuItem>
+              ))}
+            </>
+          )}
+          {can.remove && (
+            <MenuItem onSelect={() => { close(); onDelete(); }}>
+              <span className="text-rose">Delete task</span>
+            </MenuItem>
+          )}
         </>
       )}
     </Popover>
@@ -481,38 +654,58 @@ function TaskMeta({ task }: { task: TaskDTO }) {
 
 /* ── Kanban card ────────────────────────────────────────────────────────── */
 
-function TaskCard({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; onOpen: () => void }) {
+/**
+ * A card on the board. Tapping it opens a read-only view of the task; editing
+ * lives in the ⋯ menu. Cards you can move can be dragged to another column.
+ */
+function TaskCard({ task, scoped, onView, onEdit, onDelete }: { task: TaskDTO; scoped: boolean } & CardActions) {
   const { member } = useWorkspace();
   const c = useTaskControls(task);
   const done = task.status === "DONE";
   const glowMember = member(task.focus[0]?.userId);
   const glow = glowMember?.accentColor ?? null;
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id: task.id, disabled: !c.move });
 
   return (
     <motion.li
+      ref={setNodeRef}
+      {...listeners}
       layout
       layoutId={task.id}
       initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: c.temp ? 0.65 : 1, scale: 1 }}
+      animate={{ opacity: isDragging ? 0.35 : c.temp ? 0.65 : 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       transition={spring}
-      className="group rounded-xl bg-surface p-3 shadow-highlight transition-colors hover:bg-surface-2"
+      className={cx(
+        "group relative touch-manipulation select-none rounded-xl bg-surface p-3 shadow-highlight transition-colors hover:bg-surface-2",
+        c.move && "cursor-grab active:cursor-grabbing",
+      )}
       style={glow ? { boxShadow: `inset 0 0 0 1px ${glow}66, 0 0 24px -12px ${glow}` } : undefined}
     >
       <div className="flex items-start gap-2">
+        {/* Opens the task; its hit area covers the whole card (controls sit above it). */}
         <button
           type="button"
-          onClick={onOpen}
+          onClick={() => onView(task.id)}
           disabled={c.temp}
-          className={cx("min-w-0 flex-1 text-left text-[14px] leading-snug transition-colors hover:text-accent", done ? "text-ink-3" : "text-ink")}
+          className={cx("min-w-0 flex-1 text-left text-[14px] leading-snug transition-colors after:absolute after:inset-0 after:rounded-xl group-hover:text-accent", done ? "text-ink-3" : "text-ink")}
         >
           <Strike on={c.striking || done}>{task.title}</Strike>
           <TaskMeta task={task} />
         </button>
-        {c.move && <MoveMenu task={task} onMove={c.setStatus} />}
+        <span className="relative z-10">
+          <TaskMenu task={task} can={{ edit: c.edit, move: c.move, remove: c.remove }} onEdit={() => onEdit(task.id)} onMove={c.setStatus} onDelete={() => onDelete(task)} />
+        </span>
       </div>
-      {task.idea && !scoped && <ProjectChip idea={task.idea} className="mt-1.5" />}
-      <div className="mt-3 flex items-center gap-1">
+      {(task.tags.length > 0 || (task.idea && !scoped)) && (
+        <div className="relative z-10 mt-1.5 flex flex-wrap items-center gap-1.5">
+          {task.idea && !scoped && <ProjectChip idea={task.idea} className="max-w-full" />}
+          {task.tags.map((t) => (
+            <TagPill key={t} name={t} />
+          ))}
+        </div>
+      )}
+      <div className="relative z-10 mt-3 flex items-center gap-1">
         {c.edit ? <AssigneesPicker value={task.assigneeIds} onChange={c.assign} compact /> : <span className="px-1"><AvatarStack ids={task.assigneeIds} /></span>}
         {c.edit ? <PriorityPicker value={task.priority} onChange={c.priority} /> : <PriorityBadge value={task.priority} />}
         <span className="flex-1" />
@@ -532,7 +725,7 @@ function TaskCard({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; on
 
 /* ── Compact list row ───────────────────────────────────────────────────── */
 
-function TaskRow({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; onOpen: () => void }) {
+function TaskRow({ task, scoped, onView, onEdit, onDelete }: { task: TaskDTO; scoped: boolean } & CardActions) {
   const c = useTaskControls(task);
   const done = task.status === "DONE";
   return (
@@ -557,7 +750,7 @@ function TaskRow({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; onO
       )}
       <button
         type="button"
-        onClick={onOpen}
+        onClick={() => onView(task.id)}
         disabled={c.temp}
         className={cx("min-w-0 flex-1 truncate text-left text-[14px] transition-colors hover:text-accent", done ? "text-ink-3" : "text-ink")}
       >
@@ -571,6 +764,7 @@ function TaskRow({ task, scoped, onOpen }: { task: TaskDTO; scoped: boolean; onO
       {!done && c.focusable && !c.inFocus && (
         <button type="button" onClick={c.focus} className={cx(btn.ghost, btn.xs, "hidden sm:inline-flex")}>Start working</button>
       )}
+      <TaskMenu task={task} can={{ edit: c.edit, move: c.move, remove: c.remove }} onEdit={() => onEdit(task.id)} onMove={c.setStatus} onDelete={() => onDelete(task)} />
     </motion.li>
   );
 }
@@ -635,47 +829,78 @@ function CheckGlyph() {
   );
 }
 
-/* ── Task detail dialog ─────────────────────────────────────────────────── */
+/* ── Task dialog: view, or edit ─────────────────────────────────────────── */
 
-export function TaskDialog({ task, onClose }: { task: TaskDTO | null; onClose: () => void }) {
-  const { team, run, removeTask } = useWorkspace();
-  const [deleting, setDeleting] = useState<TaskDTO | null>(null);
-
+/**
+ * One task. "view" shows everything read-only (subtasks can still be ticked
+ * by the people allowed to); "edit" holds the form. The two slide into each
+ * other inside the same dialog.
+ */
+export function TaskDialog({
+  task,
+  mode,
+  onMode,
+  onClose,
+  onDelete,
+}: {
+  task: TaskDTO | null;
+  mode: "view" | "edit";
+  onMode: (m: "view" | "edit") => void;
+  onClose: () => void;
+  onDelete: (t: TaskDTO) => void;
+}) {
+  const access = useTaskAccessOrNull(task);
+  const editing = mode === "edit" && !!access?.edit;
   return (
-    <>
-      <Dialog
-        open={!!task && !deleting}
-        onClose={onClose}
-        title="Task"
-        size="lg"
-        description={task?.visibility === "ASSIGNEES" ? "Private: only assignees, its creator and team owners can see it." : undefined}
-      >
-        {task && <TaskDetail key={task.id} task={task} onClose={onClose} onDelete={() => setDeleting(task)} />}
-      </Dialog>
-      <ConfirmDialog
-        open={!!deleting}
-        onClose={() => {
-          setDeleting(null);
-          onClose();
-        }}
-        title="Delete task?"
-        description={<>&ldquo;{deleting?.title}&rdquo;, its notes and its subtasks will be deleted for everyone on the team.</>}
-        confirmLabel="Delete task"
-        level={{ kind: "ack" }}
-        onConfirm={() => {
-          const t = deleting;
-          if (!t) return;
-          run(() => deleteTask({ teamId: team.id, itemId: t.id }), {
-            optimistic: () => removeTask(t.id),
-            success: "Task deleted.",
-          });
-        }}
-      />
-    </>
+    <Dialog
+      open={!!task}
+      onClose={onClose}
+      title={editing ? "Edit task" : "Task"}
+      size="lg"
+      description={task?.visibility === "ASSIGNEES" ? "Private: only assignees, its creator and team owners can see it." : undefined}
+    >
+      {task && (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={editing ? "edit" : "view"}
+            initial={{ opacity: 0, x: editing ? 18 : -18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: editing ? -18 : 18 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {editing ? (
+              <div className="space-y-5">
+                <TaskEditForm key={task.id} task={task} onDone={() => onMode("view")} onDelete={access?.remove ? () => onDelete(task) : undefined} />
+                <Subtasks task={task} facts={access!.facts} canEdit />
+              </div>
+            ) : (
+              <TaskView task={task} onEdit={() => onMode("edit")} onDelete={() => onDelete(task)} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      )}
+    </Dialog>
   );
 }
 
-function TaskDetail({ task, onClose, onDelete }: { task: TaskDTO; onClose: () => void; onDelete: () => void }) {
+/** useTaskAccess for a task that may not be there (hooks can't be called conditionally). */
+function useTaskAccessOrNull(task: TaskDTO | null) {
+  const { viewer, perms, isPending } = useWorkspace();
+  if (!task) return null;
+  const facts: TaskAccessFacts = {
+    me: viewer.id,
+    perms,
+    createdById: task.createdById,
+    assigneeIds: task.assigneeIds,
+    visibility: task.visibility,
+    subtaskAssigneeIds: task.subtasks.flatMap((s) => s.assigneeIds),
+  };
+  const temp = isPending(task.id);
+  return { facts, edit: !temp && canEditTask(facts), remove: !temp && canDeleteTask(facts) };
+}
+
+/** Everything about a task, read-only. Editing is one tap away for people who may edit. */
+function TaskView({ task, onEdit, onDelete }: { task: TaskDTO; onEdit: () => void; onDelete: () => void }) {
   const access = useTaskAccess(task);
   const c = useTaskControls(task);
   const column = TASK_COLUMNS.find((col) => col.status === task.status)?.label;
@@ -683,40 +908,62 @@ function TaskDetail({ task, onClose, onDelete }: { task: TaskDTO; onClose: () =>
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-3">
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
         <span className="inline-flex items-center gap-1.5"><StatusGlyph status={task.status} /> {column}</span>
-        {!access.edit && <AvatarStack ids={task.assigneeIds} size={22} max={6} />}
-        {!access.edit && <PriorityBadge value={task.priority} />}
         <span className="flex-1" />
         {!done && c.focusable && !c.inFocus && (
           <button type="button" onClick={c.focus} className={cx(btn.ghost, btn.xs)}>Start working</button>
         )}
         {!done && access.move && (
-          <button type="button" onClick={() => c.setStatus("DONE")} className={cx(btn.outline, btn.xs)}>Mark done</button>
+          <button type="button" onClick={c.markDone} disabled={c.striking} className={cx(btn.outline, btn.xs)}>Mark done</button>
         )}
         {done && access.move && (
           <button type="button" onClick={() => c.setStatus("READY")} className={cx(btn.ghost, btn.xs)}>Reopen</button>
         )}
+        {access.edit && (
+          <button type="button" onClick={onEdit} className={cx(btn.primary, btn.xs)}>
+            Edit
+          </button>
+        )}
       </div>
 
-      {access.edit ? <TaskEditForm task={task} onClose={onClose} onDelete={access.remove ? onDelete : undefined} /> : <TaskReadOnly task={task} onDelete={access.remove ? onDelete : undefined} />}
+      <h3 className="text-xl font-semibold leading-snug tracking-tight">
+        <Strike on={c.striking || done}>{task.title}</Strike>
+      </h3>
 
-      <Subtasks task={task} facts={access.facts} canEdit={access.edit} />
+      <dl className="grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
+        <Fact label="Project">{task.idea ? <ProjectChip idea={task.idea} className="text-[13px]" /> : <span className="text-ink-3">None</span>}</Fact>
+        <Fact label="Priority"><PriorityBadge value={task.priority} /></Fact>
+        <Fact label="Assignees"><AvatarStack ids={task.assigneeIds} size={22} max={6} /></Fact>
+        <Fact label="Visible to">{task.visibility === "ASSIGNEES" ? <span className="inline-flex items-center gap-1 text-amber"><LockGlyph /> Assignees</span> : <span className="text-ink-2">Whole team</span>}</Fact>
+      </dl>
+
+      {task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {task.tags.map((t) => (
+            <TagPill key={t} name={t} />
+          ))}
+        </div>
+      )}
+
+      <Section label="Description">{task.description}</Section>
+      <Section label="Notes">{task.notes}</Section>
+
+      <Subtasks task={task} facts={access.facts} canEdit={false} />
+
+      {!access.edit && <p className="text-[12px] text-ink-3">You can work on and finish tasks assigned to you. Ask a team owner to change the details.</p>}
+      {access.remove && (
+        <button type="button" onClick={onDelete} className={cx(btn.ghost, btn.sm, "-ml-3 text-rose hover:text-rose")}>Delete task</button>
+      )}
     </div>
   );
 }
 
-function TaskReadOnly({ task, onDelete }: { task: TaskDTO; onDelete?: () => void }) {
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold leading-snug tracking-tight">{task.title}</h3>
-      {task.idea && <p className="text-[13px] text-ink-3"><span className="text-violet">◆</span> {task.idea.title}</p>}
-      <Section label="Description">{task.description}</Section>
-      <Section label="Notes">{task.notes}</Section>
-      <p className="text-[12px] text-ink-3">You can work on and finish tasks assigned to you. Ask a team owner to change the details.</p>
-      {onDelete && (
-        <button type="button" onClick={onDelete} className={cx(btn.ghost, btn.sm, "-ml-3 text-rose hover:text-rose")}>Delete task</button>
-      )}
+    <div className="min-w-0">
+      <dt className="text-[12px] font-medium text-ink-3">{label}</dt>
+      <dd className="mt-1 flex min-h-7 items-center">{children}</dd>
     </div>
   );
 }
@@ -730,8 +977,8 @@ function Section({ label, children }: { label: string; children: string | null }
   );
 }
 
-function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () => void; onDelete?: () => void }) {
-  const { team, ideas, run, patchTask } = useWorkspace();
+function TaskEditForm({ task, onDone, onDelete }: { task: TaskDTO; onDone: () => void; onDelete?: () => void }) {
+  const { team, ideas, run, patchTask, isPending } = useWorkspace();
   const c = useTaskControls(task);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -739,7 +986,8 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
   const [projectId, setProjectId] = useState(task.idea?.id ?? "");
   const [priority, setPriority] = useState(task.priority);
   const [visibility, setVisibility] = useState<Visibility>(task.visibility);
-  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !i.id.startsWith("tmp-"));
+  const [tags, setTags] = useState<string[]>(task.tags);
+  const projects = ideas.filter((i) => i.status !== "ARCHIVED" && !isPending(i.id));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,7 +1002,8 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
     if ((projectId || null) !== (task.idea?.id ?? null)) patch.projectId = projectId || null;
     if (priority !== task.priority) patch.priority = priority;
     if (visibility !== task.visibility) patch.visibility = visibility;
-    onClose();
+    if (tags.join(",") !== task.tags.join(",")) patch.tags = tags;
+    onDone();
     if (!Object.keys(patch).length) return;
     const proj = projects.find((p) => p.id === projectId);
     run(() => updateTask({ teamId: team.id, itemId: task.id, ...patch }), {
@@ -765,6 +1014,7 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
           notes: n || null,
           priority,
           visibility,
+          tags,
           idea: proj ? { id: proj.id, title: proj.title } : null,
         }),
       success: "Task saved.",
@@ -823,13 +1073,18 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
           </select>
         </Field>
       </div>
+      <Field label="Tags" htmlFor="task-tags">
+        <div id="task-tags">
+          <TagPicker value={tags} onChange={setTags} />
+        </div>
+      </Field>
       <div className="flex items-center justify-end gap-2 pt-1">
         {onDelete && (
           <button type="button" onClick={onDelete} className={cx(btn.ghost, btn.sm, "mr-auto -ml-3 text-rose hover:text-rose")}>
             Delete task
           </button>
         )}
-        <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
+        <button type="button" onClick={onDone} className={cx(btn.ghost, btn.sm)}>Cancel</button>
         <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>Save task</button>
       </div>
     </form>
@@ -839,7 +1094,7 @@ function TaskEditForm({ task, onClose, onDelete }: { task: TaskDTO; onClose: () 
 /* ── Subtasks ───────────────────────────────────────────────────────────── */
 
 function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFacts; canEdit: boolean }) {
-  const { team, run, patchTask } = useWorkspace();
+  const { team, run, patchTask, isPending } = useWorkspace();
   const [draft, setDraft] = useState("");
   const [draftPeople, setDraftPeople] = useState<string[]>([]);
   const done = task.subtasks.filter((s) => s.done).length;
@@ -853,10 +1108,12 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
     setDraft("");
     const people = draftPeople;
     setDraftPeople([]);
-    run(() => createSubtask({ teamId: team.id, taskId: task.id, title: t, assigneeIds: people }), {
+    const subId = newId();
+    run(() => createSubtask({ id: subId, teamId: team.id, taskId: task.id, title: t, assigneeIds: people }), {
+      pendingId: subId,
       optimistic: () =>
         patchTask(task.id, {
-          subtasks: [...task.subtasks, { id: `tmp-${Date.now()}`, title: t, description: null, done: false, assigneeIds: people, completedAt: null }],
+          subtasks: [...task.subtasks, { id: subId, title: t, description: null, done: false, assigneeIds: people, completedAt: null }],
         }),
     });
   };
@@ -880,7 +1137,8 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
             key={s.id}
             sub={s}
             canEdit={canEdit}
-            canToggle={!s.id.startsWith("tmp-") && canToggleSubtask(facts, s.assigneeIds)}
+            temp={isPending(s.id)}
+            canToggle={!isPending(s.id) && canToggleSubtask(facts, s.assigneeIds)}
             onToggle={() =>
               run(() => toggleSubtask({ teamId: team.id, itemId: s.id, done: !s.done }), {
                 optimistic: () => patchSub(s.id, { done: !s.done, completedAt: s.done ? null : new Date().toISOString() }),
@@ -922,6 +1180,7 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
 
 function SubtaskRow({
   sub,
+  temp,
   canEdit,
   canToggle,
   onToggle,
@@ -930,6 +1189,7 @@ function SubtaskRow({
   onDelete,
 }: {
   sub: SubtaskDTO;
+  temp: boolean;
   canEdit: boolean;
   canToggle: boolean;
   onToggle: () => void;
@@ -940,7 +1200,6 @@ function SubtaskRow({
   const [title, setTitle] = useState(sub.title);
   const [description, setDescription] = useState(sub.description ?? "");
   const [open, setOpen] = useState(false);
-  const temp = sub.id.startsWith("tmp-");
   const commitTitle = () => {
     const t = title.trim();
     if (!t) return setTitle(sub.title);

@@ -16,6 +16,7 @@ import {
 import { stopFocus } from "@/app/actions/tasks";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import type { ActionResult } from "@/lib/action-types";
+import { markLocalChange } from "@/lib/live";
 import type { TeamPermission } from "@/lib/team-permissions";
 import type { IdeaDTO, MemberDTO, OutgoingInvite, TagDTO, TaskDTO, Viewer } from "@/lib/types";
 import { AppTeamBar } from "../_components/app-team-bar";
@@ -40,7 +41,12 @@ type Ctx = {
   member: (id: string | null | undefined) => MemberDTO | undefined;
   tasks: TaskDTO[];
   ideas: IdeaDTO[];
-  run: <T>(fn: () => Promise<ActionResult<T>>, opts?: { optimistic?: () => void; success?: string; onOk?: (data: T) => void }) => void;
+  run: <T>(
+    fn: () => Promise<ActionResult<T>>,
+    opts?: { optimistic?: () => void; success?: string; onOk?: (data: T) => void; /** Shown as saving until the server confirms. */ pendingId?: string },
+  ) => void;
+  /** True while something just created here is still being saved. */
+  isPending: (id: string) => boolean;
   patchTask: (id: string, patch: Partial<TaskDTO>) => void;
   addTask: (task: TaskDTO) => void;
   removeTask: (id: string) => void;
@@ -101,6 +107,8 @@ export function Workspace(props: {
   initialInvite?: boolean;
   /** First visit to a team: walk them through it. */
   showTour?: boolean;
+  /** The on-screen demo team after the welcome tour: nothing is ever sent to the server. */
+  demo?: boolean;
 }) {
   const router = useRouter();
   const [view, setViewState] = useState<View>(
@@ -145,7 +153,9 @@ export function Workspace(props: {
       setIdea(next === "vault" ? params.get("idea") : null);
     }
   }
-  useEffect(() => rememberTeam(props.team.slug), [props.team.slug]);
+  useEffect(() => {
+    if (!props.demo) rememberTeam(props.team.slug);
+  }, [props.team.slug, props.demo]);
 
   const [execTab, setExecTab] = useState<ExecTab>("projects");
   const [inviteOpen, setInviteOpen] = useState(!!props.initialInvite);
@@ -169,6 +179,9 @@ export function Workspace(props: {
     if (op.type === "remove") return state.filter((i) => i.id !== op.id);
     return state.map((i) => (i.id === op.id ? { ...i, ...op.patch } : i));
   });
+
+  // Items created here that the server hasn't confirmed yet (cleared automatically when the save ends).
+  const [pendingIds, addPending] = useOptimistic(new Set<string>() as ReadonlySet<string>, (s: ReadonlySet<string>, id: string) => new Set(s).add(id));
 
   const showToast = useCallback((text: string, tone: "ok" | "error" = "ok") => {
     setToast({ id: Date.now(), text, tone });
@@ -198,15 +211,20 @@ export function Workspace(props: {
     setExecTab,
     setView,
     run: (fn, opts) =>
-      startTransition(async () => {
+      props.demo
+        ? showToast("This is the demo team, so nothing here is saved.")
+        : startTransition(async () => {
+        if (opts?.pendingId) addPending(opts.pendingId);
         opts?.optimistic?.();
         const res = await fn();
         if (!res.ok) showToast(res.error, "error");
         else {
+          markLocalChange();
           if (opts?.success) showToast(opts.success);
           opts?.onOk?.(res.data);
         }
       }),
+    isPending: (id) => pendingIds.has(id),
     patchTask: (id, patch) => applyTask({ type: "patch", id, patch }),
     addTask: (task) => applyTask({ type: "add", task }),
     removeTask: (id) => applyTask({ type: "remove", id }),
@@ -346,7 +364,7 @@ export function Workspace(props: {
           )}
         </AnimatePresence>
       </div>
-      <TeamTour show={!!props.showTour} />
+      <TeamTour show={!!props.showTour} demo={props.demo} />
     </WorkspaceContext>
   );
 }

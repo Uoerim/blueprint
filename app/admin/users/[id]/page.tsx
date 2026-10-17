@@ -22,6 +22,7 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
       id: true,
       clerkId: true,
       username: true,
+      deletedUsername: true,
       displayName: true,
       email: true,
       accentColor: true,
@@ -51,9 +52,9 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
     }),
   ]);
   const actors = new Map(
-    (await db.user.findMany({ where: { id: { in: [...new Set(history.map((h) => h.userId))] } }, select: { id: true, username: true } })).map((u) => [
+    (await db.user.findMany({ where: { id: { in: [...new Set(history.map((h) => h.userId))] } }, select: { id: true, username: true, deletedUsername: true } })).map((u) => [
       u.id,
-      u.username,
+      u.username ?? (u.deletedUsername ? `${u.deletedUsername} (deleted)` : null),
     ]),
   );
 
@@ -79,7 +80,13 @@ export default async function AdminUser({ params }: PageProps<"/admin/users/[id]
         <Monogram name={user.username ?? user.email} color={user.accentColor} size={56} />
         <div className="min-w-0">
           <h1 className="font-mono text-2xl font-semibold tracking-tight" style={{ color: readable(user.accentColor) }}>
-            {user.username ? `@${user.username}` : user.deletedAt ? "Deleted account" : "No username yet"}
+            {user.username
+              ? `@${user.username}`
+              : user.deletedAt
+                ? user.deletedUsername
+                  ? `@${user.deletedUsername} (deleted)`
+                  : "Deleted account"
+                : "No username yet"}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-[14px] text-ink-2">
             {user.displayName && <span>{user.displayName}</span>}

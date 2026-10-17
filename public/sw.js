@@ -1,10 +1,15 @@
 /*
- * Blueprint service worker. Deliberately tiny:
+ * Blueprint service worker. Deliberately small:
  * - shows a friendly offline screen when a page can't load
- * - caches only the logo icons
+ * - keeps the app's own code, styles and fonts (/_next/static/...) on the
+ *   device after the first visit, so the installed app starts fast. Next.js
+ *   gives those files content-hashed names that never change, so a cached copy
+ *   is never stale.
  * It never caches pages, API responses or anything with your data.
  */
-const VERSION = "bp-shell-v1";
+const VERSION = "bp-shell-v2";
+const STATIC = "bp-static-v1";
+const STATIC_MAX = 400;
 const SHELL = ["/icon.svg", "/pwa-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -15,7 +20,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== STATIC).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -49,7 +54,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   const url = new URL(req.url);
-  if (url.origin === self.location.origin && SHELL.includes(url.pathname)) {
+  if (url.origin !== self.location.origin) return;
+  if (SHELL.includes(url.pathname)) {
     event.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+    return;
+  }
+  // Immutable build assets: cache first, fill the cache on the way.
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.open(STATIC).then(async (cache) => {
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res.ok && res.type === "basic") {
+          await cache.put(req, res.clone());
+          trim(cache);
+        }
+        return res;
+      }),
+    );
   }
 });
+
+// Old builds' files pile up over many deploys; keep the newest few hundred.
+async function trim(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= STATIC_MAX) return;
+  await Promise.all(keys.slice(0, keys.length - STATIC_MAX).map((k) => cache.delete(k)));
+}

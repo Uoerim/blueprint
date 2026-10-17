@@ -6,7 +6,7 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { assertMembers, requireTeamAccess, type TeamAccess } from "@/lib/team-access";
+import { assertMembers, requireTeamAccess, type TeamAccess, assertTeamTags } from "@/lib/team-access";
 import {
   canDeleteTask,
   canEditTask,
@@ -111,14 +111,17 @@ export async function createTask(input: unknown) {
     const access = await requireTeamAccess(data.teamId, ctx.user.id, "tasks.create");
     const assignees = await assertMembers(data.teamId, data.assigneeIds);
     await assertProject(data.teamId, data.projectId);
+    const tags = await assertTeamTags(data.teamId, data.tags);
     const task = await db.task.create({
       data: {
+        ...(data.id && { id: data.id }),
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
         notes: encryptOptional(data.notes, data.teamId),
         priority: data.priority,
         visibility: data.visibility,
+        tags,
         ideaId: data.projectId ?? null,
         createdById: access.userId,
         assignees: { create: assignees.map((userId) => ({ userId, teamId: data.teamId })) },
@@ -133,14 +136,16 @@ export async function createTask(input: unknown) {
 
 export async function updateTask(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title, description, notes, projectId, priority, visibility } = updateTaskSchema.parse(input);
+    const { teamId, itemId, title, description, notes, projectId, priority, visibility, tags } = updateTaskSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const { facts } = await loadTask(access, itemId);
     if (!canEditTask(facts)) deny();
     await assertProject(teamId, projectId);
+    const nextTags = tags === undefined ? undefined : await assertTeamTags(teamId, tags);
     await db.task.updateMany({
       where: { id: itemId, teamId },
       data: {
+        ...(nextTags !== undefined && { tags: nextTags }),
         ...(title !== undefined && { title: encryptText(title, teamId) }),
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
         ...(notes !== undefined && { notes: encryptOptional(notes, teamId) }),
@@ -266,7 +271,7 @@ export async function deleteTask(input: unknown) {
 
 export async function createSubtask(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, taskId, title, description, assigneeIds } = createSubtaskSchema.parse(input);
+    const { id: subId, teamId, taskId, title, description, assigneeIds } = createSubtaskSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const { facts } = await loadTask(access, taskId);
     if (!canEditTask(facts)) deny();
@@ -275,6 +280,7 @@ export async function createSubtask(input: unknown) {
     if (agg._count >= MAX_SUBTASKS) throw new ActionError(`A task can have at most ${MAX_SUBTASKS} subtasks.`);
     const sub = await db.subtask.create({
       data: {
+        ...(subId && { id: subId }),
         teamId,
         taskId,
         title: encryptText(title, teamId),

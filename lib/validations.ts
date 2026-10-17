@@ -111,6 +111,8 @@ export const tagSchema = z
   .pipe(z.string().regex(/^[a-z0-9-]{1,24}$/));
 
 export const createIdeaSchema = z.strictObject({
+  /** Chosen in the browser (lib/live.ts) so the optimistic item keeps its identity. */
+  id: id.optional(),
   teamId: id,
   title: text(1, LIMITS.title),
   description: optionalText(LIMITS.ideaBody),
@@ -141,6 +143,7 @@ export const promoteIdeaSchema = z.strictObject({
 });
 
 export const createTaskSchema = z.strictObject({
+  id: id.optional(),
   teamId: id,
   title: text(1, LIMITS.title),
   description: optionalText(LIMITS.description),
@@ -149,6 +152,7 @@ export const createTaskSchema = z.strictObject({
   assigneeIds: assigneeIdsSchema.default([]),
   visibility: visibilitySchema.default("TEAM"),
   projectId: id.nullable().optional(),
+  tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).default([]),
 });
 
 export const updateTaskSchema = z
@@ -161,12 +165,14 @@ export const updateTaskSchema = z
     projectId: id.nullable().optional(),
     priority: prioritySchema.optional(),
     visibility: visibilitySchema.optional(),
+    tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).optional(),
   })
   .refine((v) => Object.keys(v).length > 2, "Nothing to update");
 
 export const taskAssigneesSchema = z.strictObject({ teamId: id, itemId: id, userIds: assigneeIdsSchema });
 
 export const createSubtaskSchema = z.strictObject({
+  id: id.optional(),
   teamId: id,
   taskId: id,
   title: text(1, LIMITS.title),
@@ -180,6 +186,7 @@ export const toggleSubtaskSchema = z.strictObject({ teamId: id, itemId: id, done
 export const subtaskAssigneesSchema = taskAssigneesSchema;
 
 export const createProjectSchema = z.strictObject({
+  id: id.optional(),
   teamId: id,
   title: text(1, LIMITS.title),
   description: optionalText(LIMITS.description),
@@ -213,6 +220,35 @@ export const adminRenameSchema = z.strictObject({ userId: id, username: username
 export const adminDeleteUserSchema = z.strictObject({ userId: id, confirm: z.string().max(40) });
 export const adminDeleteTeamSchema = z.strictObject({ teamId: id, confirm: z.string().max(60) });
 
+/* ── Import a project from JSON ──────────────────────────────────────────── */
+
+const importSubtask = z.union([
+  text(1, LIMITS.title),
+  z.strictObject({ title: text(1, LIMITS.title), description: optionalText(LIMITS.description) }),
+]);
+
+/** What the AI (or a person) writes; the same rules as making things by hand. */
+export const importPlanSchema = z.strictObject({
+  title: text(1, LIMITS.title),
+  description: optionalText(LIMITS.description),
+  tags: z.array(z.string().max(48)).max(10).default([]),
+  tasks: z
+    .array(
+      z.strictObject({
+        title: text(1, LIMITS.title),
+        description: optionalText(LIMITS.description),
+        notes: optionalText(LIMITS.notes),
+        priority: prioritySchema.default("MEDIUM"),
+        tags: z.array(z.string().max(48)).max(10).default([]),
+        subtasks: z.array(importSubtask).max(LIMITS.importSubtasks, `At most ${LIMITS.importSubtasks} subtasks per task.`).default([]),
+      }),
+    )
+    .max(LIMITS.importTasks, `At most ${LIMITS.importTasks} tasks per import.`)
+    .default([]),
+});
+export type ImportPlan = z.infer<typeof importPlanSchema>;
+export const importProjectSchema = z.strictObject({ teamId: id, plan: importPlanSchema });
+
 /* ── Guided tours ───────────────────────────────────────────────────────── */
 
 export const tourSchema = z.strictObject({ tour: z.enum(TOURS) });
@@ -220,6 +256,8 @@ export const tourSchema = z.strictObject({ tour: z.enum(TOURS) });
 /* ── Bug reports ────────────────────────────────────────────────────────── */
 
 export const bugReportSchema = z.strictObject({
+  /** A bug report or a feature request. */
+  kind: z.enum(["BUG", "FEATURE"]).default("BUG"),
   body: text(10, 2000),
   /** The page they were on: a path only, no query string or other site. */
   page: z

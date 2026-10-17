@@ -119,6 +119,8 @@
 }
 
 html {
+  /* Locking scroll for a dialog hides the scrollbar; keep its space so the page never shifts sideways. */
+  scrollbar-gutter: stable;
   background: var(--bg);
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
@@ -308,3 +310,6 @@ body {
     position: relative;
   }
 }
+
+/* Dialogs take focus themselves when they open; no ring around the whole panel. */
+[role="dialog"][tabindex="-1"]:focus { outline: none; }

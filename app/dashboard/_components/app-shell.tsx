@@ -114,8 +114,8 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   const params = useSearchParams();
   const teams = useTeams();
   const onTeam = /^\/dashboard\/([a-z0-9-]+)(\/|$)/.exec(path);
-  // "me" (Profile) and "new" (the no-team screen) are reserved, never team slugs.
-  const slugHere = onTeam && onTeam[1] !== "me" && onTeam[1] !== "new" ? onTeam[1] : null;
+  // "me" (Profile), "new" (the no-team screen) and "tour" (the demo team) are reserved, never team slugs.
+  const slugHere = onTeam && !["me", "new", "tour"].includes(onTeam[1]!) ? onTeam[1] : null;
   const team = slugHere ?? lastTeam ?? teams[0]?.slug ?? null;
   const view = params.get("view");
   const here = `${path}?${params.toString()}`;

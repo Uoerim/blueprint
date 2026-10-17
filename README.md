@@ -60,14 +60,17 @@ When something ships, it stays on the record with your `@username` on it.
 - **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour (any colour, from presets or the full colour spectrum) and delete tags. Renaming or deleting one updates every idea that uses it.
 - **Idea pages.** Open any raw idea to edit it and plan it with tasks and subtasks while it's still in the vault.
 - **Promote to a project.** One click moves an idea, with any tasks it already has, into Execution and opens its project page. Or start a project from scratch.
-- **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks.
+- **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks. **Project settings** on the page hold its name, description and tags, plus *Back to ideas*, *Archive* and *Delete*.
 - **Back to ideas.** Send a project in Execution back to the idea vault as if it had just been captured. Its tasks stay, but progress is reset: every task returns to Backlog, subtasks are unticked and live focus stops. The warning offers **Archive instead** for keeping everything as it is.
 - **Archive and restore.** Archive ideas or projects to tidy up, with all their progress, and bring them back any time from team settings.
 
 ### Getting work done
 
 - **Execution board.** Kanban (`Backlog → Ready → In progress → Done`) or a compact list, filtered to *My tasks*, *All tasks*, unassigned, or any teammate.
-- **Rich tasks.** Every task has a title, a description, notes, a priority and a project, plus a checklist of **subtasks**, each with its own description.
+- **Drag and drop.** Drag a card to another column to move it: press and drag with a mouse, long-press and drag on a phone. A lifted copy follows your finger and the column under it lights up. People who can't move a task can't pick it up, and the ⋯ menu's *Move to* does the same from the keyboard.
+- **View first, edit on purpose.** Tapping a task opens a read-only view of everything about it (details, tags, subtasks, who's on it). Editing lives behind **Edit** in that view or in the card's ⋯ menu, alongside *Move to* and *Delete*. A new task opens straight in the editor so you can add its details and subtasks.
+- **Rich tasks.** Every task has a title, a description, notes, a priority, a project and the team's **tags**, plus a checklist of **subtasks**, each with its own description.
+- **Import from JSON.** Plan a project with any AI assistant: copy Blueprint's prompt (it includes the format, the limits and your team's tags), paste the JSON it writes, check the live preview, and create the project with its tasks and subtasks in one go. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; unknown tags are left off.
 - **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
 - **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
 - **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task.
@@ -85,11 +88,11 @@ When something ships, it stays on the record with your `@username` on it.
 ### Account and home
 
 - **Dashboard home.** After signing in you land on a home page with all your teams: search them, star favourites to keep them on top, see how many open tasks are yours in each, and accept invites.
-- **Guided tours.** New accounts get a short welcome tour of the dashboard, and a team tour the first time they open a team (capture, promote, plan, live focus, shipped, invites). Each step spotlights the real control and adapts to the layout: a card beside it on desktop, a bottom card on phones, and the tab bar and Profile tab in the installed app. Finished tours are saved to the account, and **Take the tour** (account menu or Profile) replays them. Keyboard friendly: arrows to move, Esc to skip.
+- **Guided tours.** New accounts get a short welcome tour of the dashboard, then a walk through a **demo team** that exists only on their screen (capture, promote, plan, live focus, shipped, invites). Steps that would have nothing to point at show a clearly marked sample instead (an invite, an idea) and remove it afterwards; nothing is saved. Each step spotlights the real control and adapts to the layout: a card beside it on desktop, a bottom card on phones, and the tab bar and Profile tab in the installed app. Finished tours are saved to the account, and **Take the tour** (account menu or Profile) replays them. Keyboard friendly: arrows to move, Esc to skip.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
-- **Support and bug reports.** A *Contact support* window in the dashboard, user menu and app Profile tab: report a bug right there (it lands in the admin panel's **Bug reports** inbox) or email support. Plus Privacy Policy and Terms pages.
+- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. Plus Privacy Policy and Terms pages.
 
 ### Phones and installing
 
@@ -415,12 +418,12 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 | **Accounts** | Username, colour, email, site role, status, team count and join date; search by username, name or email; filter staff, suspended or deleted accounts |
 | **Account** | Details, teams, activity, and actions: change username (admins), change site role, suspend with a reason, sign out everywhere, delete |
 | **Teams** | Name, slug, owner, member/idea/task counts and created date; admins can delete a team |
-| **Bug reports** | Reports sent from the Contact support window, newest first: who sent it, when, the page and a short device summary, and the text. Filter open, resolved or all; support staff and above can mark them resolved or reopen them |
+| **Feedback** | Bug reports and feature requests sent from the Contact support window, newest first, filtered by type and status: who sent it, when, the page and a short device summary, and the text. Filter open, resolved or all; support staff and above can mark them resolved or reopen them |
 | **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see the shortened IP addresses. |
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
 - **Renaming** (admins only, their own account included) follows the same rules as sign-up: 3 to 20 characters of a to z, 0 to 9 and _, no reserved names, not already taken. The old name becomes free to claim, teammates see the new one on their next live update, and the change is recorded as `ADMIN_USER_RENAMED`. Useful for reclaiming names that impersonate someone.
-- **Deleting** removes the login, memberships and invites. Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
+- **Deleting** removes the login, memberships and invites, and keeps only the account's former `@username` for the security record, so the accounts list and audit log show "@name (deleted)". Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
 - **The first admin** can only be created from the terminal with `npm run site:role`. The script shows which database it will change and asks you to type the username back. There is no web route or secret that grants a role.
 
 ## Installed phone app
@@ -438,7 +441,9 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 
 - The Ideas and Tasks tabs open the team you were last in (remembered in a `bp-last-team` cookie, checked against your memberships on the server).
 - Before you're in any team, Ideas and Tasks open a short screen that explains what lives there, with **Create a team**, your pending invites, or your @username to share so someone can invite you (`/dashboard/new`).
-- The Profile tab lives at `/dashboard/me`, so `me`, `new` and `admin` are reserved and can't be used as team slugs.
+- The Profile tab lives at `/dashboard/me`, so `me`, `new`, `tour` and `admin` are reserved and can't be used as team slugs.
+- Saving feels instant and calm: something you create appears at once under an id chosen in your browser, which the server keeps, so it never jumps or replays its entrance animation when the save lands. Your own saves don't trigger a second live refresh either.
+- Faster launches: the service worker keeps Blueprint's own code, styles and fonts on the device (never pages or data), so the installed app starts without downloading them again.
 - Switching tabs is built to feel instant:
   - Ideas ↔ Tasks within the same team switch on the device without asking the server;
   - every other tab shows its loading screen the moment you tap;
@@ -457,6 +462,7 @@ app/
   admin/                   staff panel: overview, accounts, teams, bug reports, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
   dashboard/me/            the installed app's Profile tab
+  dashboard/tour/          the demo team the welcome tour opens (on screen only)
   dashboard/_components/   app-shell.tsx (app header, tab bar, preview switch), app-team-bar.tsx
   onboarding/ suspended/   username setup, suspended-account page
   privacy/ terms/          legal pages
@@ -465,6 +471,9 @@ components/
   tour/                    guided tours: spotlight engine, launcher, replay
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
+  live.ts                  ids chosen in the browser (no remount after saving), smarter live refresh
+  import-template.ts       the "Import from JSON" format, AI prompt and reply parsing
+  tour-demo.ts             on-screen-only samples shown by the guided tours
   crypto.ts                per-team AES-256-GCM field encryption
   activity.ts              change stamps for live updates (see /api/pulse)
   auth.ts site-roles.ts    sessions, suspensions, site staff permissions

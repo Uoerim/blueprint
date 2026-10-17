@@ -25,6 +25,11 @@ export const LIMITS = {
   teamName: 40,
   roleName: 30,
   tagsPerIdea: 5,
+  /** Importing a project from JSON (see lib/import-template.ts). */
+  importTasks: 40,
+  importSubtasks: 20,
+  /** Characters of pasted JSON; keeps the request under the 32 KB server action limit. */
+  importChars: 30_000,
 } as const;
 
 export const RESERVED_USERNAMES = new Set([
@@ -45,7 +50,7 @@ export const RESERVED_USERNAMES = new Set([
   "undefined",
 ]);
 
-export const RESERVED_SLUGS = new Set(["new", "settings", "api", "onboarding", "invites", "me", "admin"]);
+export const RESERVED_SLUGS = new Set(["new", "settings", "api", "onboarding", "invites", "me", "admin", "tour"]);
 
 export const IDEA_TAGS = ["feature", "bug", "experiment", "random"] as const;
 

@@ -7,8 +7,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 import { LIMITS } from "@/lib/constants";
+import { newId } from "@/lib/live";
 import type { IdeaDTO, TaskDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
+import { ImportDialog } from "./import-dialog";
+import { TagPicker, TagPill } from "./vault-view";
 import { useWorkspace } from "./workspace";
 
 export type Tab = "projects" | "all" | "mine";
@@ -60,8 +63,9 @@ function projectStats(tasks: TaskDTO[], id: string) {
 }
 
 function ProjectList() {
-  const { ideas, tasks, openProject, member, can } = useWorkspace();
+  const { ideas, tasks, openProject, member, can, isPending } = useWorkspace();
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const projects = ideas.filter((i) => i.status === "PROMOTED");
   const loose = tasks.filter((t) => !t.idea && t.status !== "DONE").length;
 
@@ -72,9 +76,16 @@ function ProjectList() {
           {projects.length ? `${projects.length} project${projects.length > 1 ? "s" : ""} in execution` : "No projects yet"}
           {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} with no project or idea</span>}
         </p>
-        {can("projects.create") && (
-          <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {can("projects.create") && can("tasks.create") && (
+            <button type="button" onClick={() => setImporting(true)} className={cx(btn.outline, btn.sm)} title="Import a project from JSON (e.g. planned with an AI)">
+              Import
+            </button>
+          )}
+          {can("projects.create") && (
+            <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
+          )}
+        </div>
       </div>
 
       {projects.length ? (
@@ -83,7 +94,7 @@ function ProjectList() {
             {projects.map((p) => {
               const s = projectStats(tasks, p.id);
               const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
-              const temp = p.id.startsWith("tmp-");
+              const temp = isPending(p.id);
               return (
                 <motion.li
                   key={p.id}
@@ -137,12 +148,18 @@ function ProjectList() {
           <p className="text-[15px] text-ink">No projects yet.</p>
           <p className="mt-1 text-sm text-ink-3">Each project gets its own description, board, tasks and subtasks.</p>
           {can("projects.create") && (
-            <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm, "mt-5")}>New project</button>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm)}>New project</button>
+              {can("tasks.create") && (
+                <button type="button" onClick={() => setImporting(true)} className={cx(btn.ghost, btn.sm)}>Import from JSON</button>
+              )}
+            </div>
           )}
         </div>
       )}
 
       <ProjectDialog open={creating} onClose={() => setCreating(false)} />
+      <ImportDialog open={importing} onClose={() => setImporting(false)} />
     </div>
   );
 }
@@ -215,6 +232,13 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">
             {project.description || <span className="text-ink-3">No description yet. Add one so everyone knows what done looks like.</span>}
           </p>
+          {project.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {project.tags.map((t) => (
+                <TagPill key={t} name={t} />
+              ))}
+            </div>
+          )}
           {author && (
             <p className="mt-2 text-[13px] text-ink-3">
               Started by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
@@ -222,13 +246,14 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           )}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          {canEdit && <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm)}>Edit project</button>}
-          {canArchive && project.status === "PROMOTED" && (
-            <button type="button" onClick={() => setConfirm("return")} className={cx(btn.ghost, btn.sm)}>Back to ideas</button>
-          )}
-          {canArchive && <button type="button" onClick={() => setConfirm("archive")} className={cx(btn.ghost, btn.sm)}>Archive</button>}
-          {canDelete && (
-            <button type="button" onClick={() => setConfirm("delete")} className={cx(btn.ghost, btn.sm, "text-rose hover:text-rose")}>Delete</button>
+          {(canEdit || canArchive || canDelete) && (
+            <button type="button" onClick={() => setEditing(true)} className={cx(btn.outline, btn.sm, "gap-1.5")}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path d="M10 12.75a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M16.2 12.2a1.3 1.3 0 0 0 .26 1.43l.05.05a1.58 1.58 0 1 1-2.23 2.23l-.05-.05a1.3 1.3 0 0 0-1.43-.26 1.3 1.3 0 0 0-.79 1.19v.14a1.58 1.58 0 1 1-3.16 0v-.07a1.3 1.3 0 0 0-.85-1.19 1.3 1.3 0 0 0-1.43.26l-.05.05a1.58 1.58 0 1 1-2.23-2.23l.05-.05a1.3 1.3 0 0 0 .26-1.43 1.3 1.3 0 0 0-1.19-.79h-.14a1.58 1.58 0 1 1 0-3.16h.07a1.3 1.3 0 0 0 1.19-.85 1.3 1.3 0 0 0-.26-1.43l-.05-.05a1.58 1.58 0 1 1 2.23-2.23l.05.05a1.3 1.3 0 0 0 1.43.26h.06a1.3 1.3 0 0 0 .79-1.19v-.14a1.58 1.58 0 1 1 3.16 0v.07a1.3 1.3 0 0 0 .79 1.19 1.3 1.3 0 0 0 1.43-.26l.05-.05a1.58 1.58 0 1 1 2.23 2.23l-.05.05a1.3 1.3 0 0 0-.26 1.43v.06a1.3 1.3 0 0 0 1.19.79h.14a1.58 1.58 0 1 1 0 3.16h-.07a1.3 1.3 0 0 0-1.19.79Z" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+              Project settings
+            </button>
           )}
         </div>
       </div>
@@ -265,7 +290,21 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
         </div>
       </div>
 
-      <ProjectDialog open={editing} onClose={() => setEditing(false)} project={project} />
+      <ProjectDialog
+        open={editing}
+        onClose={() => setEditing(false)}
+        project={project}
+        canEdit={canEdit}
+        actions={
+          canArchive || canDelete ? (
+            <ProjectActions
+              onBack={canArchive && project.status === "PROMOTED" ? () => (setEditing(false), setConfirm("return")) : undefined}
+              onArchive={canArchive ? () => (setEditing(false), setConfirm("archive")) : undefined}
+              onDelete={canDelete ? () => (setEditing(false), setConfirm("delete")) : undefined}
+            />
+          ) : null
+        }
+      />
       <ConfirmDialog
         open={confirm === "archive"}
         onClose={() => setConfirm(null)}
@@ -373,16 +412,56 @@ function ProjectPeople({ projectId, people }: { projectId: string; people: strin
 
 /* ── Create / edit project ──────────────────────────────────────────────── */
 
-function ProjectDialog({ open, onClose, project }: { open: boolean; onClose: () => void; project?: IdeaDTO }) {
+function ProjectDialog({
+  open,
+  onClose,
+  project,
+  canEdit = true,
+  actions,
+}: {
+  open: boolean;
+  onClose: () => void;
+  project?: IdeaDTO;
+  canEdit?: boolean;
+  /** Project settings only: back to ideas, archive, delete. */
+  actions?: React.ReactNode;
+}) {
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={project ? "Edit project" : "New project"}
-      description={project ? undefined : "A project holds its own description, tasks and subtasks."}
+      title={project ? "Project settings" : "New project"}
+      description={project ? "Its name, description and tags, and what to do with it." : "A project holds its own description, tasks and subtasks."}
     >
-      {open && <ProjectForm project={project} onClose={onClose} />}
+      {open && (
+        <div className="space-y-6">
+          {canEdit && <ProjectForm project={project} onClose={onClose} />}
+          {actions}
+        </div>
+      )}
     </Dialog>
+  );
+}
+
+/** The bottom of Project settings: the bigger moves, each with its own confirmation. */
+function ProjectActions({ onBack, onArchive, onDelete }: { onBack?: () => void; onArchive?: () => void; onDelete?: () => void }) {
+  const row = (title: string, note: string, label: string, onClick: () => void, danger?: boolean) => (
+    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <div className="min-w-0 flex-1">
+        <p className={cx("text-[14px] font-medium", danger ? "text-rose" : "text-ink")}>{title}</p>
+        <p className="text-[12px] leading-snug text-ink-3">{note}</p>
+      </div>
+      <button type="button" onClick={onClick} className={cx(btn.outline, btn.sm, "shrink-0", danger && "text-rose hover:text-rose")}>
+        {label}
+      </button>
+    </div>
+  );
+  return (
+    <section aria-label="Project actions" className="divide-y divide-line border-t border-line pt-4">
+      {onBack && row("Back to ideas", "Return it to the vault as a fresh idea. Its tasks stay, progress resets.", "Move", onBack)}
+      {onArchive && row("Archive", "Set it aside with everything kept. Restore it any time from team settings.", "Archive", onArchive)}
+      {onDelete && row("Delete project", "Permanently deletes it and its tasks. Only the team owner can do this.", "Delete", onDelete, true)}
+    </section>
   );
 }
 
@@ -390,6 +469,7 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
   const { team, viewer, run, addIdea, patchIdea, openProject } = useWorkspace();
   const [title, setTitle] = useState(project?.title ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
+  const [tags, setTags] = useState<string[]>(project?.tags ?? []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -398,17 +478,19 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
     if (!t) return;
     onClose();
     if (project) {
-      run(() => updateIdea({ teamId: team.id, itemId: project.id, title: t, description: d }), {
-        optimistic: () => patchIdea(project.id, { title: t, description: d || null }),
+      run(() => updateIdea({ teamId: team.id, itemId: project.id, title: t, description: d, tags }), {
+        optimistic: () => patchIdea(project.id, { title: t, description: d || null, tags }),
         success: "Project saved.",
       });
       return;
     }
     const now = new Date().toISOString();
-    run(() => createProject({ teamId: team.id, title: t, description: d || undefined }), {
+    const projectId = newId();
+    run(() => createProject({ id: projectId, teamId: team.id, title: t, description: d || undefined }), {
+      pendingId: projectId,
       optimistic: () =>
         addIdea({
-          id: `tmp-${now}`,
+          id: projectId,
           title: t,
           description: d || null,
           tags: [],
@@ -448,6 +530,13 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />
       </Field>
+      {project && (
+        <Field label="Tags" htmlFor="project-tags">
+          <div id="project-tags">
+            <TagPicker value={tags} onChange={setTags} />
+          </div>
+        </Field>
+      )}
       <div className="flex justify-end gap-2 pt-1">
         <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
         <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>

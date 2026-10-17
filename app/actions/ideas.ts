@@ -5,24 +5,19 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { returnProjectToIdeas } from "@/lib/projects";
-import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
+import { createProjectFromPlan, returnProjectToIdeas } from "@/lib/projects";
+import { assertCan, assertMembers, assertTeamTags, requireTeamAccess } from "@/lib/team-access";
 import {
   createIdeaSchema,
   createProjectSchema,
   deleteIdeaSchema,
+  importProjectSchema,
   promoteIdeaSchema,
   teamScoped,
   updateIdeaSchema,
 } from "@/lib/validations";
 
-/** Ideas may only carry tags the team has defined. */
-async function assertTags(teamId: string, tags: readonly string[]) {
-  const unique = [...new Set(tags)];
-  if (!unique.length) return;
-  const n = await db.teamTag.count({ where: { teamId, name: { in: unique } } });
-  if (n !== unique.length) throw new ActionError("Use one of the team's tags. Owners can add more in team settings.");
-}
+const assertTags = assertTeamTags;
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
@@ -31,6 +26,7 @@ export async function createIdea(input: unknown) {
     await assertTags(data.teamId, data.tags);
     const idea = await db.idea.create({
       data: {
+        ...(data.id && { id: data.id }),
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
@@ -143,6 +139,7 @@ export async function createProject(input: unknown) {
     const access = await requireTeamAccess(data.teamId, ctx.user.id, "projects.create");
     const project = await db.idea.create({
       data: {
+        ...(data.id && { id: data.id }),
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
@@ -153,6 +150,25 @@ export async function createProject(input: unknown) {
     });
     await audit(ctx, { teamId: data.teamId, action: "project.created", entityType: "Idea", entityId: project.id });
     await teamChanged(data.teamId);
+    return { id: project.id };
+  });
+}
+
+/**
+ * Creates a project with its tasks and subtasks from an imported plan (see
+ * lib/import-template.ts), all in one transaction. Needs "Create projects",
+ * plus "Create tasks" when the plan has tasks. Every text is validated and
+ * sanitised like hand-made content, then encrypted. Tags the team doesn't have
+ * are dropped, since an AI may invent some.
+ */
+export async function importProject(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, plan } = importProjectSchema.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id, "projects.create");
+    if (plan.tasks.length) assertCan(access, "tasks.create");
+    const project = await createProjectFromPlan(teamId, access.userId, plan);
+    await audit(ctx, { teamId, action: "project.imported", entityType: "Idea", entityId: project.id });
+    await teamChanged(teamId);
     return { id: project.id };
   });
 }

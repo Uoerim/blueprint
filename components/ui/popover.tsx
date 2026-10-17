@@ -1,12 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "./primitives";
 
 /**
  * Minimal accessible popover used in place of native <select>: click-outside
  * and Escape close it, focus returns to the trigger.
+ *
+ * The menu is drawn at the top of the page (a portal) and placed next to its
+ * trigger, so no card, scrolling list or dialog can clip or cover it. It opens
+ * below the trigger, or above when there's no room, stays inside the screen,
+ * and follows the trigger as the page scrolls.
  */
 export function Popover({
   trigger,
@@ -25,31 +31,62 @@ export function Popover({
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const [up, setUp] = useState(false);
   const id = useId();
   const triggerId = `${id}-trigger`;
+
+  // Place the menu next to the trigger before it paints, and keep it there.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const t = root.current?.getBoundingClientRect();
+      const m = menu.current;
+      if (!t || !m) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const w = m.offsetWidth;
+      const h = m.offsetHeight;
+      const below = vh - t.bottom >= h + 12 || t.top < h + 12;
+      const left = align === "end" ? t.right - w : t.left;
+      m.style.left = `${Math.min(Math.max(8, left), vw - w - 8)}px`;
+      m.style.top = `${below ? t.bottom + 6 : t.top - h - 6}px`;
+      if (up === below) setUp(!below);
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, align, up]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!root.current?.contains(target) && !menu.current?.contains(target)) setOpen(false);
     };
+    // Capture and stop Escape here, so it closes just the menu, not a dialog behind it.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.stopPropagation();
         setOpen(false);
-        document.getElementById(triggerId)?.focus();
+        document.getElementById(triggerId)?.focus({ preventScroll: true });
       }
     };
     document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
     };
   }, [open, triggerId]);
 
   const close = () => {
     setOpen(false);
-    document.getElementById(triggerId)?.focus();
+    document.getElementById(triggerId)?.focus({ preventScroll: true });
   };
 
   return (
@@ -69,25 +106,30 @@ export function Popover({
       >
         {trigger}
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            id={id}
-            role="menu"
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-            className={cx(
-              "glass-solid absolute top-full z-50 mt-1.5 min-w-48 rounded-xl border border-line-strong p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
-              align === "end" ? "right-0" : "left-0",
-              className,
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                ref={menu}
+                id={id}
+                role="menu"
+                initial={{ opacity: 0, y: up ? 4 : -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: up ? 4 : -4, scale: 0.98 }}
+                transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+                style={{ transformOrigin: `${align === "end" ? "right" : "left"} ${up ? "bottom" : "top"}` }}
+                className={cx(
+                  "glass-solid fixed left-0 top-0 z-[75] min-w-48 max-w-[calc(100vw-16px)] rounded-xl border border-line-strong p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
+                  className,
+                )}
+              >
+                {children(close)}
+              </motion.div>
             )}
-          >
-            {children(close)}
-          </motion.div>
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>
     </div>
   );
 }

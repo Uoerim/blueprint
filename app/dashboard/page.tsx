@@ -2,6 +2,7 @@ import { readable } from "@/components/ui/primitives";
 import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { firstName } from "@/lib/names";
+import { DemoInvite } from "./_components/demo-invite";
 import { NoInvites, NoTeams } from "./_components/home-empty";
 import { WelcomeTour } from "./_components/welcome-tour";
 import { InviteList } from "./_components/invites-bell";
@@ -89,6 +90,8 @@ export default async function DashboardHome() {
           <NewTeamButton />
         </div>
 
+        {/* The welcome tour's sample invite, when there's no Invites section to point at. */}
+        {invites.length === 0 && !fresh && <DemoInvite />}
         {/* Invites: always shown to someone without a team, so "nothing yet" is explicit. */}
         {(invites.length > 0 || fresh) && (
           <section aria-labelledby="invites-h" data-tour="invites" className="mt-8">

@@ -46,6 +46,7 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/use
       select: {
         id: true,
         username: true,
+        deletedUsername: true,
         displayName: true,
         email: true,
         accentColor: true,
@@ -92,7 +93,7 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/use
                 <Monogram name={u.username ?? u.email} color={u.accentColor} src={u.imageUrl} size={26} />
                 <span className="min-w-0">
                   <span className="block font-mono text-[13px]" style={{ color: readable(u.accentColor) }}>
-                    {u.username ? `@${u.username}` : u.deletedAt ? "(deleted)" : "(no username)"}
+                    {u.username ? `@${u.username}` : u.deletedAt ? (u.deletedUsername ? `@${u.deletedUsername} (deleted)` : "(deleted)") : "(no username)"}
                   </span>
                   {u.displayName && <span className="block truncate text-xs text-ink-3">{u.displayName}</span>}
                 </span>

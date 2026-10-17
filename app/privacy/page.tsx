@@ -34,10 +34,10 @@ export default function PrivacyPage() {
             assignments and invites.
           </li>
           <li>
-            <strong>Bug reports.</strong> If you report a bug from the Contact support window: what you write, the page you
-            were on (its address only) and a short device summary such as &ldquo;iPhone · Safari&rdquo;. The text is encrypted
-            before it&apos;s stored. Only Blueprint staff can read reports, and we keep them only as long as we need them to fix
-            the problem.
+            <strong>Feedback.</strong> If you report a bug or request a feature from the Contact support window: what you
+            write, whether it&apos;s a bug or a request, the page you were on (its address only) and a short device summary such
+            as &ldquo;iPhone · Safari&rdquo;. The text is encrypted before it&apos;s stored. Only Blueprint staff can read it, and
+            we keep it only as long as we need it to fix the problem or consider the idea.
           </li>
           <li>
             <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s
@@ -67,9 +67,10 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          Your browser also keeps two small notes on your device: whether you dismissed or accepted the offer to install
-          Blueprint, and a copy of the logo and the &ldquo;you&apos;re offline&rdquo; screen for when you lose connection. None of
-          this leaves your device. There are no analytics, advertising or tracking cookies, so there is no cookie banner.
+          Your browser also keeps a few things on your device: whether you dismissed or accepted the offer to install Blueprint,
+          a copy of Blueprint&apos;s own app files (its code, styles, fonts and logo) so it opens faster, and a
+          &ldquo;you&apos;re offline&rdquo; screen for when you lose connection. None of this contains your data, and none of it
+          leaves your device. Guided tours show sample teams, ideas and invites on your screen only; they&apos;re never saved. There are no analytics, advertising or tracking cookies, so there is no cookie banner.
         </p>
       </Section>
 
@@ -119,6 +120,11 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
+          Blueprint doesn&apos;t send your content to any AI service. If you use an AI assistant to write a plan for
+          &ldquo;Import from JSON&rdquo;, what you share with that assistant is up to you and is covered by its own terms and
+          privacy policy; Blueprint only receives the plan you paste in.
+        </p>
+        <p>
           These providers may store or process data outside Egypt, including in the United States and the European Union. We
           only share what each one needs to do its job.
         </p>
@@ -129,7 +135,9 @@ export default function PrivacyPage() {
           We keep your account and content for as long as your account exists. When you ask us to delete your account, we
           delete your personal details within 30 days. Content you added to a team that other people still use may stay in that
           team, with your name removed, so the team&apos;s history makes sense; ask if you want it removed too. Security
-          records are kept only as long as they are needed to protect the service.
+          records are kept only as long as they are needed to protect the service. When an account is deleted, its former
+          @username stays in those records so staff can tell which account was removed; its email, name and profile are
+          deleted.
         </p>
       </Section>
 

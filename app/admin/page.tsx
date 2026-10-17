@@ -44,7 +44,10 @@ export default async function AdminOverview() {
   ]);
   const actorIds = [...new Set(actions.flatMap((a) => [a.userId, a.entityId]))];
   const names = new Map(
-    (await db.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, username: true } })).map((u) => [u.id, u.username]),
+    (await db.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, username: true, deletedUsername: true } })).map((u) => [
+      u.id,
+      u.username ?? (u.deletedUsername ? `${u.deletedUsername} (deleted)` : null),
+    ]),
   );
 
   return (
@@ -65,7 +68,7 @@ export default async function AdminOverview() {
         <Stat label="Tasks shipped" value={shipped} />
         <Stat label="In focus now" value={focus} tone="emerald" />
         <Stat label="Security events (24h)" value={security} tone={security ? "rose" : undefined} />
-        <Stat label="Open bug reports" value={openReports} tone={openReports ? "amber" : undefined} />
+        <Stat label="Open feedback" value={openReports} tone={openReports ? "amber" : undefined} />
       </div>
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">

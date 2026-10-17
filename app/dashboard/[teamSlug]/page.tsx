@@ -59,6 +59,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         status: true,
         priority: true,
         visibility: true,
+        tags: true,
         createdById: true,
         completedById: true,
         completedAt: true,
@@ -121,6 +122,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     status: t.status,
     priority: t.priority,
     visibility: t.visibility,
+    tags: t.tags,
     createdById: t.createdById,
     assigneeIds: t.assignees.map((a) => a.userId),
     focus: t.status === "IN_PROGRESS"

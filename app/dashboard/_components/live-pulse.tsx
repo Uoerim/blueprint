@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { changedLocallyWithin } from "@/lib/live";
 
 const EVERY_MS = 4000;
 const SLOW_MS = 15000;
@@ -38,7 +39,8 @@ export function LivePulse() {
         const prev = seen.current.get(key);
         seen.current.set(key, now);
         failures = 0;
-        if (prev && (prev.team !== now.team || prev.inbox !== now.inbox)) router.refresh();
+        // Your own save already refreshed the page; only refresh for changes from elsewhere.
+        if (prev && (prev.team !== now.team || prev.inbox !== now.inbox) && !changedLocallyWithin(2500)) router.refresh();
       } catch {
         failures++;
       }

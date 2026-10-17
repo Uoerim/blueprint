@@ -251,7 +251,7 @@ export function UserActions({
                 description: <>This permanently deletes the account and signs them out. It can&apos;t be undone.</>,
                 confirmLabel: "Delete account",
                 level: { kind: "type", phrase: user.username ?? "", what: "username" },
-                run: () => run(() => deleteUser({ userId: user.id, confirm: user.username ?? "" }), "Account deleted."),
+                run: () => run(() => deleteUser({ userId: user.id, confirm: user.username ?? "" }), `${name} was deleted.`),
               })
             }
             className="mt-3 inline-flex h-8 items-center rounded-lg bg-rose px-3 text-[13px] font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-40"

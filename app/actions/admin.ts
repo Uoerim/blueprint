@@ -177,6 +177,8 @@ export async function deleteUser(input: unknown) {
           clerkId: `deleted:${target.id}`,
           email: `deleted+${target.id}@users.noreply.invalid`,
           username: null,
+          // Kept for the security record, so staff can still tell who was removed.
+          deletedUsername: target.username,
           displayName: null,
           onboarded: false,
           siteRole: "USER",

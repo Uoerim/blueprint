@@ -29,6 +29,10 @@ export function Dialog({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const sheet = useAppMode();
+  const sheetRef = useRef(sheet);
+  useEffect(() => {
+    sheetRef.current = sheet;
+  }, [sheet]);
   const drag = useDragControls();
   const restore = useRef<HTMLElement | null>(null);
 
@@ -56,14 +60,19 @@ export function Dialog({
       }
     };
     document.addEventListener("keydown", onKey);
+    // Move focus into the dialog without scrolling the page behind it. Bottom sheets focus
+    // themselves rather than a text field, so a phone keyboard doesn't jump up uninvited.
     const t = window.setTimeout(() => {
-      panel.current?.querySelector<HTMLElement>("[autofocus], input, textarea, button")?.focus();
+      const target = sheetRef.current
+        ? panel.current
+        : panel.current?.querySelector<HTMLElement>("[autofocus], input, textarea, button") ?? panel.current;
+      target?.focus({ preventScroll: true });
     }, 30);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
       window.clearTimeout(t);
-      restore.current?.focus?.();
+      restore.current?.focus?.({ preventScroll: true });
     };
   }, [open, onClose]);
 
@@ -85,6 +94,7 @@ export function Dialog({
             />
             <motion.div
               ref={panel}
+              tabIndex={-1}
               role="dialog"
               aria-modal="true"
               aria-label={title}
@@ -149,6 +159,7 @@ export function Dialog({
           />
           <motion.div
             ref={panel}
+              tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={title}

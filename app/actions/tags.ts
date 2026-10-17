@@ -9,8 +9,8 @@ import { requireTeamAccess } from "@/lib/team-access";
 import { createTagSchema, teamScoped, updateTagSchema } from "@/lib/validations";
 
 /*
- * A team's idea tags. Ideas store tag names, so renaming a tag rewrites it on
- * every idea and deleting one removes it from them, in the same transaction.
+ * A team's tags, for ideas and tasks. Both store tag names, so renaming a tag
+ * rewrites it everywhere and deleting one removes it, in the same transaction.
  * Owners and co-owners can always manage tags; custom roles need "Manage tags".
  */
 
@@ -18,13 +18,13 @@ const MAX_TAGS = 30;
 
 type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
-/** Renames (or, with `to` = null, removes) a tag on every idea in the team that has it. */
+/** Renames (or, with `to` = null, removes) a tag on every idea and task in the team that has it. */
 async function retag(tx: Tx, teamId: string, from: string, to: string | null) {
+  const swap = (tags: string[]) => [...new Set(tags.flatMap((t) => (t === from ? (to ? [to] : []) : [t])))];
   const ideas = await tx.idea.findMany({ where: { teamId, tags: { has: from } }, select: { id: true, tags: true } });
-  for (const idea of ideas) {
-    const tags = [...new Set(idea.tags.flatMap((t) => (t === from ? (to ? [to] : []) : [t])))];
-    await tx.idea.update({ where: { id: idea.id }, data: { tags } });
-  }
+  for (const idea of ideas) await tx.idea.update({ where: { id: idea.id }, data: { tags: swap(idea.tags) } });
+  const tasks = await tx.task.findMany({ where: { teamId, tags: { has: from } }, select: { id: true, tags: true } });
+  for (const task of tasks) await tx.task.update({ where: { id: task.id }, data: { tags: swap(task.tags) } });
 }
 
 const taken = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";

@@ -8,6 +8,8 @@ import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, Pill, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
 import { LIMITS, PRIORITY_LABEL } from "@/lib/constants";
+import { newId } from "@/lib/live";
+import { useTourDemo } from "@/lib/tour-demo";
 import { timeAgo } from "@/lib/time";
 import type { IdeaDTO, Priority, TagDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
@@ -37,7 +39,7 @@ export function TagPill({ name }: { name: string }) {
 }
 
 /** Toggle team tags on and off (up to 5). */
-function TagPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function TagPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const { tags } = useWorkspace();
   if (!tags.length) return <p className="text-[12px] text-ink-3">This team has no tags yet. Owners can add them in team settings.</p>;
   return (
@@ -76,6 +78,7 @@ function usePromote() {
 }
 
 export function VaultView({ ideaId }: { ideaId: string | null }) {
+  const demoIdea = useTourDemo("idea");
   const { ideas, can, openIdea, openProject } = useWorkspace();
   const [sort, setSort] = useState<"hot" | "new">("hot");
   const open = ideaId ? ideas.find((i) => i.id === ideaId && i.status === "VAULT") : undefined;
@@ -125,14 +128,15 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
         </div>
       </div>
 
-      <motion.ul layout className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+      <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence initial={false} mode="popLayout">
+          {demoIdea && <DemoIdeaCard key="tour-demo-idea" />}
           {vault.map((idea) => (
             <IdeaCard key={idea.id} idea={idea} />
           ))}
         </AnimatePresence>
-      </motion.ul>
-      {!vault.length && (
+      </ul>
+      {!vault.length && !demoIdea && (
         <div className="card mt-3 rounded-2xl px-6 py-14 text-center">
           <p className="text-[15px] text-ink">The vault is empty.</p>
           <p className="mt-1 text-sm text-ink-3">Type the first thing on your mind into the box above.</p>
@@ -175,12 +179,14 @@ function CaptureBar() {
     const { title, tags: chosen } = parseCapture(draft, picked, tags);
     if (!title) return;
     const now = new Date().toISOString();
+    const ideaId = newId();
     setDraft("");
     setPicked([]);
-    run(() => createIdea({ teamId: team.id, title, tags: chosen }), {
+    run(() => createIdea({ id: ideaId, teamId: team.id, title, tags: chosen }), {
+      pendingId: ideaId,
       optimistic: () =>
         addIdea({
-          id: `tmp-${now}`,
+          id: ideaId,
           title,
           description: null,
           tags: chosen,
@@ -303,11 +309,40 @@ function IdeaMenu({ idea, onGone, triggerClassName }: { idea: IdeaDTO; onGone?: 
   );
 }
 
+/** A sample idea the team tour shows on screen when there's nothing to promote yet. Never saved. */
+function DemoIdeaCard() {
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: -10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
+      transition={spring}
+      aria-hidden
+      className="card flex flex-col rounded-2xl p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--amber)_45%,transparent)]"
+    >
+      <div className="flex items-start gap-3">
+        <p className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-ink">Turn practice sessions into a weekly recap</p>
+        <span className="rounded-md bg-amber/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber">Example</span>
+      </div>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">A sample idea for the tour. It isn&apos;t saved anywhere.</p>
+      <div className="mt-auto flex items-center gap-2 pt-4">
+        <span className="font-mono text-[11px] text-ink-3">just now</span>
+        <span className="flex-1" />
+        <span className="font-mono text-[11px] text-ink-3">✦ 2</span>
+        <span data-tour="promote" className={cx(btn.outline, btn.sm)}>
+          Promote →
+        </span>
+      </div>
+    </motion.li>
+  );
+}
+
 function IdeaCard({ idea }: { idea: IdeaDTO }) {
-  const { member, viewer, can, openIdea } = useWorkspace();
+  const { member, viewer, can, openIdea, isPending } = useWorkspace();
   const promote = usePromote();
   const author = member(idea.authorId);
-  const temp = idea.id.startsWith("tmp-");
+  const temp = isPending(idea.id);
   const canManage = idea.authorId === viewer.id || can("ideas.manage");
 
   return (
@@ -317,18 +352,23 @@ function IdeaCard({ idea }: { idea: IdeaDTO }) {
       animate={{ opacity: temp ? 0.7 : 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
       transition={spring}
-      className="card group flex flex-col rounded-2xl p-4 transition-colors hover:bg-surface-2"
+      className="card group relative flex cursor-pointer flex-col rounded-2xl p-4 transition-colors hover:bg-surface-2"
     >
       <div className="flex items-start gap-3">
+        {/* The title's hit area covers the whole card (the controls below sit above it). */}
         <button
           type="button"
           disabled={temp}
           onClick={() => openIdea(idea.id)}
-          className="min-w-0 flex-1 text-left text-[15px] font-medium leading-snug text-ink transition-colors hover:text-accent"
+          className="min-w-0 flex-1 text-left text-[15px] font-medium leading-snug text-ink transition-colors after:absolute after:inset-0 after:rounded-2xl group-hover:text-accent"
         >
           {idea.title}
         </button>
-        {canManage && !temp && <IdeaMenu idea={idea} triggerClassName="size-7 justify-center text-ink-3 opacity-60 group-hover:opacity-100 hover:text-ink" />}
+        {canManage && !temp && (
+          <span className="relative z-10">
+            <IdeaMenu idea={idea} triggerClassName="size-7 justify-center text-ink-3 opacity-60 group-hover:opacity-100 hover:text-ink" />
+          </span>
+        )}
       </div>
       {idea.description && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-2">{idea.description}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -348,12 +388,14 @@ function IdeaCard({ idea }: { idea: IdeaDTO }) {
         </span>
         <span className="mono-meta shrink-0 !text-[11px]" suppressHydrationWarning>{timeAgo(idea.createdAt)}</span>
         <span className="flex-1" />
-        <SparkButton idea={idea} disabled={temp} />
-        {can("projects.create") && (
-          <button type="button" data-tour="promote" disabled={temp} onClick={() => promote(idea)} className={cx(btn.outline, btn.sm)}>
-            Promote →
-          </button>
-        )}
+        <span className="relative z-10 flex items-center gap-2">
+          <SparkButton idea={idea} disabled={temp} />
+          {can("projects.create") && (
+            <button type="button" data-tour="promote" disabled={temp} onClick={() => promote(idea)} className={cx(btn.outline, btn.sm)}>
+              Promote →
+            </button>
+          )}
+        </span>
       </div>
     </motion.li>
   );

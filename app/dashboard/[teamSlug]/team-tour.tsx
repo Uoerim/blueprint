@@ -1,18 +1,27 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { TourFlow } from "@/components/tour/flow";
 import { TourLauncher } from "@/components/tour/launcher";
 import type { TourStep } from "@/components/tour/tour";
+import { showTourDemos } from "@/lib/tour-demo";
 import { useWorkspace } from "./workspace";
 
 /**
  * The first time someone opens a team (one they just made, or one they joined):
  * a walk through the loop, switching views so each stop is on screen.
  */
-export function TeamTour({ show }: { show: boolean }) {
-  const { team, setView, setExecTab } = useWorkspace();
-  const toVault = () => setView("vault");
+export function TeamTour({ show, demo }: { show: boolean; demo?: boolean }) {
+  const { team, ideas, can, isPending, setView, setExecTab } = useWorkspace();
+  const router = useRouter();
+  // With no idea to point at, the Promote step shows a sample one (on screen only).
+  const realPromote = can("projects.create") && ideas.some((i) => i.status === "VAULT" && !isPending(i.id));
+  const toVault = () => {
+    showTourDemos();
+    setView("vault");
+  };
   const toBoard = () => {
+    showTourDemos();
     setView("board");
     setExecTab("projects");
   };
@@ -41,7 +50,10 @@ export function TeamTour({ show }: { show: boolean }) {
       target: "promote",
       title: "Promote the good ones",
       body: "Promote turns an idea into a project with its own page, board, tasks and subtasks. Ideas you add will show this button.",
-      before: toVault,
+      before: () => {
+        setView("vault");
+        showTourDemos(...(realPromote ? [] : (["idea"] as const)));
+      },
     },
     {
       id: "plan",
@@ -70,6 +82,7 @@ export function TeamTour({ show }: { show: boolean }) {
     {
       id: "squad",
       target: "team-actions",
+      before: () => showTourDemos(),
       title: "Bring your squad",
       body: {
         web: "Invite teammates by their @username. Roles, tags and the archive live in the team's Settings.",
@@ -83,5 +96,15 @@ export function TeamTour({ show }: { show: boolean }) {
     },
   ];
 
-  return <TourLauncher tour="team" show={show} steps={steps} label="Team tour" finishLabel="Start capturing" onDone={toVault} />;
+  return (
+    <TourLauncher
+      tour="team"
+      show={show}
+      always={demo}
+      steps={steps}
+      label="Team tour"
+      finishLabel={demo ? "Back to my dashboard" : "Start capturing"}
+      onDone={() => (demo ? router.push("/dashboard") : toVault())}
+    />
+  );
 }

@@ -55,6 +55,14 @@ export default function TermsPage() {
           You are responsible for having the right to share what you post. Team owners, co-owners and members whose role allows it can edit or remove content and
           members in their team.
         </p>
+        <p>
+          That includes content you import, such as a plan written by an AI assistant: check it before you import it, and
+          follow the terms of whatever tool you used to make it.
+        </p>
+        <p>
+          If you send us feedback, bug reports or feature ideas, we may use them to improve Blueprint without owing you
+          anything for them. Thank you for them.
+        </p>
       </Section>
 
       <Section id="use" title="4. Acceptable use">
