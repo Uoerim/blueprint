@@ -11,7 +11,7 @@ import { LIMITS, PRIORITY_LABEL } from "@/lib/constants";
 import { newId } from "@/lib/live";
 import { useTourDemo } from "@/lib/tour-demo";
 import { timeAgo } from "@/lib/time";
-import type { IdeaDTO, Priority, TagDTO } from "@/lib/types";
+import type { IdeaDTO, Priority } from "@/lib/types";
 import { BoardView } from "./board-view";
 import { useWorkspace } from "./workspace";
 
@@ -24,21 +24,13 @@ const dots = (
   </svg>
 );
 
-/** Inline #tags are kept only when the team has that tag. */
-function parseCapture(raw: string, picked: string[], known: TagDTO[]) {
-  const names = new Set(known.map((t) => t.name));
-  const inline = [...raw.matchAll(/#([a-z0-9-]{1,24})/gi)].map((m) => m[1]!.toLowerCase()).filter((t) => names.has(t));
-  const title = raw.replace(/(^|\s)#[a-z0-9-]+/gi, (m) => (names.has(m.trim().slice(1).toLowerCase()) ? " " : m)).replace(/\s+/g, " ").trim();
-  return { title, tags: [...new Set([...picked, ...inline])].slice(0, 5) };
-}
-
 export function TagPill({ name }: { name: string }) {
   const { tags } = useWorkspace();
   const tag = tags.find((t) => t.name === name);
   return <Pill color={tag?.color}>#{name}</Pill>;
 }
 
-/** Toggle team tags on and off (up to 5). */
+/** Toggle team tags on a task (up to 5). */
 export function TagPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const { tags } = useWorkspace();
   if (!tags.length) return <p className="text-[12px] text-ink-3">This team has no tags yet. Owners can add them in team settings.</p>;
@@ -170,26 +162,23 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
 }
 
 function CaptureBar() {
-  const { team, viewer, run, addIdea, tags } = useWorkspace();
+  const { team, viewer, run, addIdea } = useWorkspace();
   const [draft, setDraft] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { title, tags: chosen } = parseCapture(draft, picked, tags);
+    const title = draft.replace(/\s+/g, " ").trim();
     if (!title) return;
     const now = new Date().toISOString();
     const ideaId = newId();
     setDraft("");
-    setPicked([]);
-    run(() => createIdea({ id: ideaId, teamId: team.id, title, tags: chosen }), {
+    run(() => createIdea({ id: ideaId, teamId: team.id, title }), {
       pendingId: ideaId,
       optimistic: () =>
         addIdea({
           id: ideaId,
           title,
           description: null,
-          tags: chosen,
           status: "VAULT",
           sparksCount: 0,
           sparkedByMe: false,
@@ -217,11 +206,6 @@ function CaptureBar() {
         />
         <button type="submit" disabled={!draft.trim()} className={cx(btn.primary, btn.sm)}>Drop it</button>
       </div>
-      {tags.length > 0 && (
-        <div className="px-2 pb-1 pt-1.5">
-          <TagPicker value={picked} onChange={setPicked} />
-        </div>
-      )}
     </form>
   );
 }
@@ -371,16 +355,11 @@ function IdeaCard({ idea }: { idea: IdeaDTO }) {
         )}
       </div>
       {idea.description && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-2">{idea.description}</p>}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {idea.tags.map((t) => (
-          <TagPill key={t} name={t} />
-        ))}
-        {idea.taskCount > 0 && (
-          <span className="font-mono text-[11px] text-ink-3">
-            {idea.doneCount}/{idea.taskCount} tasks
-          </span>
-        )}
-      </div>
+      {idea.taskCount > 0 && (
+        <p className="mt-3 font-mono text-[11px] text-ink-3">
+          {idea.doneCount}/{idea.taskCount} tasks
+        </p>
+      )}
       <div className="mt-auto flex items-center gap-2 pt-4">
         {author && <Monogram name={author.username} color={author.accentColor} src={author.imageUrl} size={20} />}
         <span className="min-w-0 truncate font-mono text-[11px]" style={{ color: readable(author?.accentColor) }}>
@@ -426,9 +405,6 @@ function IdeaPage({ idea }: { idea: IdeaDTO }) {
             {idea.description || <span className="text-ink-3">No description yet.</span>}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {idea.tags.map((t) => (
-              <TagPill key={t} name={t} />
-            ))}
             {author && (
               <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
                 by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
@@ -461,7 +437,7 @@ function IdeaPage({ idea }: { idea: IdeaDTO }) {
   );
 }
 
-/** Edit an idea's title, description and tags. */
+/** Edit an idea's title and description. */
 export function IdeaDialog({ idea, onClose }: { idea: IdeaDTO | null; onClose: () => void }) {
   return (
     <Dialog open={!!idea} onClose={onClose} title="Edit idea">
@@ -474,7 +450,6 @@ function IdeaForm({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
   const { team, run, patchIdea } = useWorkspace();
   const [title, setTitle] = useState(idea.title);
   const [description, setDescription] = useState(idea.description ?? "");
-  const [tags, setTags] = useState<string[]>(idea.tags);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,8 +457,8 @@ function IdeaForm({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
     if (!t) return;
     const d = description.trim();
     onClose();
-    run(() => updateIdea({ teamId: team.id, itemId: idea.id, title: t, description: d, tags }), {
-      optimistic: () => patchIdea(idea.id, { title: t, description: d || null, tags }),
+    run(() => updateIdea({ teamId: team.id, itemId: idea.id, title: t, description: d }), {
+      optimistic: () => patchIdea(idea.id, { title: t, description: d || null }),
       success: "Saved.",
     });
   };
@@ -496,12 +471,6 @@ function IdeaForm({ idea, onClose }: { idea: IdeaDTO; onClose: () => void }) {
       <Field label="Description" htmlFor="idea-desc">
         <textarea id="idea-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={LIMITS.ideaBody} rows={4} className={cx(inputCls, "resize-y py-2.5 leading-relaxed")} />
       </Field>
-      <div>
-        <p className="text-sm font-medium text-ink">Tags</p>
-        <div className="mt-1.5">
-          <TagPicker value={tags} onChange={setTags} />
-        </div>
-      </div>
       <div className="flex justify-end gap-2 pt-1">
         <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
         <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>Save</button>

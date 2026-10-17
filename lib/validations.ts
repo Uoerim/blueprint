@@ -116,7 +116,6 @@ export const createIdeaSchema = z.strictObject({
   teamId: id,
   title: text(1, LIMITS.title),
   description: optionalText(LIMITS.ideaBody),
-  tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).default([]),
 });
 
 export const taskStatusSchema = z.enum(["TODO", "READY", "IN_PROGRESS", "DONE"]);
@@ -152,7 +151,7 @@ export const createTaskSchema = z.strictObject({
   assigneeIds: assigneeIdsSchema.default([]),
   visibility: visibilitySchema.default("TEAM"),
   projectId: id.nullable().optional(),
-  tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).default([]),
+  tags: z.array(tagSchema).max(LIMITS.tagsPerTask, `At most ${LIMITS.tagsPerTask} tags.`).default([]),
 });
 
 export const updateTaskSchema = z
@@ -165,7 +164,7 @@ export const updateTaskSchema = z
     projectId: id.nullable().optional(),
     priority: prioritySchema.optional(),
     visibility: visibilitySchema.optional(),
-    tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).optional(),
+    tags: z.array(tagSchema).max(LIMITS.tagsPerTask, `At most ${LIMITS.tagsPerTask} tags.`).optional(),
   })
   .refine((v) => Object.keys(v).length > 2, "Nothing to update");
 
@@ -231,7 +230,8 @@ const importSubtask = z.union([
 export const importPlanSchema = z.strictObject({
   title: text(1, LIMITS.title),
   description: optionalText(LIMITS.description),
-  tags: z.array(z.string().max(48)).max(10).default([]),
+  /** Accepted so an AI's habit doesn't fail the import, but ignored: tags go on tasks. */
+  tags: z.array(z.string().max(48)).max(10).optional(),
   tasks: z
     .array(
       z.strictObject({
@@ -268,7 +268,8 @@ export const bugReportSchema = z.strictObject({
   /** Whether it was sent from the installed app (only used for the device summary). */
   installed: z.boolean().optional(),
 });
-export const resolveReportSchema = z.strictObject({ reportId: id, resolved: z.boolean() });
+export const reportStatusSchema = z.strictObject({ reportId: id, status: z.enum(["OPEN", "RESOLVED", "REJECTED"]) });
+export const deleteReportSchema = z.strictObject({ reportId: id });
 
 /* ── Team roles ─────────────────────────────────────────────────────────── */
 
@@ -292,7 +293,7 @@ export const updateRoleSchema = z.strictObject({
 export const memberRoleSchema = z.strictObject({ teamId: id, itemId: id, role: z.enum(["CO_OWNER", "MEMBER"]) });
 export const memberCustomRoleSchema = z.strictObject({ teamId: id, itemId: id, roleId: id.nullable() });
 
-/* ── Ideas and tags ─────────────────────────────────────────────────────── */
+/* ── Ideas and tags (tags go on tasks) ─────────────────────────────────────────────────────── */
 
 export const updateIdeaSchema = z
   .strictObject({
@@ -300,9 +301,8 @@ export const updateIdeaSchema = z
     itemId: id,
     title: text(1, LIMITS.title).optional(),
     description: clearableText(LIMITS.ideaBody).optional(),
-    tags: z.array(tagSchema).max(LIMITS.tagsPerIdea, `At most ${LIMITS.tagsPerIdea} tags.`).optional(),
   })
-  .refine((v) => v.title !== undefined || v.description !== undefined || v.tags !== undefined, "Nothing to update");
+  .refine((v) => v.title !== undefined || v.description !== undefined, "Nothing to update");
 
 export const createTagSchema = z.strictObject({ teamId: id, name: tagSchema, color: hexColorSchema });
 export const updateTagSchema = z.strictObject({ teamId: id, itemId: id, name: tagSchema, color: hexColorSchema });

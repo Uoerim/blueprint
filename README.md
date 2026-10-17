@@ -46,7 +46,7 @@ Big project tools are built for org charts. A few friends with a side project ne
 
 A small team needs three things, and Blueprint is built around them:
 
-1. **A place to put ideas the moment they land.** Type it, tag it, done.
+1. **A place to put ideas the moment they land.** Type it, drop it, done.
 2. **A way to agree which ones are worth doing.** Sparks are one-click co-signs, so the best ideas rise without a meeting.
 3. **A quiet signal that someone is on it.** Press *Start working* and your name lights up for the whole team.
 
@@ -56,11 +56,11 @@ When something ships, it stays on the record with your `@username` on it.
 
 ### Ideas and projects
 
-- **Idea vault.** One shared list per team. Tag ideas, spark the ones you like, and sort by most sparked or newest.
-- **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour (any colour, from presets or the full colour spectrum) and delete tags. Renaming or deleting one updates every idea that uses it.
+- **Idea vault.** One shared list per team. Capture an idea in one line, spark the ones you like, and sort by most sparked or newest.
+- **Custom tags.** Every team starts with `#feature`, `#bug`, `#experiment` and `#random`; the owner, co-owners and roles allowed to can add, rename, recolour (any colour, from presets or the full colour spectrum) and delete tags. Tags go on **tasks** (ideas and projects stay untagged). Renaming or deleting a tag updates every task that uses it.
 - **Idea pages.** Open any raw idea to edit it and plan it with tasks and subtasks while it's still in the vault.
 - **Promote to a project.** One click moves an idea, with any tasks it already has, into Execution and opens its project page. Or start a project from scratch.
-- **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks. **Project settings** on the page hold its name, description and tags, plus *Back to ideas*, *Archive* and *Delete*.
+- **Project pages.** Each project has its own page: description, progress, who is on it and what they're working on, and a board with only its tasks. **Project settings** on the page hold its name and description, plus *Back to ideas*, *Archive* and *Delete*.
 - **Back to ideas.** Send a project in Execution back to the idea vault as if it had just been captured. Its tasks stay, but progress is reset: every task returns to Backlog, subtasks are unticked and live focus stops. The warning offers **Archive instead** for keeping everything as it is.
 - **Archive and restore.** Archive ideas or projects to tidy up, with all their progress, and bring them back any time from team settings.
 
@@ -70,7 +70,7 @@ When something ships, it stays on the record with your `@username` on it.
 - **Drag and drop.** Drag a card to another column to move it: press and drag with a mouse, long-press and drag on a phone. A lifted copy follows your finger and the column under it lights up. People who can't move a task can't pick it up, and the ⋯ menu's *Move to* does the same from the keyboard.
 - **View first, edit on purpose.** Tapping a task opens a read-only view of everything about it (details, tags, subtasks, who's on it). Editing lives behind **Edit** in that view or in the card's ⋯ menu, alongside *Move to* and *Delete*. A new task opens straight in the editor so you can add its details and subtasks.
 - **Rich tasks.** Every task has a title, a description, notes, a priority, a project and the team's **tags**, plus a checklist of **subtasks**, each with its own description.
-- **Import from JSON.** Plan a project with any AI assistant: copy Blueprint's prompt (it includes the format, the limits and your team's tags), paste the JSON it writes, check the live preview, and create the project with its tasks and subtasks in one go. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; unknown tags are left off.
+- **Import with AI.** Plan a project with any AI assistant (ChatGPT, Claude, Gemini…): describe it in a few lines, copy Blueprint's ready-made prompt (it carries your description, the JSON format, the limits, your team's tags and planning guidance), paste the JSON the assistant writes, check the live preview, and create the project with its tasks and subtasks in one go. Find it as **Import with AI** in Execution, in the empty state, and inside **New project**. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; tags the team doesn't have, and any tags on the project itself, are left off.
 - **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
 - **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
 - **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task.
@@ -92,7 +92,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
-- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. Plus Privacy Policy and Terms pages.
+- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. You pick which page it's about: the one you're on, one you visited just before (handy on phones, where support lives on the Profile tab), or none. Plus Privacy Policy and Terms pages.
 
 ### Phones and installing
 
@@ -111,7 +111,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 1. **Sign up** with Google or GitHub, then choose your `@username` and colour.
 2. **Create a team** and invite people with **Invite teammates**, searching by `@username`.
-3. **Capture ideas** in the **Idea vault**. Add tags, and spark the ones you believe in. Open an idea to plan it with tasks before committing to it.
+3. **Capture ideas** in the **Idea vault**, and spark the ones you believe in. Open an idea to plan it with tasks before committing to it.
 4. **Promote** a good idea with one click. It moves to Execution and opens its project page, ready for tasks. Or start a project from **Execution → New project**.
 5. **Plan the work.** Add tasks with the quick-add bar: pick who's on it and whether everyone or only assignees can see it. Open a task to write its description and notes and break it into subtasks.
 6. **Work the board.** Assignees press **Start working** so the team knows, tick subtasks as they go, and press **Mark done** when it ships.
@@ -158,8 +158,8 @@ Deleting projects and the team always stays with the owner. Every rule is enforc
 | Role | Can do |
 | --- | --- |
 | `USER` | Everyone. No admin access. |
-| `SUPPORT` | Admin panel: look up accounts, teams and the audit log (read-only), and read and resolve bug reports. |
-| `MODERATOR` | Support, plus suspend and unsuspend accounts and sign them out everywhere. |
+| `SUPPORT` | Admin panel: look up accounts, teams and the audit log (read-only), and read, resolve and reject feedback. |
+| `MODERATOR` | Support, plus suspend and unsuspend accounts, sign them out everywhere, and delete rejected feedback. |
 | `ADMIN` | Everything: change site roles and usernames, delete accounts, delete teams. |
 
 Staff can only act on accounts ranked below them (admins can act on anyone), never on themselves, and the last admin can't be removed. **No site role can read the text of ideas, projects or tasks.** The admin panel shows accounts, memberships and counts only.
@@ -242,7 +242,7 @@ The per-IP ceiling is higher than the per-user one where people often share a ne
 | **Team roles and private tasks** | Owner, co-owner, member and custom-role permissions are checked on every action. Private tasks are filtered inside the database query, so they never reach people who can't see them. |
 | **Strict schemas** | Zod `.strict()` schemas reject unexpected fields on every payload. Server action bodies are capped at 32 KB. |
 | **Sanitising** | Control characters, zero-width and bidirectional-override characters (Trojan Source) and HTML tags are stripped before anything reaches the app logic. Queries are parameterised only. |
-| **Input limits** | Usernames `^[a-z0-9_]{3,20}$` with a reserved list (`admin`, `api`, `auth`, `app`, `system`, `root`, `null`, `undefined` and more). Titles up to 120 characters, idea bodies 500, descriptions 1,000, task notes 2,000, team names 40, at most 5 tags per idea. The same limits (`LIMITS` in `lib/constants.ts`) drive the form fields. |
+| **Input limits** | Usernames `^[a-z0-9_]{3,20}$` with a reserved list (`admin`, `api`, `auth`, `app`, `system`, `root`, `null`, `undefined` and more). Titles up to 120 characters, idea bodies 500, descriptions 1,000, task notes 2,000, team names 40, at most 5 tags per task. The same limits (`LIMITS` in `lib/constants.ts`) drive the form fields. |
 | **Typed confirmations** | Destructive actions check the typed team, project or username on the server, not only in the browser. |
 | **Safe errors** | Unexpected errors are logged on the server with a short reference code, with connection strings and secrets scrubbed from the log line. People only ever see "An unexpected error occurred. Please try again." plus that code, never a stack trace, Prisma code or file path. |
 | **Profile pictures from Clerk only** | Pictures are read from Clerk on the server, never taken from the browser. |
@@ -418,7 +418,7 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 | **Accounts** | Username, colour, email, site role, status, team count and join date; search by username, name or email; filter staff, suspended or deleted accounts |
 | **Account** | Details, teams, activity, and actions: change username (admins), change site role, suspend with a reason, sign out everywhere, delete |
 | **Teams** | Name, slug, owner, member/idea/task counts and created date; admins can delete a team |
-| **Feedback** | Bug reports and feature requests sent from the Contact support window, newest first, filtered by type and status: who sent it, when, the page and a short device summary, and the text. Filter open, resolved or all; support staff and above can mark them resolved or reopen them |
+| **Feedback** | Bug reports and feature requests sent from the Contact support window, newest first, filtered by type and status: who sent it, when, the page and a short device summary, and the text. Filter open, resolved, rejected or all; support staff and above can resolve, reject or reopen them, and moderators and above can delete rejected ones (one at a time, or all at once after typing a confirmation) |
 | **Audit log** | A stream of `TEAM_CREATED`, `INVITE_SENT`, `TASK_DONE`, `SECURITY_RATE_LIMITED` and other events with time, actor, target and team slug. Views: staff actions, security, or everything. Admins also see the shortened IP addresses. |
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
@@ -472,6 +472,7 @@ components/
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
   live.ts                  ids chosen in the browser (no remount after saving), smarter live refresh
+  recent-pages.ts          the last pages visited in this tab, so feedback can say which one it's about
   import-template.ts       the "Import from JSON" format, AI prompt and reply parsing
   tour-demo.ts             on-screen-only samples shown by the guided tours
   crypto.ts                per-team AES-256-GCM field encryption

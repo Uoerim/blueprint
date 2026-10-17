@@ -2,10 +2,10 @@
 
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { btn, cx, Monogram, Pill, TAG_COLORS, readable } from "@/components/ui/primitives";
+import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 
 type Person = { handle: string; color: string };
-type Idea = { id: string; title: string; by: string; tags: string[]; sparks: number; sparked: boolean };
+type Idea = { id: string; title: string; by: string; sparks: number; sparked: boolean };
 type Task = { id: string; title: string; idea: string; who: string | null; status: "ready" | "progress" | "done" };
 
 const PEOPLE: Record<string, Person> = {
@@ -23,9 +23,9 @@ const BREAKDOWN: Record<string, string[]> = {
 };
 
 const INITIAL_IDEAS: Idea[] = [
-  { id: "i1", title: "Arpeggiator that follows the phone's tilt", by: "linus_k", tags: ["feature", "experiment"], sparks: 3, sparked: false },
-  { id: "i2", title: "Share a loop as a 10-second link", by: "grace", tags: ["feature"], sparks: 2, sparked: false },
-  { id: "i3", title: "Audio glitches when the screen locks", by: "mo", tags: ["bug"], sparks: 1, sparked: false },
+  { id: "i1", title: "Arpeggiator that follows the phone's tilt", by: "linus_k", sparks: 3, sparked: false },
+  { id: "i2", title: "Share a loop as a 10-second link", by: "grace", sparks: 2, sparked: false },
+  { id: "i3", title: "Audio glitches when the screen locks", by: "mo", sparks: 1, sparked: false },
 ];
 
 const INITIAL_TASKS: Task[] = [
@@ -37,11 +37,7 @@ let seq = 100;
 const uid = (p: string) => `${p}${++seq}`;
 const spring = { type: "spring", stiffness: 520, damping: 38, mass: 0.8 } as const;
 
-function parseCapture(raw: string) {
-  const tags = [...raw.matchAll(/#([a-z0-9-]{1,24})/gi)].map((m) => m[1]!.toLowerCase()).slice(0, 3);
-  const title = raw.replace(/#[a-z0-9-]+/gi, "").replace(/\s+/g, " ").trim().slice(0, 80);
-  return { title, tags: tags.length ? tags : ["random"] };
-}
+const cleanTitle = (raw: string) => raw.replace(/\s+/g, " ").trim().slice(0, 80);
 
 export function LivePreview() {
   const reduce = useReducedMotion();
@@ -132,9 +128,9 @@ export function LivePreview() {
 
   const capture = (e: FormEvent) => {
     e.preventDefault();
-    const { title, tags } = parseCapture(draft);
+    const title = cleanTitle(draft);
     if (!title) return;
-    setIdeas((all) => [{ id: uid("i"), title, by: "you", tags, sparks: 0, sparked: false }, ...all].slice(0, 5));
+    setIdeas((all) => [{ id: uid("i"), title, by: "you", sparks: 0, sparked: false }, ...all].slice(0, 5));
     setDraft("");
     setEvent(`You dropped “${title}” into the vault`);
   };
@@ -191,7 +187,7 @@ export function LivePreview() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={100}
-                placeholder="Dump an idea… try #feature"
+                placeholder="Dump an idea…"
                 aria-label="Capture an idea"
                 className="h-9 min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-3 focus:outline-none"
               />
@@ -214,9 +210,6 @@ export function LivePreview() {
                       <p className="text-[13.5px] leading-snug text-ink">{idea.title}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <span className="font-mono text-[11px]" style={{ color: readable(p.color) }}>@{p.handle}</span>
-                        {idea.tags.map((t) => (
-                          <Pill key={t} color={TAG_COLORS[t]}>#{t}</Pill>
-                        ))}
                         <span className="flex-1" />
                         <motion.button
                           type="button"

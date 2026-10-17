@@ -6,15 +6,22 @@ import { openReport } from "@/lib/bug-reports";
 import { db } from "@/lib/db";
 import { can } from "@/lib/site-roles";
 import { fmtDateTime, PAGE_SIZE, PageTitle, Pager, pageOf } from "../_components/ui";
-import { ResolveButton } from "./resolve-button";
+import { PurgeRejected, ReportActions } from "./report-actions";
 
 export const metadata = { title: "Feedback" };
 
 const FILTERS = [
   ["open", "Open"],
   ["resolved", "Resolved"],
+  ["rejected", "Rejected"],
   ["all", "All"],
 ] as const;
+const STATUS_OF = { open: "OPEN", resolved: "RESOLVED", rejected: "REJECTED" } as const;
+const BADGE = {
+  OPEN: ["Open", "bg-amber/15 text-amber"],
+  RESOLVED: ["Resolved", "bg-emerald/12 text-emerald"],
+  REJECTED: ["Rejected", "bg-tint/[0.08] text-ink-3"],
+} as const;
 type Filter = (typeof FILTERS)[number][0];
 const KINDS = [
   ["all", "Everything"],
@@ -24,20 +31,21 @@ const KINDS = [
 type KindFilter = (typeof KINDS)[number][0];
 
 /**
- * Bug reports sent from the Contact support window. Support staff and above.
- * Each shows who sent it, the page and device, and the text, decrypted here
- * with the bug-report key only (it can't open team content).
+ * Bug reports and feature requests sent from the Contact support window.
+ * Support staff and above can resolve or reject them; moderators and above can
+ * delete rejected ones. Each shows who sent it, the page and device, and the
+ * text, decrypted here with the bug-report key only (it can't open team content).
  */
 export default async function AdminReports({ searchParams }: PageProps<"/admin/reports">) {
   const me = await requireStaffPage("reports.view");
   const sp = await searchParams;
   const page = pageOf(sp.page);
   const raw = Array.isArray(sp.status) ? sp.status[0] : sp.status;
-  const filter: Filter = raw === "resolved" || raw === "all" ? raw : "open";
+  const filter: Filter = raw === "resolved" || raw === "rejected" || raw === "all" ? raw : "open";
   const rawKind = Array.isArray(sp.kind) ? sp.kind[0] : sp.kind;
   const kind: KindFilter = rawKind === "bug" || rawKind === "feature" ? rawKind : "all";
   const where: Prisma.BugReportWhereInput = {
-    ...(filter === "all" ? {} : { status: filter === "open" ? "OPEN" : "RESOLVED" }),
+    ...(filter === "all" ? {} : { status: STATUS_OF[filter] }),
     ...(kind === "all" ? {} : { kind: kind === "bug" ? "BUG" : "FEATURE" }),
   };
   // Builds a link that changes one filter and keeps the other.
@@ -51,9 +59,10 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
     return s ? `/admin/reports?${s}` : "/admin/reports";
   };
 
-  const [total, openCount, rows] = await Promise.all([
+  const [total, openCount, rejectedCount, rows] = await Promise.all([
     db.bugReport.count({ where }),
     db.bugReport.count({ where: { status: "OPEN", ...(kind === "all" ? {} : { kind: kind === "bug" ? "BUG" : "FEATURE" }) } }),
+    db.bugReport.count({ where: { status: "REJECTED" } }),
     db.bugReport.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -83,6 +92,7 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
     ]),
   );
   const canResolve = can(me.siteRole, "reports.resolve");
+  const canDelete = can(me.siteRole, "reports.delete");
 
   return (
     <>
@@ -105,7 +115,8 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
           </Link>
         ))}
       </nav>
-      <nav aria-label="Status" className="mt-2 flex gap-1.5 text-[13px]">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <nav aria-label="Status" className="flex flex-wrap gap-1.5 text-[13px]">
         {FILTERS.map(([f, label]) => (
           <Link
             key={f}
@@ -121,6 +132,8 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
           </Link>
         ))}
       </nav>
+      {canDelete && filter === "rejected" && <PurgeRejected count={rejectedCount} />}
+      </div>
 
       {rows.length ? (
         <ul className="mt-4 space-y-3">
@@ -129,14 +142,7 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
             return (
               <li key={r.id} className="card rounded-2xl p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-                  <span
-                    className={cx(
-                      "rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-                      r.status === "OPEN" ? "bg-amber/15 text-amber" : "bg-emerald/12 text-emerald",
-                    )}
-                  >
-                    {r.status === "OPEN" ? "Open" : "Resolved"}
-                  </span>
+                  <span className={cx("rounded-md px-1.5 py-0.5 text-[11px] font-medium", BADGE[r.status][1])}>{BADGE[r.status][0]}</span>
                   <span
                     className={cx(
                       "rounded-md px-1.5 py-0.5 text-[11px] font-medium",
@@ -155,7 +161,7 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
                   <span className="text-ink-3">{fmtDateTime(r.createdAt)}</span>
                   {canResolve && (
                     <span className="ml-auto">
-                      <ResolveButton reportId={r.id} resolved={r.status === "RESOLVED"} />
+                      <ReportActions reportId={r.id} status={r.status} canDelete={canDelete} />
                     </span>
                   )}
                 </div>
@@ -173,9 +179,9 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
                       <dd className="text-ink-2">{r.device}</dd>
                     </div>
                   )}
-                  {r.status === "RESOLVED" && r.resolvedAt && (
+                  {r.status !== "OPEN" && r.resolvedAt && (
                     <div className="flex gap-1.5">
-                      <dt>Resolved</dt>
+                      <dt>{r.status === "RESOLVED" ? "Resolved" : "Rejected"}</dt>
                       <dd className="text-ink-2">
                         {fmtDateTime(r.resolvedAt)}
                         {r.resolvedById && <> by @{resolvers.get(r.resolvedById) ?? "deleted"}</>}
@@ -189,7 +195,7 @@ export default async function AdminReports({ searchParams }: PageProps<"/admin/r
         </ul>
       ) : (
         <div className="card mt-4 rounded-2xl px-6 py-12 text-center">
-          <p className="text-[15px] text-ink">{filter === "open" ? "Nothing open." : filter === "resolved" ? "Nothing resolved yet." : "No feedback yet."}</p>
+          <p className="text-[15px] text-ink">{filter === "open" ? "Nothing open." : filter === "resolved" ? "Nothing resolved yet." : filter === "rejected" ? "Nothing rejected." : "No feedback yet."}</p>
           <p className="mt-1 text-sm text-ink-3">Bug reports and feature requests sent from the Contact support window show up here.</p>
         </div>
       )}

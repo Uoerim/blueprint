@@ -15,7 +15,8 @@ import {
   adminRoleSchema,
   adminSuspendSchema,
   adminUserSchema,
-  resolveReportSchema,
+  deleteReportSchema,
+  reportStatusSchema,
 } from "@/lib/validations";
 
 /**
@@ -209,18 +210,44 @@ export async function adminDeleteTeam(input: unknown) {
 }
 
 /** Marks a bug report resolved, or reopens it. Support staff and above. */
-export async function resolveBugReport(input: unknown) {
+/** Opens, resolves or rejects a piece of feedback. Support staff and above. */
+export async function setReportStatus(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { reportId, resolved } = resolveReportSchema.parse(input);
+    const { reportId, status } = reportStatusSchema.parse(input);
     requirePermission(ctx.user, "reports.resolve");
     const { count } = await db.bugReport.updateMany({
-      where: { id: reportId, status: resolved ? "OPEN" : "RESOLVED" },
-      data: resolved
-        ? { status: "RESOLVED", resolvedAt: new Date(), resolvedById: ctx.user.id }
-        : { status: "OPEN", resolvedAt: null, resolvedById: null },
+      where: { id: reportId, status: { not: status } },
+      data:
+        status === "OPEN"
+          ? { status, resolvedAt: null, resolvedById: null }
+          : { status, resolvedAt: new Date(), resolvedById: ctx.user.id },
     });
-    if (!count) throw new ActionError(resolved ? "That report is already resolved." : "That report is already open.");
-    await audit(ctx, { action: resolved ? "admin.report.resolved" : "admin.report.reopened", entityType: "BugReport", entityId: reportId });
+    if (!count) throw new ActionError("It's already like that. Refresh to see the latest.");
+    const action = status === "OPEN" ? "admin.report.reopened" : status === "RESOLVED" ? "admin.report.resolved" : "admin.report.rejected";
+    await audit(ctx, { action, entityType: "BugReport", entityId: reportId });
     return done();
+  });
+}
+
+/** Permanently deletes one piece of rejected feedback. Moderators and above; only rejected items. */
+export async function deleteRejectedReport(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { reportId } = deleteReportSchema.parse(input);
+    requirePermission(ctx.user, "reports.delete");
+    const { count } = await db.bugReport.deleteMany({ where: { id: reportId, status: "REJECTED" } });
+    if (!count) throw new ActionError("Only rejected feedback can be deleted, and this one isn't (or is already gone).");
+    await audit(ctx, { action: "admin.report.deleted", entityType: "BugReport", entityId: reportId });
+    return done();
+  });
+}
+
+/** Permanently deletes every piece of rejected feedback. Moderators and above. */
+export async function purgeRejectedReports() {
+  return runAction({ tier: "write" }, async (ctx) => {
+    requirePermission(ctx.user, "reports.delete");
+    const { count } = await db.bugReport.deleteMany({ where: { status: "REJECTED" } });
+    if (count) await audit(ctx, { action: "admin.report.purged", entityType: "BugReport", entityId: `rejected:${count}` });
+    revalidatePath("/admin", "layout");
+    return { count };
   });
 }

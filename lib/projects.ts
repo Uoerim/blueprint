@@ -26,13 +26,13 @@ export async function returnProjectToIdeas(teamId: string, ideaId: string): Prom
 /**
  * Creates a project with its tasks and subtasks from an imported plan, in one
  * transaction (all of it, or none). Texts are encrypted with the team's key.
- * Tags the team doesn't have are dropped, since an AI may invent some.
+ * Tags go on tasks; ones the team doesn't have are dropped, since an AI may invent some.
  * The caller checks permissions and validates the plan first.
  */
 export async function createProjectFromPlan(teamId: string, userId: string, plan: ImportPlan) {
   const known = new Set((await db.teamTag.findMany({ where: { teamId }, select: { name: true } })).map((t) => t.name));
   const keep = (tags: string[]) =>
-    [...new Set(tags.map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter((t) => known.has(t)))].slice(0, LIMITS.tagsPerIdea);
+    [...new Set(tags.map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter((t) => known.has(t)))].slice(0, LIMITS.tagsPerTask);
 
   return db.$transaction(
     async (tx) => {
@@ -41,7 +41,6 @@ export async function createProjectFromPlan(teamId: string, userId: string, plan
           teamId,
           title: encryptText(plan.title, teamId),
           description: encryptOptional(plan.description, teamId),
-          tags: keep(plan.tags),
           status: "PROMOTED",
           createdById: userId,
         },

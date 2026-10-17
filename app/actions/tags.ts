@@ -9,8 +9,9 @@ import { requireTeamAccess } from "@/lib/team-access";
 import { createTagSchema, teamScoped, updateTagSchema } from "@/lib/validations";
 
 /*
- * A team's tags, for ideas and tasks. Both store tag names, so renaming a tag
- * rewrites it everywhere and deleting one removes it, in the same transaction.
+ * A team's tags, for tasks. Tasks store tag names, so renaming a tag rewrites
+ * it everywhere and deleting one removes it, in the same transaction. (Ideas
+ * no longer carry tags; old ones they have are kept in step too.)
  * Owners and co-owners can always manage tags; custom roles need "Manage tags".
  */
 

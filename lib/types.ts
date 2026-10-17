@@ -29,7 +29,6 @@ export type IdeaDTO = {
   id: string;
   title: string;
   description: string | null;
-  tags: string[];
   status: "VAULT" | "PROMOTED" | "ARCHIVED";
   sparksCount: number;
   sparkedByMe: boolean;

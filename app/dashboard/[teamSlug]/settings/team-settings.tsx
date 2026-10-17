@@ -562,7 +562,7 @@ function Tags({ team, can, run, confirmIt, tags }: Shared & { tags: TagDTO[] }) 
   };
 
   return (
-    <Card id="tags" title={`Tags · ${tags.length}`} note={manage ? "The tags people can put on ideas. Renaming or deleting a tag updates every idea that uses it." : "The tags people can put on ideas."}>
+    <Card id="tags" title={`Tags · ${tags.length}`} note={manage ? "The tags people can put on tasks. Renaming or deleting a tag updates every task that uses it." : "The tags people can put on tasks."}>
       <ul className="-mx-2 space-y-0.5">
         {tags.map((t) => (
           <TagRow key={t.id} tag={t} manage={manage} team={team} run={run} confirmIt={confirmIt} />

@@ -31,9 +31,9 @@ export function demoContent(viewer: Viewer, now = Date.now()) {
   const ago = (min: number) => new Date(now - min * 60_000).toISOString();
   const project = { id: "cdemoprojectdemoproject01", title: "Pocket synth beta" };
   const ideas: IdeaDTO[] = [
-    { id: "cdemoideadarkmodedemo0001", title: "Dark mode for the synth", description: "Night sessions are half our usage.", tags: ["feature"], status: "VAULT", sparksCount: 3, sparkedByMe: true, authorId: MAYA, createdAt: ago(40), taskCount: 0, doneCount: 0 },
-    { id: "cdemoideashakeundodemo001", title: "Shake to undo the last note", description: null, tags: ["experiment"], status: "VAULT", sparksCount: 1, sparkedByMe: false, authorId: viewer.id, createdAt: ago(180), taskCount: 0, doneCount: 0 },
-    { ...project, description: "Ship a beta to 50 friends and collect feedback.", tags: ["feature"], status: "PROMOTED", sparksCount: 4, sparkedByMe: true, authorId: viewer.id, createdAt: ago(2_000), taskCount: 4, doneCount: 1 },
+    { id: "cdemoideadarkmodedemo0001", title: "Dark mode for the synth", description: "Night sessions are half our usage.", status: "VAULT", sparksCount: 3, sparkedByMe: true, authorId: MAYA, createdAt: ago(40), taskCount: 0, doneCount: 0 },
+    { id: "cdemoideashakeundodemo001", title: "Shake to undo the last note", description: null, status: "VAULT", sparksCount: 1, sparkedByMe: false, authorId: viewer.id, createdAt: ago(180), taskCount: 0, doneCount: 0 },
+    { ...project, description: "Ship a beta to 50 friends and collect feedback.", status: "PROMOTED", sparksCount: 4, sparkedByMe: true, authorId: viewer.id, createdAt: ago(2_000), taskCount: 4, doneCount: 1 },
   ];
   const task = (t: Partial<TaskDTO> & Pick<TaskDTO, "id" | "title">): TaskDTO => ({
     description: null,

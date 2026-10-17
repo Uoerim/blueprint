@@ -9,7 +9,7 @@ import { MaskedHeadline, Rise } from "@/components/landing/motion";
 import { LandingNav } from "@/components/landing/nav";
 import { ProjectDemo } from "@/components/landing/project-demo";
 import { SupportButton } from "@/components/support";
-import { btn, cx, Monogram, Pill, readable } from "@/components/ui/primitives";
+import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
 
 const REPO = "https://github.com/Uoerim/blueprint";
 
@@ -120,24 +120,22 @@ function Row({
 }
 
 function VaultMock() {
-  const ideas: [string, string, string, string, number][] = [
-    ["Preset packs named after cities we've lived in", "grace", "#F43F5E", "random", 1],
-    ["Arpeggiator that follows the phone's tilt", "ada", "#10B981", "feature", 3],
-    ["Crash when the metronome hits 300 BPM", "linus_k", "#F59E0B", "bug", 2],
+  const ideas: [string, string, string, number][] = [
+    ["Preset packs named after cities we've lived in", "grace", "#F43F5E", 1],
+    ["Arpeggiator that follows the phone's tilt", "ada", "#10B981", 3],
+    ["Share a loop as a 10-second link", "linus_k", "#F59E0B", 2],
   ];
-  const tagColor: Record<string, string> = { random: "#F59E0B", feature: "#6366F1", bug: "#F43F5E" };
   return (
     <div data-ui className="card space-y-2 rounded-2xl p-3 sm:p-4">
       <div className="field flex h-11 items-center rounded-xl px-3 text-[14px] text-ink-3">
-        Write down an idea… add #feature, #bug or #random
+        Write down an idea…
       </div>
-      {ideas.map(([t, who, c, tag, sparks]) => (
+      {ideas.map(([t, who, c, sparks]) => (
         <div key={t} className="rounded-xl bg-surface-2 p-3">
           <p className="text-[14px] text-ink">{t}</p>
           <div className="mt-2 flex items-center gap-2">
             <Monogram name={who} color={c} size={18} />
             <span className="font-mono text-[11px]" style={{ color: readable(c) }}>@{who}</span>
-            <Pill color={tagColor[tag]}>#{tag}</Pill>
             <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-amber/15 px-2 py-0.5 font-mono text-[12px] text-amber">
               <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden><path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" /></svg>
               {sparks}
@@ -192,8 +190,8 @@ function Tour() {
       <Row
         step="01 · Ideas"
         title="Write every idea down in seconds."
-        body="Anyone on the team adds ideas to one shared list. Tag them, and spark the ones you like, so the best ideas rise to the top without a meeting."
-        points={["One box, no form to fill in", "Tags: feature, bug, experiment, random", "Sparks show what the team believes in"]}
+        body="Anyone on the team adds ideas to one shared list in a single line, and sparks the ones they like, so the best ideas rise to the top without a meeting."
+        points={["One box, no form to fill in", "Sparks show what the team believes in", "Promote the winners into projects with tagged tasks"]}
       >
         <VaultMock />
       </Row>

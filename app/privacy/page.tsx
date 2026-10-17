@@ -35,9 +35,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Feedback.</strong> If you report a bug or request a feature from the Contact support window: what you
-            write, whether it&apos;s a bug or a request, the page you were on (its address only) and a short device summary such
-            as &ldquo;iPhone · Safari&rdquo;. The text is encrypted before it&apos;s stored. Only Blueprint staff can read it, and
-            we keep it only as long as we need it to fix the problem or consider the idea.
+            write, whether it&apos;s a bug or a request, the page you pick (its address only, or none) and a short device summary
+            such as &ldquo;iPhone · Safari&rdquo;. To offer recent pages, your browser remembers the last few addresses you opened
+            in that tab; they stay on your device unless you send one. The text is encrypted before it&apos;s stored. Only
+            Blueprint staff can read it, and we keep it only as long as we need it to fix the problem or consider the idea;
+            feedback we reject may be deleted.
           </li>
           <li>
             <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s

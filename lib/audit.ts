@@ -21,6 +21,9 @@ export type AuditAction =
   | "admin.team.deleted"
   | "admin.report.resolved"
   | "admin.report.reopened"
+  | "admin.report.rejected"
+  | "admin.report.deleted"
+  | "admin.report.purged"
   | `cli.site.role.${SiteRole}`
   | "cli.user.unsuspended"
   // Teams, membership and roles

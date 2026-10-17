@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { KofiButton } from "@/components/kofi-button";
-import { SupportButton } from "@/components/support";
+import { PageMemory, SupportButton } from "@/components/support";
 import { BrandMark } from "@/components/ui/primitives";
 import { withOnboardedPage } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -109,6 +109,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <AppPreviewSwitch />
         </Suspense>
         <LivePulse />
+        <PageMemory />
         <InstallPrompt />
       </div>
     </DashboardProvider>

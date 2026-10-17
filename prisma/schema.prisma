@@ -166,6 +166,7 @@ model Idea {
   description      String?
   /// Legacy project notes (no longer shown; kept so nothing written there is lost).
   notes            String?
+  /// Legacy idea tags (no longer shown or edited: tags live on tasks). Kept so nothing is lost.
   tags             String[]
   status           IdeaStatus @default(VAULT)
   sparksCount      Int        @default(0)
@@ -316,6 +317,7 @@ model BugReport {
   device       String?
   status       BugReportStatus @default(OPEN)
   createdAt    DateTime        @default(now())
+  /// When it was resolved or rejected, and by whom.
   resolvedAt   DateTime?
   resolvedById String?
 
@@ -330,4 +332,6 @@ enum FeedbackKind {
 enum BugReportStatus {
   OPEN
   RESOLVED
+  /// Won't be fixed or built. Only rejected feedback can be deleted.
+  REJECTED
 }

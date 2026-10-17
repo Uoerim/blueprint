@@ -3,11 +3,13 @@
 import { useAuth } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useState, useTransition, type FormEvent } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { submitBugReport } from "@/app/actions/support";
 import { LEGAL_EMAIL } from "@/components/legal-constants";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
+import { describePage, recentPages, rememberPage } from "@/lib/recent-pages";
 
 /** Contact support: report a bug right here (signed in), or email us about anything else. */
 export function SupportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -76,6 +78,25 @@ const KINDS: { id: Kind; label: string; placeholder: string; thanks: string }[] 
   },
 ];
 
+/** Remembers the pages visited in this tab, so a report can say which one it's about. */
+export function PageMemory() {
+  const path = usePathname();
+  useEffect(() => rememberPage(path), [path]);
+  return null;
+}
+
+const NO_PAGE = "";
+
+/**
+ * The pages a report can be about: the one you're on (unless it's the Profile
+ * tab, where support lives on phones), then the ones you visited before it.
+ */
+function pageChoices(): string[] {
+  const here = window.location.pathname;
+  const list = [here, ...recentPages()].filter((p) => !/^\/dashboard\/me(\/|$)/.test(p));
+  return [...new Set(list)].slice(0, 6);
+}
+
 /** Bug reports and feature requests: both go straight to the staff inbox in the admin panel. */
 function BugReportForm() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -85,6 +106,9 @@ function BugReportForm() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [pending, start] = useTransition();
+  // Read once when the form opens (it's only mounted while the window is open).
+  const [choices] = useState(() => (typeof window === "undefined" ? [] : pageChoices()));
+  const [page, setPage] = useState(choices[0] ?? NO_PAGE);
   const ready = body.trim().length >= MIN && !pending;
 
   const submit = (e: FormEvent) => {
@@ -95,7 +119,7 @@ function BugReportForm() {
       const res = await submitBugReport({
         kind,
         body,
-        page: window.location.pathname,
+        page: page || undefined,
         installed: window.matchMedia("(display-mode: standalone)").matches,
       });
       if (!res.ok) return setError(res.error);
@@ -166,12 +190,36 @@ function BugReportForm() {
             placeholder={meta.placeholder}
             className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
           />
-          <div className="mt-1.5 flex items-start justify-between gap-3 text-[12px] text-ink-3">
-            <span>We include the page you&apos;re on and your device type, nothing else.</span>
-            <span className="shrink-0 font-mono tabular-nums">
+          <div className="mt-1.5 flex justify-end text-[12px] text-ink-3">
+            <span className="font-mono tabular-nums">
               {body.length}/{MAX}
             </span>
           </div>
+          <div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <label htmlFor="bug-page" className="shrink-0 text-[13px] text-ink-2">
+              {kind === "BUG" ? "Where it happened" : "Which page it's about"}
+            </label>
+            <div className="relative min-w-0 flex-1">
+              <select
+                id="bug-page"
+                value={page}
+                onChange={(e) => setPage(e.target.value)}
+                className={cx(inputCls, "h-10 w-full appearance-none pr-9 text-[14px]")}
+              >
+                {choices.map((p) => (
+                  <option key={p} value={p}>
+                    {describePage(p)}
+                    {p === choices[0] && typeof window !== "undefined" && p === window.location.pathname ? " (this page)" : ""}
+                  </option>
+                ))}
+                <option value={NO_PAGE}>Not about a specific page</option>
+              </select>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3">
+                <path d="m3 4.5 3 3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+          <p className="mt-1.5 text-[12px] text-ink-3">We send the page you pick and your device type with it, nothing else.</p>
           {error && (
             <p role="alert" className="mt-2 text-[13px] text-rose">
               {error}

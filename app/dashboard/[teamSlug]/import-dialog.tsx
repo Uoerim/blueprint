@@ -6,7 +6,7 @@ import { importProject } from "@/app/actions/ideas";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
 import { LIMITS } from "@/lib/constants";
-import { extractJson, IMPORT_EXAMPLE, importPrompt } from "@/lib/import-template";
+import { extractJson, importPrompt } from "@/lib/import-template";
 import { importPlanSchema, type ImportPlan } from "@/lib/validations";
 import { useWorkspace } from "./workspace";
 
@@ -23,7 +23,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
   );
 }
 
-type Check = { state: "empty" } | { state: "error"; message: string } | { state: "ok"; plan: ImportPlan; dropped: string[] };
+type Check = { state: "empty" } | { state: "error"; message: string } | { state: "ok"; plan: ImportPlan; dropped: string[]; projectTags: boolean };
 
 /** "tasks.3.subtasks.1.title" → "Task 4, subtask 2, title". */
 function where(path: PropertyKey[]): string {
@@ -42,8 +42,9 @@ function where(path: PropertyKey[]): string {
 function ImportBody({ onClose }: { onClose: () => void }) {
   const { team, tags, run, openProject } = useWorkspace();
   const [raw, setRaw] = useState("");
+  const [about, setAbout] = useState("");
   const [copied, setCopied] = useState(false);
-  const [example, setExample] = useState(false);
+  const [preview, setPreview] = useState(false);
   const [pending, setPending] = useState(false);
   const teamTags = tags.map((t) => t.name);
 
@@ -64,14 +65,14 @@ function ImportBody({ onClose }: { onClose: () => void }) {
       return { state: "error", message: `${where(issue.path)}: ${issue.message}` };
     }
     const known = new Set(teamTags);
-    const all = [...parsed.data.tags, ...parsed.data.tasks.flatMap((t) => t.tags)].map((t) => t.trim().toLowerCase().replace(/^#/, ""));
+    const all = parsed.data.tasks.flatMap((t) => t.tags).map((t) => t.trim().toLowerCase().replace(/^#/, ""));
     const dropped = [...new Set(all.filter((t) => t && !known.has(t)))];
-    return { state: "ok", plan: parsed.data, dropped };
+    return { state: "ok", plan: parsed.data, dropped, projectTags: (parsed.data.tags?.length ?? 0) > 0 };
   }, [raw, teamTags]);
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(importPrompt(teamTags));
+      await navigator.clipboard.writeText(importPrompt(teamTags, about));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -98,36 +99,48 @@ function ImportBody({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="space-y-5">
-      <Step n={1} title="Copy the prompt">
+      <Step n={1} title="Describe it and copy the prompt">
         <p className="text-[13px] leading-relaxed text-ink-3">
-          Paste it into ChatGPT, Claude or any assistant, and describe your project where it says so. It already knows Blueprint&apos;s format
-          {teamTags.length ? " and your team's tags" : ""}.
+          Write a few lines about the project (or add them in the assistant later). The prompt already explains Blueprint&apos;s format, the limits
+          {teamTags.length ? " and your team's tags" : ""}, so you can paste it straight into ChatGPT, Claude, Gemini or any other assistant.
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={copy} className={cx(btn.primary, btn.sm, "min-w-32")} aria-live="polite">
+        <label htmlFor="import-about" className="sr-only">
+          Describe your project
+        </label>
+        <textarea
+          id="import-about"
+          value={about}
+          onChange={(e) => setAbout(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder="e.g. A beta of our music app for 50 friends by the end of the month: build, demo video, invites, feedback form."
+          className={cx(inputCls, "mt-3 resize-y py-2.5 leading-relaxed")}
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <motion.button type="button" onClick={copy} whileTap={{ scale: 0.96 }} className={cx(btn.primary, btn.sm, "min-w-32")} aria-live="polite">
             {copied ? "Copied ✓" : "Copy prompt"}
-          </button>
-          <button type="button" onClick={() => setExample((v) => !v)} aria-expanded={example} className={cx(btn.ghost, btn.sm)}>
-            {example ? "Hide the format" : "See the format"}
+          </motion.button>
+          <button type="button" onClick={() => setPreview((v) => !v)} aria-expanded={preview} className={cx(btn.ghost, btn.sm)}>
+            {preview ? "Hide the prompt" : "See the prompt"}
           </button>
         </div>
         <AnimatePresence initial={false}>
-          {example && (
+          {preview && (
             <motion.pre
-              key="example"
+              key="prompt"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-3 max-h-64 overflow-auto rounded-xl bg-surface-2 p-3 font-mono text-[11.5px] leading-relaxed text-ink-2"
+              className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-3 font-mono text-[11.5px] leading-relaxed text-ink-2"
             >
-              {JSON.stringify(IMPORT_EXAMPLE, null, 2)}
+              {importPrompt(teamTags, about)}
             </motion.pre>
           )}
         </AnimatePresence>
       </Step>
 
-      <Step n={2} title="Paste what it gives you">
+      <Step n={2} title="Paste the JSON it writes back">
         <label htmlFor="import-json" className="sr-only">
           The plan as JSON
         </label>
@@ -190,6 +203,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
                   {check.plan.tasks.length > 6 && <li className="pl-3.5 text-[12px] text-ink-3">and {check.plan.tasks.length - 6} more</li>}
                 </ul>
               )}
+              {check.projectTags && <p className="mt-3 text-[12px] text-ink-3">Tags go on tasks, so the project&apos;s own tags are left off.</p>}
               {check.dropped.length > 0 && (
                 <p className="mt-3 text-[12px] text-amber">
                   These tags aren&apos;t in your team, so they&apos;ll be left off: {check.dropped.map((t) => `#${t}`).join(", ")}

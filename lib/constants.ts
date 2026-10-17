@@ -24,7 +24,7 @@ export const LIMITS = {
   notes: 2000,
   teamName: 40,
   roleName: 30,
-  tagsPerIdea: 5,
+  tagsPerTask: 5,
   /** Importing a project from JSON (see lib/import-template.ts). */
   importTasks: 40,
   importSubtasks: 20,

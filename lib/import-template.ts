@@ -11,45 +11,60 @@ import { LIMITS } from "./constants";
 export const IMPORT_EXAMPLE = {
   title: "Launch the pocket synth beta",
   description: "Ship a TestFlight beta to 50 friends and collect feedback.",
-  tags: ["feature"],
   tasks: [
     {
       title: "Record the demo video",
       description: "60 seconds, phone only, show tilt and the arpeggiator.",
       priority: "HIGH",
-      tags: [],
+      tags: ["feature"],
       subtasks: ["Write the shot list", "Film", "Edit and add captions"],
     },
     {
       title: "Set up the TestFlight build",
       priority: "MEDIUM",
+      tags: [],
       subtasks: [{ title: "Archive the release build", description: "Use the beta signing profile." }, "Invite the first 10 testers"],
     },
   ],
 };
 
-/** The prompt to give an AI, with this team's tags so it only uses real ones. */
-export function importPrompt(teamTags: string[]): string {
+/** Where the person's own description goes when they haven't written one here. */
+export const PROMPT_PLACEHOLDER = "<describe your project here: what it is, who it's for, what done looks like, any deadline>";
+
+/**
+ * The prompt to give an AI: the format, the limits, this team's tags (so it
+ * only uses real ones) and, if given, the person's description of the project.
+ */
+export function importPrompt(teamTags: string[], about = ""): string {
   const tagRule = teamTags.length
-    ? `"tags" may only use these names (without #): ${teamTags.join(", ")}. Leave it empty if none fit.`
-    : `Leave every "tags" list empty.`;
+    ? `Each task's "tags" may only use these names (without #): ${teamTags.join(", ")}. Use an empty list when none fit.`
+    : `Leave every task's "tags" list empty.`;
   return [
-    "Turn the project I describe at the end into a plan for the Blueprint app.",
+    "You are helping me plan a project in Blueprint, a team task app.",
+    "Turn the project I describe at the end into a plan: a project with tasks, and subtasks where they help.",
+    "",
     "Reply with JSON only (no explanation, no code fences), in exactly this shape:",
     "",
     JSON.stringify(IMPORT_EXAMPLE, null, 2),
     "",
-    "Rules:",
+    "Format rules:",
     `- "title" is required for the project and for every task, up to ${LIMITS.title} characters.`,
-    `- "description" (optional) up to ${LIMITS.description} characters; a task's "notes" (optional) up to ${LIMITS.notes}.`,
+    `- "description" is optional, up to ${LIMITS.description} characters. A task may also have "notes", up to ${LIMITS.notes}.`,
     `- At most ${LIMITS.importTasks} tasks, each with at most ${LIMITS.importSubtasks} subtasks.`,
     '- A subtask is a short string, or an object with "title" and an optional "description".',
     '- "priority" is "LOW", "MEDIUM" or "HIGH".',
-    `- ${tagRule}`,
+    `- ${tagRule} Tags go on tasks only, never on the project.`,
     "- Keep the whole reply under 25,000 characters.",
     "",
+    "Planning guidance:",
+    "- Start every task title with a verb, and make each task something one person can finish in a day or two.",
+    "- Put the tasks in the order they should happen.",
+    "- Mark only the few tasks that block everything else as HIGH.",
+    "- Use subtasks for checklists inside a task, not for separate pieces of work.",
+    "- If something about the project is unclear, make a sensible assumption and put it in the project description.",
+    "",
     "My project:",
-    "<describe your project here>",
+    about.trim() || PROMPT_PLACEHOLDER,
   ].join("\n");
 }
 

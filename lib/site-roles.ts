@@ -4,7 +4,8 @@
  *
  *   USER       everyone; no access to /admin
  *   SUPPORT    read-only admin panel: accounts, teams, audit log (never team content),
- *              plus reading and resolving bug reports
+ *              plus reading, resolving and rejecting feedback
+ *   (deleting rejected feedback needs MODERATOR)
  *   MODERATOR  SUPPORT + suspend / unsuspend accounts, sign accounts out everywhere
  *   ADMIN      everything: change site roles and usernames, delete accounts, delete teams
  *
@@ -19,6 +20,7 @@ export type Permission =
   | "admin.view"
   | "reports.view"
   | "reports.resolve"
+  | "reports.delete"
   | "users.suspend"
   | "users.signout"
   | "users.role"
@@ -30,6 +32,7 @@ const NEEDS: Record<Permission, SiteRole> = {
   "admin.view": "SUPPORT",
   "reports.view": "SUPPORT",
   "reports.resolve": "SUPPORT",
+  "reports.delete": "MODERATOR",
   "users.suspend": "MODERATOR",
   "users.signout": "MODERATOR",
   "users.role": "ADMIN",
@@ -60,7 +63,7 @@ export const ROLE_LABEL: Record<SiteRole, string> = {
 
 export const ROLE_NOTE: Record<SiteRole, string> = {
   USER: "No admin access.",
-  SUPPORT: "Can look up accounts, teams and the audit log, and handle bug reports. Can't change accounts.",
-  MODERATOR: "Support, plus suspend accounts and sign them out everywhere.",
+  SUPPORT: "Can look up accounts, teams and the audit log, and resolve or reject feedback. Can't change accounts.",
+  MODERATOR: "Support, plus suspend accounts, sign them out everywhere and delete rejected feedback.",
   ADMIN: "Everything: roles, usernames, deleting accounts and teams.",
 };

@@ -42,7 +42,7 @@ export function assertCan(access: TeamAccess, p: TeamPermission) {
   if (!access.can(p)) throw new ActionError("You don't have permission to do that in this team.");
 }
 
-/** Ideas and tasks may only carry tags the team has defined. */
+/** Tasks may only carry tags the team has defined. */
 export async function assertTeamTags(teamId: string, tags: readonly string[]) {
   const unique = [...new Set(tags)];
   if (!unique.length) return unique;

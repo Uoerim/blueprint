@@ -6,7 +6,7 @@ import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { createProjectFromPlan, returnProjectToIdeas } from "@/lib/projects";
-import { assertCan, assertMembers, assertTeamTags, requireTeamAccess } from "@/lib/team-access";
+import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
 import {
   createIdeaSchema,
   createProjectSchema,
@@ -17,20 +17,17 @@ import {
   updateIdeaSchema,
 } from "@/lib/validations";
 
-const assertTags = assertTeamTags;
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const data = createIdeaSchema.parse(input);
     await requireTeamAccess(data.teamId, ctx.user.id, "ideas.create");
-    await assertTags(data.teamId, data.tags);
     const idea = await db.idea.create({
       data: {
         ...(data.id && { id: data.id }),
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
-        tags: [...new Set(data.tags)],
         createdById: ctx.user.id,
       },
       select: { id: true },
@@ -176,19 +173,17 @@ export async function importProject(input: unknown) {
 /** Edit an idea or project: its author, or anyone with ideas.manage (vault) / projects.edit (projects). */
 export async function updateIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title, description, tags } = updateIdeaSchema.parse(input);
+    const { teamId, itemId, title, description } = updateIdeaSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
     const idea = await loadIdea(teamId, itemId);
     if (idea.status === "ARCHIVED") throw new ActionError("Restore it before editing.");
     const own = idea.createdById === access.userId;
     if (!own && !access.can(idea.status === "PROMOTED" ? "projects.edit" : "ideas.manage")) forbid("edit this");
-    if (tags) await assertTags(teamId, tags);
     await db.idea.updateMany({
       where: { id: itemId, teamId, status: { not: "ARCHIVED" } },
       data: {
         ...(title !== undefined && { title: encryptText(title, teamId) }),
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
-        ...(tags !== undefined && { tags: [...new Set(tags)] }),
       },
     });
     await teamChanged(teamId);

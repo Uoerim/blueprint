@@ -11,7 +11,6 @@ import { newId } from "@/lib/live";
 import type { IdeaDTO, TaskDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
 import { ImportDialog } from "./import-dialog";
-import { TagPicker, TagPill } from "./vault-view";
 import { useWorkspace } from "./workspace";
 
 export type Tab = "projects" | "all" | "mine";
@@ -78,8 +77,11 @@ function ProjectList() {
         </p>
         <div className="flex shrink-0 items-center gap-2">
           {can("projects.create") && can("tasks.create") && (
-            <button type="button" onClick={() => setImporting(true)} className={cx(btn.outline, btn.sm)} title="Import a project from JSON (e.g. planned with an AI)">
-              Import
+            <button type="button" onClick={() => setImporting(true)} className={cx(btn.outline, btn.sm, "gap-1.5")} title="Plan a project with any AI assistant and import it as JSON">
+              <SparkleIcon />
+              <span>
+                Import<span className="hidden sm:inline"> with AI</span>
+              </span>
             </button>
           )}
           {can("projects.create") && (
@@ -151,14 +153,28 @@ function ProjectList() {
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm)}>New project</button>
               {can("tasks.create") && (
-                <button type="button" onClick={() => setImporting(true)} className={cx(btn.ghost, btn.sm)}>Import from JSON</button>
+                <button type="button" onClick={() => setImporting(true)} className={cx(btn.ghost, btn.sm, "gap-1.5")}>
+                  <SparkleIcon />
+                  Plan it with AI
+                </button>
               )}
             </div>
           )}
         </div>
       )}
 
-      <ProjectDialog open={creating} onClose={() => setCreating(false)} />
+      <ProjectDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onImport={
+          can("tasks.create")
+            ? () => {
+                setCreating(false);
+                setImporting(true);
+              }
+            : undefined
+        }
+      />
       <ImportDialog open={importing} onClose={() => setImporting(false)} />
     </div>
   );
@@ -232,13 +248,6 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">
             {project.description || <span className="text-ink-3">No description yet. Add one so everyone knows what done looks like.</span>}
           </p>
-          {project.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {project.tags.map((t) => (
-                <TagPill key={t} name={t} />
-              ))}
-            </div>
-          )}
           {author && (
             <p className="mt-2 text-[13px] text-ink-3">
               Started by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
@@ -418,6 +427,7 @@ function ProjectDialog({
   project,
   canEdit = true,
   actions,
+  onImport,
 }: {
   open: boolean;
   onClose: () => void;
@@ -425,18 +435,36 @@ function ProjectDialog({
   canEdit?: boolean;
   /** Project settings only: back to ideas, archive, delete. */
   actions?: React.ReactNode;
+  /** New project only: switch to "Import with AI". */
+  onImport?: () => void;
 }) {
   return (
     <Dialog
       open={open}
       onClose={onClose}
       title={project ? "Project settings" : "New project"}
-      description={project ? "Its name, description and tags, and what to do with it." : "A project holds its own description, tasks and subtasks."}
+      description={project ? "Its name and description, and what to do with it." : "A project holds its own description, tasks and subtasks."}
     >
       {open && (
         <div className="space-y-6">
           {canEdit && <ProjectForm project={project} onClose={onClose} />}
           {actions}
+          {!project && onImport && (
+            <button
+              type="button"
+              onClick={onImport}
+              className="group flex w-full items-center gap-3 rounded-xl bg-accent/[0.07] p-3 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_25%,transparent)] transition-colors hover:bg-accent/[0.12]"
+            >
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+                <SparkleIcon size={15} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-medium text-ink">Plan it with AI instead</span>
+                <span className="block text-[12px] leading-snug text-ink-3">Copy a ready prompt, paste the JSON your assistant writes, get the project with its tasks.</span>
+              </span>
+              <span aria-hidden className="text-ink-3 transition-transform group-hover:translate-x-0.5">→</span>
+            </button>
+          )}
         </div>
       )}
     </Dialog>
@@ -469,7 +497,6 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
   const { team, viewer, run, addIdea, patchIdea, openProject } = useWorkspace();
   const [title, setTitle] = useState(project?.title ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
-  const [tags, setTags] = useState<string[]>(project?.tags ?? []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -478,8 +505,8 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
     if (!t) return;
     onClose();
     if (project) {
-      run(() => updateIdea({ teamId: team.id, itemId: project.id, title: t, description: d, tags }), {
-        optimistic: () => patchIdea(project.id, { title: t, description: d || null, tags }),
+      run(() => updateIdea({ teamId: team.id, itemId: project.id, title: t, description: d }), {
+        optimistic: () => patchIdea(project.id, { title: t, description: d || null }),
         success: "Project saved.",
       });
       return;
@@ -493,7 +520,6 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           id: projectId,
           title: t,
           description: d || null,
-          tags: [],
           status: "PROMOTED",
           sparksCount: 0,
           sparkedByMe: false,
@@ -530,13 +556,6 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           className={cx(inputCls, "resize-y py-2.5 leading-relaxed")}
         />
       </Field>
-      {project && (
-        <Field label="Tags" htmlFor="project-tags">
-          <div id="project-tags">
-            <TagPicker value={tags} onChange={setTags} />
-          </div>
-        </Field>
-      )}
       <div className="flex justify-end gap-2 pt-1">
         <button type="button" onClick={onClose} className={cx(btn.ghost, btn.sm)}>Cancel</button>
         <button type="submit" disabled={!title.trim()} className={cx(btn.primary, btn.sm)}>
@@ -579,5 +598,13 @@ export function ExecutionAppSegments({ active, onPick }: { active: string; onPic
     <div className="hidden app:block">
       <Segments tabs={APP_SEGMENTS} active={active} onPick={(id) => onPick(id as Tab | "shipped")} />
     </div>
+  );
+}
+
+function SparkleIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden className="shrink-0">
+      <path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" />
+    </svg>
   );
 }
