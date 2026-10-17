@@ -14,8 +14,8 @@ import {
   type CollisionDetection,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { useState } from "react";
+import { animate, AnimatePresence, LayoutGroup, motion, useMotionValue, type Variants } from "framer-motion";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   createSubtask,
   createTask,
@@ -183,6 +183,9 @@ export function BoardView({ projectId, initialFilter = "all" }: { projectId?: st
 
 type CardActions = { onView: (id: string) => void; onEdit: (id: string) => void; onDelete: (t: TaskDTO) => void };
 
+/** Where a dropped card was let go, so it can settle from there into its new place. */
+type Landing = { left: number; top: number } | null;
+
 // A pointer that's over a column wins; otherwise the column the card overlaps most.
 const collision: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
@@ -202,13 +205,23 @@ function Board({ tasks, scoped, ...actions }: { tasks: TaskDTO[]; scoped: boolea
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
   );
-  const active = activeId ? tasks.find((t) => t.id === activeId) : undefined;
+  const { viewer } = useWorkspace();
+  // The move is shown in the same frame as the drop (the saved state arrives a
+  // moment later), so the card never flashes back to the column it came from.
+  // It applies until the workspace's task list changes, which is the move itself landing.
+  const [dropped, setDropped] = useState<{ id: string; status: TaskStatus; base: TaskDTO[]; landing: Landing } | null>(null);
+  const shown = dropped && dropped.base === tasks ? tasks.map((t) => (t.id === dropped.id ? { ...t, ...statusPatch(t, dropped.status, viewer.id) } : t)) : tasks;
+  const active = activeId ? shown.find((t) => t.id === activeId) : undefined;
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
-    const task = tasks.find((t) => t.id === e.active.id);
+    const task = shown.find((t) => t.id === e.active.id);
     const to = e.over?.id as TaskStatus | undefined;
-    if (task && to && to !== task.status) setStatus(task, to);
+    if (!task || !to || to === task.status) return;
+    const at = e.active.rect.current.translated;
+    setDropped({ id: task.id, status: to, base: tasks, landing: at && { left: at.left, top: at.top } });
+    setTimeout(() => setDropped((d) => (d?.id === task.id ? null : d)), 1000);
+    setStatus(task, to);
   };
 
   return (
@@ -229,14 +242,14 @@ function Board({ tasks, scoped, ...actions }: { tasks: TaskDTO[]; scoped: boolea
     >
       <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2 xl:grid-cols-4">
         {TASK_COLUMNS.map((col) => {
-          const all = tasks.filter((t) => t.status === col.status);
+          const all = shown.filter((t) => t.status === col.status);
           // Done can grow forever; the board shows the latest, Shipped shows all.
           const items = col.status === "DONE" ? [...all].sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")).slice(0, 12) : all;
           return (
             <BoardColumn key={col.status} status={col.status} label={col.label} count={all.length} dragging={!!active}>
-              <AnimatePresence initial={false} mode="popLayout">
+              <AnimatePresence initial={false} mode="popLayout" custom={dropped?.id ?? null}>
                 {items.map((t) => (
-                  <TaskCard key={t.id} task={t} scoped={scoped} {...actions} />
+                  <TaskCard key={t.id} task={t} scoped={scoped} landing={dropped?.id === t.id && dropped.status === t.status ? dropped.landing : undefined} {...actions} />
                 ))}
               </AnimatePresence>
               {!items.length && <p className="px-2 py-4 text-xs text-ink-3">{active ? "Drop it here." : "Nothing here."}</p>}
@@ -422,18 +435,22 @@ export function useTaskAccess(task: TaskDTO) {
   };
 }
 
+/** What moving a task to a column changes, as the server will save it. */
+function statusPatch(task: TaskDTO, status: TaskStatus, viewerId: string): Partial<TaskDTO> {
+  return {
+    status,
+    focus: status === "IN_PROGRESS" ? task.focus : [],
+    completedAt: status === "DONE" ? (task.status === "DONE" ? task.completedAt : new Date().toISOString()) : null,
+    completedById: status === "DONE" ? (task.status === "DONE" ? task.completedById : viewerId) : null,
+  };
+}
+
 /** Moves any task to a column, optimistically. Used by the cards and by drag and drop. */
 function useSetStatus() {
   const { team, viewer, run, patchTask } = useWorkspace();
   return (task: TaskDTO, status: TaskStatus) =>
     run(() => setTaskStatus({ teamId: team.id, itemId: task.id, status }), {
-      optimistic: () =>
-        patchTask(task.id, {
-          status,
-          focus: status === "IN_PROGRESS" ? task.focus : [],
-          completedAt: status === "DONE" ? new Date().toISOString() : null,
-          completedById: status === "DONE" ? viewer.id : null,
-        }),
+      optimistic: () => patchTask(task.id, statusPatch(task, status, viewer.id)),
     });
 }
 
@@ -658,29 +675,61 @@ function TaskMeta({ task }: { task: TaskDTO }) {
  * A card on the board. Tapping it opens a read-only view of the task; editing
  * lives in the ⋯ menu. Cards you can move can be dragged to another column.
  */
-function TaskCard({ task, scoped, onView, onEdit, onDelete }: { task: TaskDTO; scoped: boolean } & CardActions) {
+function TaskCard({ task, scoped, landing, onView, onEdit, onDelete }: { task: TaskDTO; scoped: boolean; landing?: Landing } & CardActions) {
   const { member } = useWorkspace();
   const c = useTaskControls(task);
   const done = task.status === "DONE";
   const glowMember = member(task.focus[0]?.userId);
   const glow = glowMember?.accentColor ?? null;
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: task.id, disabled: !c.move });
+  // The card left behind by a drag vanishes at once (it's already settling into
+  // its new column); a card leaving for any other reason fades out.
+  const variants = useMemo<Variants>(
+    () => ({
+      exit: (droppedId: string | null) =>
+        droppedId === task.id ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
+    }),
+    [task.id],
+  );
+
+  // A card that was just dropped starts where it was let go, still tilted like
+  // the copy you were holding, and settles into its place in the column.
+  const el = useRef<HTMLLIElement | null>(null);
+  const [landed] = useState(landing ?? null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotate = useMotionValue(0);
+  useLayoutEffect(() => {
+    if (!landed || !el.current) return;
+    const box = el.current.getBoundingClientRect();
+    x.set(landed.left - box.left);
+    y.set(landed.top - box.top);
+    rotate.set(-2);
+    const settle = { type: "spring", stiffness: 520, damping: 38 } as const;
+    const runs = [animate(x, 0, settle), animate(y, 0, settle), animate(rotate, 0, settle)];
+    return () => runs.forEach((r) => r.stop());
+  }, [landed, x, y, rotate]);
 
   return (
     <motion.li
-      ref={setNodeRef}
+      ref={(node) => {
+        el.current = node;
+        setNodeRef(node);
+      }}
       {...listeners}
       layout
-      layoutId={task.id}
-      initial={{ opacity: 0, scale: 0.97 }}
+      // A dropped card settles on its own; sharing the id would slide it from the old column.
+      layoutId={landing ? undefined : task.id}
+      variants={variants}
+      initial={landed ? false : { opacity: 0, scale: 0.97 }}
       animate={{ opacity: isDragging ? 0.35 : c.temp ? 0.65 : 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+      exit="exit"
       transition={spring}
       className={cx(
         "group relative touch-manipulation select-none rounded-xl bg-surface p-3 shadow-highlight transition-colors hover:bg-surface-2",
         c.move && "cursor-grab active:cursor-grabbing",
       )}
-      style={glow ? { boxShadow: `inset 0 0 0 1px ${glow}66, 0 0 24px -12px ${glow}` } : undefined}
+      style={{ x, y, rotate, zIndex: landed ? 20 : undefined, ...(glow && { boxShadow: `inset 0 0 0 1px ${glow}66, 0 0 24px -12px ${glow}` }) }}
     >
       <div className="flex items-start gap-2">
         {/* Opens the task; its hit area covers the whole card (controls sit above it). */}

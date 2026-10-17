@@ -91,6 +91,18 @@ function syncUrl(view: View, open: string | null) {
   window.history.replaceState(null, "", url);
 }
 
+function reduceTasks(state: TaskDTO[], op: TaskOp): TaskDTO[] {
+  if (op.type === "add") return [op.task, ...state];
+  if (op.type === "remove") return state.filter((t) => t.id !== op.id);
+  return state.map((t) => (t.id === op.id ? { ...t, ...op.patch } : t));
+}
+
+function reduceIdeas(state: IdeaDTO[], op: IdeaOp): IdeaDTO[] {
+  if (op.type === "add") return [op.idea, ...state];
+  if (op.type === "remove") return state.filter((i) => i.id !== op.id);
+  return state.map((i) => (i.id === op.id ? { ...i, ...op.patch } : i));
+}
+
 export function Workspace(props: {
   team: Ctx["team"];
   viewer: Viewer;
@@ -169,16 +181,14 @@ export function Workspace(props: {
   const [toast, setToast] = useState<{ id: number; text: string; tone: "ok" | "error" } | null>(null);
   const [, startTransition] = useTransition();
 
-  const [tasks, applyTask] = useOptimistic(props.tasks, (state: TaskDTO[], op: TaskOp) => {
-    if (op.type === "add") return [op.task, ...state];
-    if (op.type === "remove") return state.filter((t) => t.id !== op.id);
-    return state.map((t) => (t.id === op.id ? { ...t, ...op.patch } : t));
-  });
-  const [ideas, applyIdea] = useOptimistic(props.ideas, (state: IdeaDTO[], op: IdeaOp) => {
-    if (op.type === "add") return [op.idea, ...state];
-    if (op.type === "remove") return state.filter((i) => i.id !== op.id);
-    return state.map((i) => (i.id === op.id ? { ...i, ...op.patch } : i));
-  });
+  // The demo team keeps its changes on screen only (until you leave); a real
+  // team shows them optimistically until the server's copy arrives.
+  const [demoTasks, setDemoTasks] = useState(props.tasks);
+  const [demoIdeas, setDemoIdeas] = useState(props.ideas);
+  const [tasks, applyTaskOptimistic] = useOptimistic(props.demo ? demoTasks : props.tasks, reduceTasks);
+  const [ideas, applyIdeaOptimistic] = useOptimistic(props.demo ? demoIdeas : props.ideas, reduceIdeas);
+  const applyTask = (op: TaskOp) => (props.demo ? setDemoTasks((s) => reduceTasks(s, op)) : applyTaskOptimistic(op));
+  const applyIdea = (op: IdeaOp) => (props.demo ? setDemoIdeas((s) => reduceIdeas(s, op)) : applyIdeaOptimistic(op));
 
   // Items created here that the server hasn't confirmed yet (cleared automatically when the save ends).
   const [pendingIds, addPending] = useOptimistic(new Set<string>() as ReadonlySet<string>, (s: ReadonlySet<string>, id: string) => new Set(s).add(id));
@@ -210,10 +220,12 @@ export function Workspace(props: {
     execTab,
     setExecTab,
     setView,
-    run: (fn, opts) =>
-      props.demo
-        ? showToast("This is the demo team, so nothing here is saved.")
-        : startTransition(async () => {
+    run: (fn, opts) => {
+      if (props.demo) {
+        opts?.optimistic?.();
+        return showToast("This is the demo team, so nothing here is saved.");
+      }
+      startTransition(async () => {
         if (opts?.pendingId) addPending(opts.pendingId);
         opts?.optimistic?.();
         const res = await fn();
@@ -223,7 +235,8 @@ export function Workspace(props: {
           if (opts?.success) showToast(opts.success);
           opts?.onOk?.(res.data);
         }
-      }),
+      });
+    },
     isPending: (id) => pendingIds.has(id),
     patchTask: (id, patch) => applyTask({ type: "patch", id, patch }),
     addTask: (task) => applyTask({ type: "add", task }),
