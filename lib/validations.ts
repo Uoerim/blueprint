@@ -268,6 +268,7 @@ export const bugReportSchema = z.strictObject({
   /** Whether it was sent from the installed app (only used for the device summary). */
   installed: z.boolean().optional(),
 });
+export const agentAccessSchema = z.strictObject({ teamId: id, allow: z.boolean() });
 export const reportStatusSchema = z.strictObject({ reportId: id, status: z.enum(["OPEN", "RESOLVED", "REJECTED"]) });
 export const deleteReportSchema = z.strictObject({ reportId: id });
 

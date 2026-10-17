@@ -37,7 +37,7 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: { id: true, action: true, userId: true, actorUsername: true, teamId: true, entityType: true, entityId: true, ipAddress: true, createdAt: true },
+      select: { id: true, action: true, userId: true, actorUsername: true, teamId: true, entityType: true, entityId: true, ipAddress: true, via: true, createdAt: true },
     }),
   ]);
   const userIds = [...new Set(rows.flatMap((r) => [r.userId, ...(r.entityType === "User" ? [r.entityId] : [])]))];
@@ -79,7 +79,10 @@ export default async function AdminAudit({ searchParams }: PageProps<"/admin/aud
                 @{uname.get(r.userId) ?? r.actorUsername ?? "deleted"}
               </Link>
             </td>
-            <td className={cx("px-4 py-2 font-mono text-[12px]", r.action.startsWith("security.") ? "text-rose" : "text-ink-2")}>{label(r.action)}</td>
+            <td className={cx("px-4 py-2 font-mono text-[12px]", r.action.startsWith("security.") ? "text-rose" : "text-ink-2")}>
+              {label(r.action)}
+              {r.via === "claude" && <span className="ml-1.5 rounded bg-accent/12 px-1 py-px font-sans text-[10px] text-accent">via Claude</span>}
+            </td>
             <td className="px-4 py-2 text-ink-2">
               {r.entityType === "User" ? (
                 <Link href={`/admin/users/${r.entityId}`} className="font-mono hover:underline">

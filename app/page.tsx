@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { FocusHud, InviteDemo, PipelineDemo } from "@/components/landing/bento";
 import { AppLandingRedirect } from "@/components/landing/app-redirect";
+import { ClaudeDemo } from "@/components/landing/claude-demo";
 import { EncryptionDemo } from "@/components/landing/encryption-demo";
 import { LivePreview } from "@/components/landing/live-preview";
 import { MaskedHeadline, Rise } from "@/components/landing/motion";
@@ -253,8 +254,20 @@ function Tour() {
       </Row>
 
       <Row
+        id="claude"
+        step="07 · Claude"
+        title="Let Claude work through your tasks."
+        body="Connect Claude to Blueprint and ask it to go through your tasks: plan them into subtasks, write descriptions and notes, move them along, tick things off and capture ideas. It works as you, with exactly your permissions."
+        points={["Only the teams you pick, and only where the owner allows it", "Never more than your role: no deleting, no managing people", "Every change on the record as yours, marked via Claude"]}
+      >
+        <ClaudeDemo />
+        <p className="mt-3 text-[13px] text-ink-3">Works with Claude on the web, desktop, phone and Claude Code. Disconnect any time.</p>
+      </Row>
+
+      <Row
+        flip
         id="security"
-        step="07 · Private"
+        step="08 · Private"
         title="Encrypted before it's stored."
         body="Idea and task text is encrypted with AES-256-GCM using a key unique to your team before it reaches the database. Another team's key can't open it, and nobody browsing the database sees your plans."
         points={["A separate key for every team", "Admins manage accounts, never read your ideas", "HTTPS, strict security headers and rate limits everywhere"]}

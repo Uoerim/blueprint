@@ -5,11 +5,16 @@ import { anonymizeIp, automationReason, getClientIp, mutationBlockReason } from 
 
 // Coarse gate only: pages redirect to sign-in here, and every page, action and
 // /api handler still runs its own resource-level check (lib/auth.ts, lib/api.ts).
-const PROTECTED_PAGES = /^\/(dashboard|onboarding|admin)(\/|$)/;
+const PROTECTED_PAGES = /^\/(dashboard|onboarding|admin|connect)(\/|$)/;
 // Where only real browsers belong: the app itself, its API and the sign-in screens.
 // Public pages (landing, privacy, terms) stay open to search engines and link previews.
-const PRIVATE_ROUTES = /^\/(dashboard|onboarding|admin|api|sign-in|sign-up|suspended)(\/|$)/;
+const PRIVATE_ROUTES = /^\/(dashboard|onboarding|admin|api|sign-in|sign-up|suspended|connect)(\/|$)/;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+// Connect Claude: called by Claude (not a browser) with a bearer token, never a
+// cookie, so there's nothing to forge cross-site; each route authenticates the
+// token and is rate limited per connection. Bot screening and origin checks
+// don't apply, and the per-IP ceiling is the generous "agent" one.
+const AGENT_ROUTES = /^\/(api\/mcp|api\/oauth\/(token|register|revoke)|\.well-known\/oauth-(protected-resource|authorization-server))(\/|$)/;
 
 function refuse(status: 403 | 429, reason: string, ip: string, path: string, headers?: Record<string, string>) {
   // Logged with a shortened IP only; never request bodies or cookies.
@@ -28,6 +33,12 @@ export default clerkMiddleware(
     const ip = getClientIp(req.headers);
     const path = req.nextUrl.pathname;
     const mutation = !SAFE_METHODS.has(req.method);
+
+    if (AGENT_ROUTES.test(path)) {
+      const rl = await rateLimitRequest("agent", ip);
+      if (!rl.success) return refuse(429, "rate limited", ip, path, rateLimitHeaders(rl));
+      return NextResponse.next();
+    }
 
     // Tier 0: obvious bots and scripts never reach the app's private routes or any mutation.
     if (mutation || PRIVATE_ROUTES.test(path)) {

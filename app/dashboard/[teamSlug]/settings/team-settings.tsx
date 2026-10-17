@@ -14,6 +14,7 @@ import {
   emptyArchive,
   leaveTeam,
   removeMember,
+  setAgentAccess,
   setMemberCustomRole,
   setMemberRole,
   transferOwnership,
@@ -60,7 +61,7 @@ export type ManagedIdea = {
   updatedAt: string;
 };
 type RoleRow = { id: string; name: string; color: string; permissions: string[]; members: number };
-type Team = { id: string; name: string; slug: string; description: string | null };
+type Team = { id: string; name: string; slug: string; description: string | null; agentAccess: boolean };
 type Run = <T>(fn: () => Promise<ActionResult<T>>, success?: string, onOk?: () => void) => void;
 
 /** One pending confirmation. */
@@ -139,6 +140,7 @@ export function TeamSettings({
     ["members", "Members"],
     ["roles", "Roles"],
     ["tags", "Tags"],
+    ["claude", "Claude"],
     ["projects", "Projects"],
     ["archive", "Archive"],
     ["danger", myRole === "OWNER" || can("team.cleanup") ? "Danger zone" : "Leave"],
@@ -167,6 +169,7 @@ export function TeamSettings({
       <Members {...shared} members={members} invites={invites} roles={roles} />
       <Roles {...shared} roles={roles} />
       <Tags {...shared} tags={tags} />
+      <ClaudeAccess {...shared} pending={pending} />
       <Projects {...shared} projects={projects} />
       <Archive {...shared} archived={archived} />
       <Danger {...shared} archivedCount={archived.length} shippedCount={shippedCount} onGone={() => router.push("/dashboard")} />
@@ -249,6 +252,58 @@ function General({ team, canEdit, pending, run }: { team: Team; canEdit: boolean
           </div>
         )}
       </form>
+    </Card>
+  );
+}
+
+/* ── Claude ─────────────────────────────────────────────────────────────── */
+
+/** The owner's switch for Connect Claude. Everyone on the team can see whether it's on. */
+function ClaudeAccess({ team, myRole, run, confirmIt, pending }: Shared & { pending: boolean }) {
+  const owner = myRole === "OWNER";
+  const on = team.agentAccess;
+  const flip = () =>
+    on
+      ? confirmIt({
+          title: "Stop Claude in this team?",
+          description: "Every connected Claude loses access to this team right away, and members would need to pick this team again to reconnect.",
+          confirmLabel: "Stop Claude",
+          level: { kind: "plain" },
+          tone: "danger",
+          onConfirm: () => run(() => setAgentAccess({ teamId: team.id, allow: false }), "Claude can no longer use this team."),
+        })
+      : run(() => setAgentAccess({ teamId: team.id, allow: true }), "Members can now connect Claude to this team.");
+
+  return (
+    <Card
+      id="claude"
+      title="Claude"
+      note={
+        <>
+          Lets members connect Claude to work on their tasks here. Claude acts as the person who connected it, with exactly their role&apos;s permissions, and can never delete anything or manage people or settings. When it reads something, that text goes to Anthropic.{" "}
+          <Link href="/dashboard/connections" className="text-ink underline decoration-line-strong underline-offset-2">How it works</Link>
+        </>
+      }
+      action={
+        owner ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label="Allow Claude in this team"
+            disabled={pending}
+            onClick={flip}
+            className={cx("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", on ? "bg-emerald" : "bg-tint/15")}
+          >
+            <span className={cx("absolute top-1 size-5 rounded-full bg-white shadow transition-[left] duration-200", on ? "left-6" : "left-1")} />
+          </button>
+        ) : undefined
+      }
+    >
+      <p className={cx("flex items-center gap-2 rounded-xl px-3 py-2.5 text-[14px]", on ? "bg-emerald/10 text-emerald" : "bg-surface-2 text-ink-2")}>
+        <span className={cx("size-2 rounded-full", on ? "bg-emerald" : "bg-ink-3")} aria-hidden />
+        {on ? "On: members can connect Claude to this team." : owner ? "Off: nobody can connect Claude to this team." : "Off. Only the team owner can turn this on."}
+      </p>
     </Card>
   );
 }

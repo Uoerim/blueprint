@@ -42,9 +42,14 @@ export default function PrivacyPage() {
             feedback we reject may be deleted.
           </li>
           <li>
+            <strong>Claude connections.</strong> Only if you connect Claude: which teams you picked, what you allowed it to do,
+            when you connected and when it was last used. The keys Claude uses are stored only as one-way fingerprints, never
+            as the keys themselves.
+          </li>
+          <li>
             <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s
             role or archiving a project) with the time, your username and a shortened form of the IP address it came from
-            (the network only, not your exact address). These records can&apos;t be edited.
+            (the network only, not your exact address), and whether it was done through Claude. These records can&apos;t be edited.
           </li>
           <li>
             <strong>Technical data.</strong> Our hosting provider processes your IP address and basic request information to
@@ -122,9 +127,10 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          Blueprint doesn&apos;t send your content to any AI service. If you use an AI assistant to write a plan for
-          &ldquo;Import from JSON&rdquo;, what you share with that assistant is up to you and is covered by its own terms and
-          privacy policy; Blueprint only receives the plan you paste in.
+          Blueprint never sends your content to an AI service on its own. The only way content reaches one is if you choose to
+          connect Claude (see below), or paste it into an AI assistant yourself. If you use an assistant to write a plan for
+          &ldquo;Import with AI&rdquo;, what you share with it is covered by its own terms and privacy policy; Blueprint only
+          receives the plan you paste in.
         </p>
         <p>
           These providers may store or process data outside Egypt, including in the United States and the European Union. We
@@ -132,12 +138,43 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
+      <Section id="claude" title="Connect Claude (optional)">
+        <p>
+          You can connect Claude, Anthropic&apos;s AI assistant, so it can work on your tasks for you. It&apos;s off unless both
+          of these happen: the team&apos;s owner allows Claude for that team, and you connect it and pick that team.
+        </p>
+        <ul>
+          <li>
+            <strong>What Claude can reach.</strong> Only the teams you picked, and in them only what you can see yourself:
+            ideas, projects, tasks, notes and subtasks, plus your teammates&apos; @usernames on them. Tasks you can&apos;t see
+            stay hidden from Claude too.
+          </li>
+          <li>
+            <strong>What goes to Anthropic.</strong> When Claude reads or writes something in Blueprint to answer you, that
+            text is sent to Anthropic and handled under Anthropic&apos;s own terms and privacy policy, outside Blueprint&apos;s
+            encryption. Anything you ask Claude for can include content your teammates wrote in those teams.
+          </li>
+          <li>
+            <strong>What Claude can do.</strong> Only what you allowed when connecting, and never more than your own role
+            allows. It can&apos;t delete anything, manage members, roles or invites, or change settings. Its changes appear as
+            yours and are marked &ldquo;via Claude&rdquo; in the security records.
+          </li>
+          <li>
+            <strong>Stopping it.</strong> Disconnect any time from the Connect Claude page in your account; the connection and
+            its keys are deleted at once. A team&apos;s owner can switch Claude off for the whole team, which cuts every
+            connection off that team immediately. Deleting your account deletes your connections.
+          </li>
+        </ul>
+      </Section>
+
       <Section id="keep" title="How long we keep it">
         <p>
           We keep your account and content for as long as your account exists. When you ask us to delete your account, we
           delete your personal details within 30 days. Content you added to a team that other people still use may stay in that
           team, with your name removed, so the team&apos;s history makes sense; ask if you want it removed too. Security
-          records are kept only as long as they are needed to protect the service. When an account is deleted, its former
+          records are kept only as long as they are needed to protect the service. Claude connections last until you
+          disconnect them; the keys they use expire within an hour (renewal keys within 30 days) and expired ones are cleared
+          out. When an account is deleted, its former
           @username stays in those records so staff can tell which account was removed; its email, name and profile are
           deleted.
         </p>

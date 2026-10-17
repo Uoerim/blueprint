@@ -106,7 +106,7 @@ export async function requireTeamPage(slug: string) {
         userId: true,
         role: true,
         customRole: { select: { permissions: true } },
-        team: { select: { id: true, name: true, slug: true, description: true } },
+        team: { select: { id: true, name: true, slug: true, description: true, agentAccess: true } },
       },
     }),
   );

@@ -5,10 +5,10 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
+import { opCreateIdea } from "@/lib/ops/ideas";
 import { createIdeaFromPlan, returnProjectToIdeas } from "@/lib/projects";
 import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
 import {
-  createIdeaSchema,
   createProjectSchema,
   deleteIdeaSchema,
   importIdeaSchema,
@@ -18,23 +18,7 @@ import {
 } from "@/lib/validations";
 
 export async function createIdea(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const data = createIdeaSchema.parse(input);
-    await requireTeamAccess(data.teamId, ctx.user.id, "ideas.create");
-    const idea = await db.idea.create({
-      data: {
-        ...(data.id && { id: data.id }),
-        teamId: data.teamId,
-        title: encryptText(data.title, data.teamId),
-        description: encryptOptional(data.description, data.teamId),
-        createdById: ctx.user.id,
-      },
-      select: { id: true },
-    });
-    await audit(ctx, { teamId: data.teamId, action: "idea.created", entityType: "Idea", entityId: idea.id });
-    await teamChanged(data.teamId);
-    return { id: idea.id };
-  });
+  return runAction({ tier: "write" }, (ctx) => opCreateIdea(ctx, input));
 }
 
 export async function toggleSpark(input: unknown) {

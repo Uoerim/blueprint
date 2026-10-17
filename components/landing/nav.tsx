@@ -5,6 +5,7 @@ import { BrandMark, btn, cx } from "@/components/ui/primitives";
 const LINKS = [
   { href: "#tour", label: "What it does" },
   { href: "#projects", label: "Projects" },
+  { href: "#claude", label: "Claude" },
   { href: "#security", label: "Security" },
 ];
 

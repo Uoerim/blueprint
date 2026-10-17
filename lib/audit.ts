@@ -64,14 +64,23 @@ export type AuditAction =
   | "tag.deleted"
   // Support
   | "report.submitted"
+  // Connect Claude
+  | "agent.connected"
+  | "agent.disconnected"
+  | "agent.write"
+  | "team.agent_access.enabled"
+  | "team.agent_access.disabled"
   // Security
-  | "security.rate_limited";
+  | "security.rate_limited"
+  | "security.agent_token_reuse";
 
 export type AuditEntry = {
   action: AuditAction;
   entityType: string;
   entityId: string;
   teamId?: string | null;
+  /** Set when the change was made through a connected Claude. */
+  via?: "claude";
 };
 
 /**
@@ -89,6 +98,7 @@ export async function writeAudit(actor: { id: string; username: string | null },
       data: {
         ...entry,
         teamId: entry.teamId ?? null,
+        via: entry.via ?? null,
         userId: actor.id,
         actorUsername: actor.username,
         ipAddress: anonymizeIp(ip),

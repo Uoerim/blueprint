@@ -51,6 +51,7 @@ model User {
   taskAssignments    TaskAssignee[]
   subtaskAssignments SubtaskAssignee[]
   bugReports         BugReport[]       @relation("BugReports")
+  agentGrants        AgentGrant[]
 
   @@index([siteRole])
 }
@@ -79,6 +80,8 @@ model Team {
   tags        TeamTag[]
   /// Bumped on every change inside the team; the live change-check compares it.
   activityAt  DateTime     @default(now())
+  /// Whether members may connect Claude to this team. Off by default; only the owner can turn it on.
+  agentAccess Boolean      @default(false)
 }
 
 model TeamMember {
@@ -293,6 +296,8 @@ model AuditLog {
   entityId      String
   /// Shortened to the network (IPv4 /24, IPv6 /48), never the full address.
   ipAddress     String
+  /// "claude" when the change was made through a connected Claude, otherwise empty.
+  via           String?
   createdAt     DateTime @default(now())
 
   @@index([teamId, createdAt])
@@ -334,4 +339,74 @@ enum BugReportStatus {
   RESOLVED
   /// Won't be fixed or built. Only rejected feedback can be deleted.
   REJECTED
+}
+
+/// An app that connected to Blueprint through OAuth (Connect Claude). Apps
+/// register themselves (RFC 7591), but only Claude's own sign-in return
+/// addresses are accepted (lib/oauth.ts). Holds no secrets.
+model OAuthClient {
+  id           String       @id
+  /// The name the app gave itself, shown small on the consent screen. Untrusted.
+  name         String
+  redirectUris String[]
+  createdAt    DateTime     @default(now())
+  grants       AgentGrant[]
+
+  @@index([createdAt])
+}
+
+/// One person's connection of one app: the teams they picked and what it may
+/// do there. Deleting it disconnects the app at once (its codes and tokens go
+/// with it). Every request is still checked against the person's current role,
+/// membership and the team's own Claude switch.
+model AgentGrant {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// "read", "tasks", "create" (lib/oauth.ts).
+  scopes     String[]
+  teamIds    String[]
+  createdAt  DateTime     @default(now())
+  lastUsedAt DateTime?
+  codes      OAuthCode[]
+  tokens     OAuthToken[]
+
+  @@unique([userId, clientId])
+}
+
+/// A one-time authorization code (60 seconds, PKCE S256). Only its SHA-256 hash is stored.
+model OAuthCode {
+  hash          String     @id
+  grantId       String
+  grant         AgentGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  redirectUri   String
+  codeChallenge String
+  resource      String?
+  expiresAt     DateTime
+  createdAt     DateTime   @default(now())
+
+  @@index([grantId])
+}
+
+/// Access tokens (1 hour) and refresh tokens (30 days, used once). Only SHA-256 hashes are stored.
+model OAuthToken {
+  hash      String         @id
+  kind      OAuthTokenKind
+  grantId   String
+  grant     AgentGrant     @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  /// Tokens from one sign-in share a family; reusing a spent refresh token ends the connection.
+  family    String
+  expiresAt DateTime
+  /// Refresh tokens: when it was exchanged for a new pair.
+  usedAt    DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([grantId])
+}
+
+enum OAuthTokenKind {
+  ACCESS
+  REFRESH
 }

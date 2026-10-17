@@ -6,156 +6,27 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { assertMembers, requireTeamAccess, type TeamAccess, assertTeamTags } from "@/lib/team-access";
-import {
-  canDeleteTask,
-  canEditTask,
-  canMoveTask,
-  canSeeTask,
-  canToggleSubtask,
-  type TaskAccessFacts,
-} from "@/lib/team-permissions";
-import {
-  createSubtaskSchema,
-  createTaskSchema,
-  id,
-  prioritySchema,
-  subtaskAssigneesSchema,
-  taskAssigneesSchema,
-  taskStatusSchema,
-  teamScoped,
-  toggleSubtaskSchema,
-  updateSubtaskSchema,
-  updateTaskSchema,
-} from "@/lib/validations";
+import { deny, done, loadSubtask, loadTask, opCreateSubtask, opCreateTask, opSetTaskStatus, opToggleSubtask, opUpdateTask } from "@/lib/ops/tasks";
+import { assertMembers, requireTeamAccess } from "@/lib/team-access";
+import { canDeleteTask, canEditTask } from "@/lib/team-permissions";
+import { id, prioritySchema, subtaskAssigneesSchema, taskAssigneesSchema, teamScoped, updateSubtaskSchema } from "@/lib/validations";
 
 /*
- * Every task action: proves team membership and loads permissions fresh
+ * Every task action (the ones Claude can use too live in lib/ops/tasks.ts): proves team membership and loads permissions fresh
  * (requireTeamAccess), loads the task scoped to { id, teamId }, hides tasks the
  * caller can't see (a private task looks exactly like a missing one), then
  * checks the specific rule from lib/team-permissions.ts. Text is validated as
  * plaintext and encrypted with the team's key before it is written.
  */
 
-const MAX_SUBTASKS = 50;
-
-const taskFacts = {
-  id: true,
-  status: true,
-  createdById: true,
-  visibility: true,
-  assignees: { select: { userId: true } },
-  subtasks: { select: { assignees: { select: { userId: true } } } },
-} as const;
-
-type LoadedTask = { facts: TaskAccessFacts; status: string };
-
-function factsOf(
-  access: TeamAccess,
-  t: { createdById: string; visibility: "TEAM" | "ASSIGNEES"; assignees: { userId: string }[]; subtasks: { assignees: { userId: string }[] }[] },
-): TaskAccessFacts {
-  return {
-    me: access.userId,
-    perms: access.perms,
-    createdById: t.createdById,
-    visibility: t.visibility,
-    assigneeIds: t.assignees.map((a) => a.userId),
-    subtaskAssigneeIds: t.subtasks.flatMap((s) => s.assignees.map((a) => a.userId)),
-  };
-}
-
-async function loadTask(access: TeamAccess, taskId: string): Promise<LoadedTask> {
-  const t = await db.task.findFirst({ where: { id: taskId, teamId: access.teamId }, select: taskFacts });
-  if (!t) throw new ActionError("Task not found.");
-  const facts = factsOf(access, t);
-  if (!canSeeTask(facts)) throw new ActionError("Task not found.");
-  return { facts, status: t.status };
-}
-
-async function loadSubtask(access: TeamAccess, subtaskId: string) {
-  const s = await db.subtask.findFirst({
-    where: { id: subtaskId, teamId: access.teamId },
-    select: { id: true, taskId: true, assignees: { select: { userId: true } }, task: { select: taskFacts } },
-  });
-  if (!s) throw new ActionError("Subtask not found.");
-  const facts = factsOf(access, s.task);
-  if (!canSeeTask(facts)) throw new ActionError("Subtask not found.");
-  return { id: s.id, taskId: s.taskId, assigneeIds: s.assignees.map((a) => a.userId), facts };
-}
-
-const deny = (msg = "You don't have permission to change this task.") => {
-  throw new ActionError(msg);
-};
-
-/** A project is a promoted idea in this exact team. */
-/** Tasks belong to a project, or to a raw idea that is still in the vault, in this exact team. */
-async function assertProject(teamId: string, projectId: string | null | undefined) {
-  if (!projectId) return;
-  const p = await db.idea.findFirst({
-    where: { id: projectId, teamId, status: { in: ["VAULT", "PROMOTED"] } },
-    select: { id: true },
-  });
-  if (!p) throw new ActionError("Project or idea not found.");
-}
-
-const done = async (teamId: string) => {
-  await teamChanged(teamId);
-  return null;
-};
-
 /* ── Tasks ───────────────────────────────────────────────────────────────── */
 
 export async function createTask(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const data = createTaskSchema.parse(input);
-    const access = await requireTeamAccess(data.teamId, ctx.user.id, "tasks.create");
-    const assignees = await assertMembers(data.teamId, data.assigneeIds);
-    await assertProject(data.teamId, data.projectId);
-    const tags = await assertTeamTags(data.teamId, data.tags);
-    const task = await db.task.create({
-      data: {
-        ...(data.id && { id: data.id }),
-        teamId: data.teamId,
-        title: encryptText(data.title, data.teamId),
-        description: encryptOptional(data.description, data.teamId),
-        notes: encryptOptional(data.notes, data.teamId),
-        priority: data.priority,
-        visibility: data.visibility,
-        tags,
-        ideaId: data.projectId ?? null,
-        createdById: access.userId,
-        assignees: { create: assignees.map((userId) => ({ userId, teamId: data.teamId })) },
-      },
-      select: { id: true },
-    });
-    await audit(ctx, { teamId: data.teamId, action: "task.created", entityType: "Task", entityId: task.id });
-    await teamChanged(data.teamId);
-    return { id: task.id };
-  });
+  return runAction({ tier: "write" }, (ctx) => opCreateTask(ctx, input));
 }
 
 export async function updateTask(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, title, description, notes, projectId, priority, visibility, tags } = updateTaskSchema.parse(input);
-    const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, itemId);
-    if (!canEditTask(facts)) deny();
-    await assertProject(teamId, projectId);
-    const nextTags = tags === undefined ? undefined : await assertTeamTags(teamId, tags);
-    await db.task.updateMany({
-      where: { id: itemId, teamId },
-      data: {
-        ...(nextTags !== undefined && { tags: nextTags }),
-        ...(title !== undefined && { title: encryptText(title, teamId) }),
-        ...(description !== undefined && { description: encryptOptional(description, teamId) }),
-        ...(notes !== undefined && { notes: encryptOptional(notes, teamId) }),
-        ...(projectId !== undefined && { ideaId: projectId }),
-        ...(priority !== undefined && { priority }),
-        ...(visibility !== undefined && { visibility }),
-      },
-    });
-    return done(teamId);
-  });
+  return runAction({ tier: "write" }, (ctx) => opUpdateTask(ctx, input));
 }
 
 export async function setTaskPriority(input: unknown) {
@@ -186,27 +57,7 @@ export async function setTaskAssignees(input: unknown) {
 }
 
 export async function setTaskStatus(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, status } = z.strictObject({ teamId: id, itemId: id, status: taskStatusSchema }).parse(input);
-    const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, itemId);
-    if (!canMoveTask(facts)) deny("Only people assigned to this task can move it.");
-    await db.$transaction([
-      db.task.updateMany({
-        where: { id: itemId, teamId },
-        data: {
-          status,
-          completedAt: status === "DONE" ? new Date() : null,
-          completedById: status === "DONE" ? access.userId : null,
-        },
-      }),
-      ...(status !== "IN_PROGRESS"
-        ? [db.taskAssignee.updateMany({ where: { taskId: itemId, focusedAt: { not: null } }, data: { focusedAt: null } })]
-        : []),
-    ]);
-    if (status === "DONE") await audit(ctx, { teamId, action: "task.done", entityType: "Task", entityId: itemId });
-    return done(teamId);
-  });
+  return runAction({ tier: "write" }, (ctx) => opSetTaskStatus(ctx, input));
 }
 
 /**
@@ -270,30 +121,7 @@ export async function deleteTask(input: unknown) {
 /* ── Subtasks ────────────────────────────────────────────────────────────── */
 
 export async function createSubtask(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const { id: subId, teamId, taskId, title, description, assigneeIds } = createSubtaskSchema.parse(input);
-    const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, taskId);
-    if (!canEditTask(facts)) deny();
-    const assignees = await assertMembers(teamId, assigneeIds);
-    const agg = await db.subtask.aggregate({ where: { taskId, teamId }, _count: true, _max: { position: true } });
-    if (agg._count >= MAX_SUBTASKS) throw new ActionError(`A task can have at most ${MAX_SUBTASKS} subtasks.`);
-    const sub = await db.subtask.create({
-      data: {
-        ...(subId && { id: subId }),
-        teamId,
-        taskId,
-        title: encryptText(title, teamId),
-        description: encryptOptional(description, teamId),
-        position: (agg._max.position ?? -1) + 1,
-        createdById: access.userId,
-        assignees: { create: assignees.map((userId) => ({ userId })) },
-      },
-      select: { id: true },
-    });
-    await teamChanged(teamId);
-    return { id: sub.id };
-  });
+  return runAction({ tier: "write" }, (ctx) => opCreateSubtask(ctx, input));
 }
 
 export async function updateSubtask(input: unknown) {
@@ -314,14 +142,7 @@ export async function updateSubtask(input: unknown) {
 }
 
 export async function toggleSubtask(input: unknown) {
-  return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, itemId, done: isDone } = toggleSubtaskSchema.parse(input);
-    const access = await requireTeamAccess(teamId, ctx.user.id);
-    const sub = await loadSubtask(access, itemId);
-    if (!canToggleSubtask(sub.facts, sub.assigneeIds)) deny("Only people assigned to this subtask can tick it.");
-    await db.subtask.updateMany({ where: { id: itemId, teamId }, data: { done: isDone, completedAt: isDone ? new Date() : null } });
-    return done(teamId);
-  });
+  return runAction({ tier: "write" }, (ctx) => opToggleSubtask(ctx, input));
 }
 
 export async function setSubtaskAssignees(input: unknown) {

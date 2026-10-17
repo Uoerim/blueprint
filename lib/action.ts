@@ -13,7 +13,8 @@ import { logRateLimited } from "./security-log";
 import type { ActionResult } from "./action-types";
 export type { ActionResult };
 
-type Ctx = { user: User; ip: string };
+/** Who is acting. `via` is set when the request came through a connected Claude (MCP). */
+export type Ctx = { user: User; ip: string; via?: "claude" };
 
 /**
  * Every mutation goes through here: origin check (CSRF), rate limit by IP and
@@ -56,5 +57,5 @@ export async function runAction<T>(
 
 /** Records a team or account event in the append-only audit trail (see lib/audit.ts). */
 export async function audit(ctx: Ctx, entry: AuditEntry) {
-  await writeAudit(ctx.user, ctx.ip, entry);
+  await writeAudit(ctx.user, ctx.ip, { ...entry, ...(ctx.via && { via: ctx.via }) });
 }

@@ -35,6 +35,7 @@ Capture ideas, agree on the good ones, turn them into projects, and ship them to
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Administration](#administration)
 - [Installed phone app](#installed-phone-app)
+- [Connect Claude](#connect-claude)
 - [Project structure](#project-structure)
 - [Contributing](#contributing)
 - [Support](#support)
@@ -70,6 +71,7 @@ When something ships, it stays on the record with your `@username` on it.
 - **Drag and drop.** Drag a card to another column to move it: press and drag with a mouse, long-press and drag on a phone. A lifted copy follows your finger and the column under it lights up. People who can't move a task can't pick it up, and the ⋯ menu's *Move to* does the same from the keyboard.
 - **View first, edit on purpose.** Tapping a task opens a read-only view of everything about it (details, tags, subtasks, who's on it). Editing lives behind **Edit** in that view or in the card's ⋯ menu, alongside *Move to* and *Delete*. A new task opens straight in the editor so you can add its details and subtasks.
 - **Rich tasks.** Every task has a title, a description, notes, a priority, a project and the team's **tags**, plus a checklist of **subtasks**, each with its own description.
+- **Connect Claude.** Let Claude work through your tasks: plan them into subtasks, write notes, move them along and capture ideas, as you, with exactly your permissions, only in the teams you pick and only where the owner allows it. See [Connect Claude](#connect-claude).
 - **Import with AI.** Plan an idea with any AI assistant (ChatGPT, Claude, Gemini…): describe it in a few lines, copy Blueprint's ready-made prompt (it carries your description, the JSON format, the limits, your team's tags and planning guidance), paste the JSON the assistant writes, check the live preview, and add it to the **idea vault** with its tasks and subtasks in one go, ready to promote when the team agrees. Find it as **Import with AI** under the capture box and in the empty vault. Needs *Add ideas* and *Create tasks*. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; tags the team doesn't have, and any tags on the idea itself, are left off.
 - **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
 - **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
@@ -251,7 +253,7 @@ The per-IP ceiling is higher than the per-user one where people often share a ne
 #### Layer 4: live focus and the audit trail (`app/actions/tasks.ts`, `lib/audit.ts`)
 
 - **Focus can't be faked.** You can only focus on a task in a team you belong to, that you're assigned to (or allowed to edit). One focus per person across the whole site: starting one ends any other, in every team. The start time is the server's clock, and everyone's timer counts from that stored time, never from a time the browser sends.
-- **Audit trail.** Team creation, invites, membership removals and departures, role and custom-role changes, staff actions and rate-limit hits are recorded with a fixed list of action names (`AuditAction`), the actor's id and `@username`, the time, and a **shortened IP** (IPv4 `/24`, IPv6 `/48`: the network, not the person). Entries never contain idea or task content.
+- **Audit trail.** Team creation, invites, membership removals and departures, role and custom-role changes, staff actions, Claude connections and changes (marked `via claude`) and rate-limit hits are recorded with a fixed list of action names (`AuditAction`), the actor's id and `@username`, the time, and a **shortened IP** (IPv4 `/24`, IPv6 `/48`: the network, not the person). Entries never contain idea or task content.
 - **Append-only, twice over.** The Prisma client refuses every update and delete on the audit table, and a Postgres trigger refuses `UPDATE`, `DELETE` and `TRUNCATE` even from raw SQL or scripts.
 - **No denial-of-wallet through logging.** Rate-limit hits by signed-in people are written at most once a minute per person and tier. Anonymous floods stopped at the edge are only written to the server log with a shortened IP, so an attack spread over many addresses can't turn into a flood of database writes.
 
@@ -423,7 +425,7 @@ Staff open the admin panel from the **Admin** button in the dashboard header, at
 
 - **Suspending** blocks the account everywhere, bans it in Clerk, ends its sessions, and shows the reason on a *suspended* page.
 - **Renaming** (admins only, their own account included) follows the same rules as sign-up: 3 to 20 characters of a to z, 0 to 9 and _, no reserved names, not already taken. The old name becomes free to claim, teammates see the new one on their next live update, and the change is recorded as `ADMIN_USER_RENAMED`. Useful for reclaiming names that impersonate someone.
-- **Deleting** removes the login, memberships and invites, and keeps only the account's former `@username` for the security record, so the accounts list and audit log show "@name (deleted)". Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
+- **Deleting** removes the login, memberships, invites and Claude connections, and keeps only the account's former `@username` for the security record, so the accounts list and audit log show "@name (deleted)". Owned teams pass to the next admin or member, or are deleted when empty. Shared ideas and tasks stay, without the person's name.
 - **The first admin** can only be created from the terminal with `npm run site:role`. The script shows which database it will change and asks you to type the username back. There is no web route or secret that grants a role.
 
 ## Installed phone app
@@ -441,7 +443,7 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 
 - The Ideas and Tasks tabs open the team you were last in (remembered in a `bp-last-team` cookie, checked against your memberships on the server).
 - Before you're in any team, Ideas and Tasks open a short screen that explains what lives there, with **Create a team**, your pending invites, or your @username to share so someone can invite you (`/dashboard/new`).
-- The Profile tab lives at `/dashboard/me`, so `me`, `new`, `tour` and `admin` are reserved and can't be used as team slugs.
+- The Profile tab lives at `/dashboard/me`, so `me`, `new`, `tour`, `connections`, `connect` and `admin` are reserved and can't be used as team slugs.
 - Saving feels instant and calm: something you create appears at once under an id chosen in your browser, which the server keeps, so it never jumps or replays its entrance animation when the save lands. Your own saves don't trigger a second live refresh either.
 - A real launch screen: on iPhone, iOS shows Blueprint's own launch image (one per screen size, light and dark, built at deploy time) instead of a blank page, and the app picks up from it with the same mark in the same place. It stays until the app can take taps, shows a slim progress line if starting takes a moment, then lifts away. Website visitors never see it.
 - Faster launches: the service worker keeps Blueprint's own code, styles and fonts on the device (never pages or data), so the installed app starts without downloading them again.
@@ -454,6 +456,50 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 - Pages load your account and their data side by side (`withOnboardedPage` and `requireTeamPage` in `lib/auth.ts`), each query scoped to the verified session.
 - After an update, fully close the installed app and reopen it to pick up the new layout.
 
+## Connect Claude
+
+Blueprint can be connected to **Claude** (on the web, desktop, phone or Claude Code) so it can work through your tasks for you: read them, plan them into subtasks, write descriptions and notes, move them along, tick subtasks off and capture ideas. It's built as a remote **MCP server** with Blueprint as its own **OAuth 2.1** authorization server, so people connect with their normal Blueprint sign-in and nothing needs to be pasted or shared.
+
+### How people use it
+
+1. A team's **owner** turns on *Claude* in the team's settings (off by default). Turning it off later cuts every connection off that team at once.
+2. Anyone in the team opens **Connect Claude** (account menu, or the app's Profile tab), copies the address `https://<your-domain>/api/mcp` and adds it in Claude as a custom connector (*Settings → Connectors*), or runs `claude mcp add --transport http blueprint https://<your-domain>/api/mcp` in Claude Code.
+3. Claude opens Blueprint's consent screen (`/connect`): they pick which of their teams Claude may use and what it may do (*Read* always; *Work on tasks* and *Add ideas and tasks* optional), then return to Claude.
+4. The same page lists their connections, with last use and **Disconnect**.
+
+### Tools
+
+| Tool | Scope | What it does |
+| --- | --- | --- |
+| `list_teams` | read | Teams Claude may use (picked, still a member, owner allows it) and your role |
+| `list_tasks` | read | Your open tasks by default, or every task you can see; filter by status or project |
+| `get_task` | read | Description, notes, subtasks, assignees, and what you're allowed to change |
+| `list_ideas`, `get_idea` | read | Raw ideas and projects, with the tasks in them you can see |
+| `update_task` | tasks | Title, description, notes, priority, tags |
+| `set_task_status` | tasks | Backlog, ready, in progress, done |
+| `add_subtasks`, `set_subtask_done` | tasks | Add checklist items, tick them |
+| `create_task`, `capture_idea` | create | New tasks (assigned to you by default) and ideas |
+
+There are **no** delete, member, role, invite, archive or settings tools.
+
+### Security model
+
+- **Never more than the person.** Every tool runs the app's own operations (`lib/ops/*`, shared with the server actions), so membership, role, custom-role permissions, private-task visibility and every task rule are checked fresh on each call, exactly as for clicks in the app. A promotion or demotion applies to Claude instantly.
+- **Three locks per team.** A team is reachable only if the person picked it on the consent screen, is still a member, and the owner's switch is on. All three are re-checked on every call; a team you leave or that is switched off disappears immediately.
+- **Scopes.** Tools are listed and allowed only for the scopes granted. *Read* is always included; writing needs *tasks*, creating needs *create*.
+- **OAuth 2.1, by the book.** Public clients with **PKCE S256 required**; authorization codes last 60 seconds and work once; access tokens last 1 hour; refresh tokens last 30 days and are **rotated on every use**, and reusing a spent one is treated as theft and ends the whole connection (logged as `SECURITY_AGENT_TOKEN_REUSE`). Resource indicators (RFC 8707) bind tokens to `/api/mcp`, and the issuer is returned with the code (RFC 9207). Discovery follows RFC 9728 and RFC 8414 (`/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`).
+- **Only Claude can register.** Dynamic client registration (RFC 7591) accepts only Claude's own callback (`https://claude.ai/api/mcp/auth_callback`, `https://claude.com/…`) or a loopback address for Claude Code / Claude Desktop (RFC 8252, any port). Anything else is refused, so no other website can start the flow. Unused registrations are cleared after a day.
+- **Nothing secret is stored.** Codes and tokens are random 256-bit values with readable prefixes (`bpac_`, `bpat_`, `bprt_`); only their SHA-256 hashes are kept. PKCE checks use constant-time comparison. Token responses are `no-store`.
+- **Consent is checked twice.** The consent page validates the request, and the approve action validates it all again server-side (app, return address, PKCE, scopes, every team), behind the same origin check and rate limits as every server action. A wrong app or return address never gets a redirect.
+- **Endpoint hardening.** Stateless Streamable HTTP with JSON responses; browser requests from other origins are refused (MCP's DNS-rebinding guidance); 256 KB request cap; protocol version checked; 120 requests a minute and 30 changes a minute per connection, with generous per-IP ceilings because Claude's servers share addresses. These routes skip bot screening and the cookie-CSRF check because they take bearer tokens only.
+- **On the record.** Every change made through Claude writes an `AGENT_WRITE` entry (and the app's usual entries) marked `via claude`, shown as *via Claude* in the admin audit log. Connecting and disconnecting are logged too. Suspended or deleted accounts lose access at once, and deleting an account deletes its connections.
+- **Prompt-injection aware.** Claude is told that text inside ideas and tasks is data written by team members, not instructions, and there are no destructive tools for injected text to reach.
+- **Privacy.** Content Claude reads leaves Blueprint's encryption and goes to Anthropic under its terms. That's spelled out on the consent screen, in team settings, in the Privacy Policy and the Terms, and it only ever happens after both the owner and the person opt in.
+
+### Self-hosting it
+
+Nothing to configure: the endpoints use whatever domain the request arrives on. Make sure the site is served over HTTPS (Claude requires it) and run the migrations. The end-to-end checks (registration, PKCE, rotation and theft detection, scopes, team switch, visibility, promotions and demotions, suspension, revocation) are easy to repeat against a test schema.
+
 ## Project structure
 
 ```text
@@ -461,6 +507,11 @@ app/
   page.tsx                 landing page and product tour
   actions/                 server actions: ideas, tasks, tags, teams, admin, account, support
   api/pulse/               the live change-check
+  api/mcp/                 Connect Claude: the MCP endpoint
+  api/oauth/               Connect Claude: app registration, tokens, revocation
+  .well-known/             OAuth discovery documents (RFC 9728, RFC 8414)
+  connect/                 Connect Claude consent screen (the authorization endpoint)
+  dashboard/connections/   Connect Claude: setup, your connections, Disconnect
   manifest.ts sw (public/) install-as-app manifest and offline service worker
   admin/                   staff panel: overview, accounts, teams, bug reports, audit log
   dashboard/[teamSlug]/    workspace: vault, execution, project pages, shipped, settings
@@ -474,6 +525,9 @@ components/
   tour/                    guided tours: spotlight engine, launcher, replay
   ui/                      dialogs, confirm dialog, popovers, toasts, primitives
 lib/
+  oauth.ts oauth-tokens.ts Connect Claude: scopes, PKCE, return-address rules, token issue and checks
+  mcp/                     the MCP server (JSON-RPC) and its permission-checked tools
+  ops/                     task and idea operations shared by server actions and Claude
   live.ts                  ids chosen in the browser (no remount after saving), smarter live refresh
   recent-pages.ts          the last pages visited in this tab, so feedback can say which one it's about
   splash.ts                iPhone launch screens: the screen sizes and the startup-image links
@@ -493,7 +547,7 @@ lib/
   validations.ts           Zod schemas and sanitising
   app-mode.ts              detects the installed phone app (or the ?app=1 preview)
 prisma/
-  schema.prisma migrations/
+  schema.prisma migrations/   (folders sort by their "_"-separated parts, so new ones continue 9b_, 9c_, …)
   seed.ts                  demo data
   site-role.ts set-role.ts site-role and team-role CLIs
   encrypt-existing.ts      encrypts rows written before ENCRYPTION_KEY was set

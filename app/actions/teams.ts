@@ -23,6 +23,7 @@ import {
   teamScoped,
   updateRoleSchema,
   updateTeamSchema,
+  agentAccessSchema,
 } from "@/lib/validations";
 
 const isUniqueViolation = (e: unknown) =>
@@ -320,6 +321,28 @@ export async function updateTeam(input: unknown) {
     await requireTeamAccess(teamId, ctx.user.id, "team.edit");
     await db.team.update({ where: { id: teamId }, data: { name, description } });
     await audit(ctx, { teamId, action: "team.updated", entityType: "Team", entityId: teamId });
+    return done(teamId);
+  });
+}
+
+/**
+ * Connect Claude for this team: only the owner can allow or stop it. Turning it
+ * off cuts every connected Claude off this team at once, and takes the team out
+ * of everyone's connections, so turning it back on later needs each member to
+ * choose this team again.
+ */
+export async function setAgentAccess(input: unknown) {
+  return runAction({ tier: "write" }, async (ctx) => {
+    const { teamId, allow } = agentAccessSchema.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id);
+    if (access.role !== "OWNER") throw new ActionError("Only the team owner can change this.");
+    await db.$transaction(async (tx) => {
+      await tx.team.update({ where: { id: teamId }, data: { agentAccess: allow } });
+      if (allow) return;
+      const grants = await tx.agentGrant.findMany({ where: { teamIds: { has: teamId } }, select: { id: true, teamIds: true } });
+      for (const g of grants) await tx.agentGrant.update({ where: { id: g.id }, data: { teamIds: g.teamIds.filter((t) => t !== teamId) } });
+    });
+    await audit(ctx, { teamId, action: allow ? "team.agent_access.enabled" : "team.agent_access.disabled", entityType: "Team", entityId: teamId });
     return done(teamId);
   });
 }

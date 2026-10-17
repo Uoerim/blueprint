@@ -34,6 +34,7 @@ export function ProfileScreen() {
         <Row icon={<IconUser />} label="Account" note="Name, photo, email, security" onClick={() => openUserProfile()} />
         <Row icon={<IconPalette />} label="Appearance" note={theme === "system" ? "System" : theme === "light" ? "Light" : "Dark"} onClick={() => setSheet("appearance")} />
         <Row icon={<IconGauge />} label="Usage" onClick={() => setSheet("usage")} />
+        <Row icon={<IconLink />} label="Connect Claude" note="Let Claude work on your tasks" href="/dashboard/connections" />
       </Group>
 
       <Group>
@@ -132,4 +133,5 @@ const IconHelp = () => (<svg {...ic}><circle cx="10" cy="10" r="7.25" /><path d=
 const IconCup = () => (<svg {...ic}><path d="M3.5 6.5h10v5.5a3.5 3.5 0 0 1-3.5 3.5H7a3.5 3.5 0 0 1-3.5-3.5V6.5ZM13.5 7.5h.9a2 2 0 0 1 0 4h-.9" /></svg>);
 const IconDoc = () => (<svg {...ic}><path d="M5.5 2.75h6l3 3v11.5h-9V2.75Z" /><path d="M8 10h4.5M8 13h4.5" /></svg>);
 const IconCompass = () => (<svg {...ic}><circle cx="10" cy="10" r="7.25" /><path d="m12.6 7.4-1.5 3.7-3.7 1.5 1.5-3.7 3.7-1.5Z" /></svg>);
+const IconLink = () => (<svg {...ic}><path d="M8.5 11.5a3.25 3.25 0 0 0 4.6 0l2.4-2.4a3.25 3.25 0 0 0-4.6-4.6l-.7.7M11.5 8.5a3.25 3.25 0 0 0-4.6 0L4.5 10.9a3.25 3.25 0 0 0 4.6 4.6l.7-.7" /></svg>);
 const IconShield = () => (<svg {...ic}><path d="M10 2.5 4 4.75V9c0 3.7 2.5 6.6 6 7.75 3.5-1.15 6-4.05 6-7.75V4.75L10 2.5Z" /></svg>);

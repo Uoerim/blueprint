@@ -8,7 +8,7 @@ import { LRUCache } from "lru-cache";
  * bot screening, origin checks, auth and per-team checks don't depend on it.
  */
 
-export type Tier = "global" | "username" | "invite" | "write" | "auth" | "report" | "pulse";
+export type Tier = "global" | "username" | "invite" | "write" | "auth" | "report" | "pulse" | "oauth" | "oauthRegister" | "agent" | "agentWrite";
 
 /**
  * `limit` applies per signed-in user (and per IP when there's no user);
@@ -31,6 +31,17 @@ export const TIERS: Record<Tier, { limit: number; ipLimit?: number; windowMs: nu
   report: { limit: 5, ipLimit: 10, windowMs: 60 * 60_000 },
   // The live change-check: one tiny request every ~4s per open tab, a few tabs at once.
   pulse: { limit: 90, windowMs: 60_000 },
+  // Connect Claude. Claude's servers send many people's requests from shared
+  // addresses, so the per-IP ceilings are generous and the real limits are per
+  // connection (grant) in the MCP endpoint.
+  // Token and revoke requests.
+  oauth: { limit: 30, ipLimit: 300, windowMs: 60_000 },
+  // App self-registration: a connector registers once per person who adds it.
+  oauthRegister: { limit: 10, ipLimit: 200, windowMs: 60 * 60_000 },
+  // MCP requests per connection (and the per-IP ceiling at the edge).
+  agent: { limit: 120, ipLimit: 1200, windowMs: 60_000 },
+  // Changes made through Claude, per connection.
+  agentWrite: { limit: 30, windowMs: 60_000 },
 };
 
 export type RateLimitResult = {

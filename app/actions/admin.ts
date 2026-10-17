@@ -172,6 +172,8 @@ export async function deleteUser(input: unknown) {
       await tx.subtaskAssignee.deleteMany({ where: { userId: target.id } });
       await tx.teamInvite.deleteMany({ where: { OR: [{ inviterId: target.id }, { inviteeId: target.id }] } });
       await tx.teamMember.deleteMany({ where: { userId: target.id } });
+      // Connected Claude apps go too (their tokens with them).
+      await tx.agentGrant.deleteMany({ where: { userId: target.id } });
       await tx.user.update({
         where: { id: target.id },
         data: {

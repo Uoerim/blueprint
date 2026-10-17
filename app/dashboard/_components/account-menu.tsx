@@ -25,6 +25,7 @@ export function AccountMenu({ theme }: { theme: Theme }) {
         <UserButton.MenuItems>
           <UserButton.Action label="Appearance" labelIcon={<PaletteIcon />} open="appearance" />
           <UserButton.Action label="Usage" labelIcon={<GaugeIcon />} open="usage" />
+          <UserButton.Link label="Connect Claude" labelIcon={<LinkIcon />} href="/dashboard/connections" />
           <UserButton.Action label="Contact support" labelIcon={<HelpIcon size={16} />} onClick={() => setSupport(true)} />
           <UserButton.Action label="Take the tour" labelIcon={<CompassIcon />} onClick={() => void replay()} />
           {/* Hidden on any device where the app is already installed (or when you're inside it). */}
@@ -139,6 +140,14 @@ function GaugeIcon() {
       <path d="M2.2 11.5a6.25 6.25 0 1 1 11.6 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       <path d="m8 9.5 2.6-3.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="8" cy="9.5" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2-2a2.75 2.75 0 0 0-3.9-3.9l-.6.6M9.25 6.75a2.75 2.75 0 0 0-3.9 0l-2 2a2.75 2.75 0 0 0 3.9 3.9l.6-.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }

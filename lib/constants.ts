@@ -50,7 +50,7 @@ export const RESERVED_USERNAMES = new Set([
   "undefined",
 ]);
 
-export const RESERVED_SLUGS = new Set(["new", "settings", "api", "onboarding", "invites", "me", "admin", "tour"]);
+export const RESERVED_SLUGS = new Set(["new", "settings", "api", "onboarding", "invites", "me", "admin", "tour", "connections", "connect"]);
 
 export const IDEA_TAGS = ["feature", "bug", "experiment", "random"] as const;
 
