@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { changedLocallyWithin } from "@/lib/live";
+import { changedLocallyWithin, mayBePreloadedStale } from "@/lib/live";
 
 const EVERY_MS = 4000;
 const SLOW_MS = 15000;
@@ -37,10 +37,13 @@ export function LivePulse() {
         if (!res.ok) throw new Error(String(res.status));
         const now = (await res.json()) as { team: number | null; inbox: number };
         const prev = seen.current.get(key);
+        const firstScreen = seen.current.size === 0;
         seen.current.set(key, now);
         failures = 0;
         // Your own save already refreshed the page; only refresh for changes from elsewhere.
         if (prev && (prev.team !== now.team || prev.inbox !== now.inbox) && !changedLocallyWithin(2500)) router.refresh();
+        // A tab opened from the app's preload shows at once; bring it up to date quietly.
+        else if (!prev && !firstScreen && mayBePreloadedStale()) router.refresh();
       } catch {
         failures++;
       }

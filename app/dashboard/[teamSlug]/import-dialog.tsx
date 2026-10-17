@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { importProject } from "@/app/actions/ideas";
+import { importIdea } from "@/app/actions/ideas";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
 import { LIMITS } from "@/lib/constants";
@@ -11,13 +11,14 @@ import { importPlanSchema, type ImportPlan } from "@/lib/validations";
 import { useWorkspace } from "./workspace";
 
 /**
- * "Import from JSON": copy a prompt, let any AI write the plan, paste it back.
+ * "Import with AI" in the idea vault: copy a prompt, let any AI write the plan,
+ * paste it back, and get a raw idea with its tasks, ready to promote.
  * The JSON is checked here as you paste (the server checks it again) and shown
  * as a preview before anything is created.
  */
 export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog open={open} onClose={onClose} title="Import a project" size="lg" description="Plan it with any AI assistant, paste what it writes, and get a project with its tasks and subtasks.">
+    <Dialog open={open} onClose={onClose} title="Import an idea with AI" size="lg" description="Plan it with any AI assistant, paste what it writes, and get the idea in your vault with its tasks and subtasks.">
       {open && <ImportBody onClose={onClose} />}
     </Dialog>
   );
@@ -40,7 +41,7 @@ function where(path: PropertyKey[]): string {
 }
 
 function ImportBody({ onClose }: { onClose: () => void }) {
-  const { team, tags, run, openProject } = useWorkspace();
+  const { team, tags, run, openIdea } = useWorkspace();
   const [raw, setRaw] = useState("");
   const [about, setAbout] = useState("");
   const [copied, setCopied] = useState(false);
@@ -84,11 +85,11 @@ function ImportBody({ onClose }: { onClose: () => void }) {
     if (check.state !== "ok" || pending) return;
     setPending(true);
     const count = check.plan.tasks.length;
-    run(() => importProject({ teamId: team.id, plan: check.plan }), {
-      success: count ? `Project imported with ${count} task${count === 1 ? "" : "s"}.` : "Project imported.",
+    run(() => importIdea({ teamId: team.id, plan: check.plan }), {
+      success: count ? `Idea imported with ${count} task${count === 1 ? "" : "s"}.` : "Idea imported.",
       onOk: (data) => {
         onClose();
-        openProject(data.id);
+        openIdea(data.id);
       },
     });
     // The toast reports a failure; let them fix the JSON and try again.
@@ -101,11 +102,11 @@ function ImportBody({ onClose }: { onClose: () => void }) {
     <div className="space-y-5">
       <Step n={1} title="Describe it and copy the prompt">
         <p className="text-[13px] leading-relaxed text-ink-3">
-          Write a few lines about the project (or add them in the assistant later). The prompt already explains Blueprint&apos;s format, the limits
+          Write a few lines about the idea (or add them in the assistant later). The prompt already explains Blueprint&apos;s format, the limits
           {teamTags.length ? " and your team's tags" : ""}, so you can paste it straight into ChatGPT, Claude, Gemini or any other assistant.
         </p>
         <label htmlFor="import-about" className="sr-only">
-          Describe your project
+          Describe your idea
         </label>
         <textarea
           id="import-about"
@@ -164,7 +165,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
               role={check.state === "error" ? "alert" : undefined}
               className={check.state === "error" ? "text-rose" : check.state === "ok" ? "text-emerald" : "text-ink-3"}
             >
-              {check.state === "error" ? check.message : check.state === "ok" ? "Looks good." : "Nothing is created until you press Create project."}
+              {check.state === "error" ? check.message : check.state === "ok" ? "Looks good." : "Nothing is added until you press Add to the vault."}
             </motion.span>
           </AnimatePresence>
           <span className="shrink-0 font-mono tabular-nums text-ink-3">{raw.length.toLocaleString("en")}</span>
@@ -184,7 +185,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
           >
             <div className="rounded-2xl bg-surface-2 p-4 shadow-highlight">
               <p className="flex items-start gap-2 text-[15px] font-medium text-ink">
-                <span className="mt-0.5 text-violet" aria-hidden>◆</span>
+                <span className="mt-0.5 text-amber" aria-hidden>✦</span>
                 <span className="min-w-0">{check.plan.title}</span>
               </p>
               {check.plan.description && <p className="mt-1 line-clamp-2 text-[13px] text-ink-2">{check.plan.description}</p>}
@@ -203,7 +204,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
                   {check.plan.tasks.length > 6 && <li className="pl-3.5 text-[12px] text-ink-3">and {check.plan.tasks.length - 6} more</li>}
                 </ul>
               )}
-              {check.projectTags && <p className="mt-3 text-[12px] text-ink-3">Tags go on tasks, so the project&apos;s own tags are left off.</p>}
+              {check.projectTags && <p className="mt-3 text-[12px] text-ink-3">Tags go on tasks, so the idea&apos;s own tags are left off.</p>}
               {check.dropped.length > 0 && (
                 <p className="mt-3 text-[12px] text-amber">
                   These tags aren&apos;t in your team, so they&apos;ll be left off: {check.dropped.map((t) => `#${t}`).join(", ")}
@@ -219,7 +220,7 @@ function ImportBody({ onClose }: { onClose: () => void }) {
           Cancel
         </button>
         <button type="button" onClick={create} disabled={check.state !== "ok" || pending} className={cx(btn.primary, btn.sm, "disabled:opacity-40")}>
-          {pending ? "Creating…" : "Create project"}
+          {pending ? "Adding…" : "Add to the vault"}
         </button>
       </div>
     </div>

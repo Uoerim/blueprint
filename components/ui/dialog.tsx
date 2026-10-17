@@ -127,10 +127,10 @@ export function Dialog({
                     type="button"
                     onClick={onClose}
                     aria-label="Close"
-                    className="grid size-10 place-items-center rounded-full bg-tint/[0.06] text-ink-2 active:scale-95"
+                    className="-mr-1 grid size-11 place-items-center rounded-full bg-tint/[0.08] text-ink transition-transform active:scale-90"
                   >
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                      <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <svg width="18" height="18" viewBox="0 0 14 14" aria-hidden>
+                      <path d="m3.25 3.25 7.5 7.5M10.75 3.25l-7.5 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
                     </svg>
                   </button>
                 </div>
@@ -184,9 +184,9 @@ export function Dialog({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="grid size-8 place-items-center rounded-md text-ink-3 transition-colors hover:bg-tint/[0.06] hover:text-ink active:scale-95"
+                className="grid size-9 place-items-center rounded-lg text-ink-3 transition-colors hover:bg-tint/[0.06] hover:text-ink active:scale-95"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 14 14" aria-hidden>
                   <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>

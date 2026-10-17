@@ -10,7 +10,6 @@ import { LIMITS } from "@/lib/constants";
 import { newId } from "@/lib/live";
 import type { IdeaDTO, TaskDTO } from "@/lib/types";
 import { BoardView } from "./board-view";
-import { ImportDialog } from "./import-dialog";
 import { useWorkspace } from "./workspace";
 
 export type Tab = "projects" | "all" | "mine";
@@ -64,7 +63,6 @@ function projectStats(tasks: TaskDTO[], id: string) {
 function ProjectList() {
   const { ideas, tasks, openProject, member, can, isPending } = useWorkspace();
   const [creating, setCreating] = useState(false);
-  const [importing, setImporting] = useState(false);
   const projects = ideas.filter((i) => i.status === "PROMOTED");
   const loose = tasks.filter((t) => !t.idea && t.status !== "DONE").length;
 
@@ -76,14 +74,6 @@ function ProjectList() {
           {loose > 0 && <span className="text-ink-3"> · {loose} open task{loose > 1 ? "s" : ""} with no project or idea</span>}
         </p>
         <div className="flex shrink-0 items-center gap-2">
-          {can("projects.create") && can("tasks.create") && (
-            <button type="button" onClick={() => setImporting(true)} className={cx(btn.outline, btn.sm, "gap-1.5")} title="Plan a project with any AI assistant and import it as JSON">
-              <SparkleIcon />
-              <span>
-                Import<span className="hidden sm:inline"> with AI</span>
-              </span>
-            </button>
-          )}
           {can("projects.create") && (
             <button type="button" onClick={() => setCreating(true)} className={cx(btn.primary, btn.sm)}>New project</button>
           )}
@@ -152,30 +142,12 @@ function ProjectList() {
           {can("projects.create") && (
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => setCreating(true)} className={cx(btn.outline, btn.sm)}>New project</button>
-              {can("tasks.create") && (
-                <button type="button" onClick={() => setImporting(true)} className={cx(btn.ghost, btn.sm, "gap-1.5")}>
-                  <SparkleIcon />
-                  Plan it with AI
-                </button>
-              )}
             </div>
           )}
         </div>
       )}
 
-      <ProjectDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-        onImport={
-          can("tasks.create")
-            ? () => {
-                setCreating(false);
-                setImporting(true);
-              }
-            : undefined
-        }
-      />
-      <ImportDialog open={importing} onClose={() => setImporting(false)} />
+      <ProjectDialog open={creating} onClose={() => setCreating(false)} />
     </div>
   );
 }
@@ -427,7 +399,6 @@ function ProjectDialog({
   project,
   canEdit = true,
   actions,
-  onImport,
 }: {
   open: boolean;
   onClose: () => void;
@@ -435,8 +406,6 @@ function ProjectDialog({
   canEdit?: boolean;
   /** Project settings only: back to ideas, archive, delete. */
   actions?: React.ReactNode;
-  /** New project only: switch to "Import with AI". */
-  onImport?: () => void;
 }) {
   return (
     <Dialog
@@ -449,22 +418,6 @@ function ProjectDialog({
         <div className="space-y-6">
           {canEdit && <ProjectForm project={project} onClose={onClose} />}
           {actions}
-          {!project && onImport && (
-            <button
-              type="button"
-              onClick={onImport}
-              className="group flex w-full items-center gap-3 rounded-xl bg-accent/[0.07] p-3 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_25%,transparent)] transition-colors hover:bg-accent/[0.12]"
-            >
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
-                <SparkleIcon size={15} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-medium text-ink">Plan it with AI instead</span>
-                <span className="block text-[12px] leading-snug text-ink-3">Copy a ready prompt, paste the JSON your assistant writes, get the project with its tasks.</span>
-              </span>
-              <span aria-hidden className="text-ink-3 transition-transform group-hover:translate-x-0.5">→</span>
-            </button>
-          )}
         </div>
       )}
     </Dialog>
@@ -598,13 +551,5 @@ export function ExecutionAppSegments({ active, onPick }: { active: string; onPic
     <div className="hidden app:block">
       <Segments tabs={APP_SEGMENTS} active={active} onPick={(id) => onPick(id as Tab | "shipped")} />
     </div>
-  );
-}
-
-function SparkleIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden className="shrink-0">
-      <path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" />
-    </svg>
   );
 }

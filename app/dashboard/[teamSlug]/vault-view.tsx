@@ -13,6 +13,7 @@ import { useTourDemo } from "@/lib/tour-demo";
 import { timeAgo } from "@/lib/time";
 import type { IdeaDTO, Priority } from "@/lib/types";
 import { BoardView } from "./board-view";
+import { ImportDialog } from "./import-dialog";
 import { useWorkspace } from "./workspace";
 
 const spring = { type: "spring", stiffness: 480, damping: 36 } as const;
@@ -73,6 +74,8 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
   const demoIdea = useTourDemo("idea");
   const { ideas, can, openIdea, openProject } = useWorkspace();
   const [sort, setSort] = useState<"hot" | "new">("hot");
+  const [importing, setImporting] = useState(false);
+  const canImport = can("ideas.create") && can("tasks.create");
   const open = ideaId ? ideas.find((i) => i.id === ideaId && i.status === "VAULT") : undefined;
 
   if (open) return <IdeaPage idea={open} />;
@@ -95,7 +98,7 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
         </p>
       )}
       {can("ideas.create") ? (
-        <CaptureBar />
+        <CaptureBar onImport={canImport ? () => setImporting(true) : undefined} />
       ) : (
         <p className="rounded-2xl bg-surface px-4 py-3 text-[13px] text-ink-3 shadow-highlight">
           Your role can spark ideas but not add new ones. Ask the team owner if you need to.
@@ -132,8 +135,15 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
         <div className="card mt-3 rounded-2xl px-6 py-14 text-center">
           <p className="text-[15px] text-ink">The vault is empty.</p>
           <p className="mt-1 text-sm text-ink-3">Type the first thing on your mind into the box above.</p>
+          {canImport && (
+            <button type="button" onClick={() => setImporting(true)} className={cx(btn.ghost, btn.sm, "mt-4 gap-1.5")}>
+              <SparkleIcon />
+              Or plan one with AI
+            </button>
+          )}
         </div>
       )}
+      {canImport && <ImportDialog open={importing} onClose={() => setImporting(false)} />}
 
       {promoted.length > 0 && (
         <section className="mt-12">
@@ -161,7 +171,15 @@ export function VaultView({ ideaId }: { ideaId: string | null }) {
   );
 }
 
-function CaptureBar() {
+function SparkleIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden className="shrink-0">
+      <path d="M8 1.5 9.6 6.4 14.5 8 9.6 9.6 8 14.5 6.4 9.6 1.5 8 6.4 6.4Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CaptureBar({ onImport }: { onImport?: () => void }) {
   const { team, viewer, run, addIdea } = useWorkspace();
   const [draft, setDraft] = useState("");
 
@@ -206,6 +224,19 @@ function CaptureBar() {
         />
         <button type="submit" disabled={!draft.trim()} className={cx(btn.primary, btn.sm)}>Drop it</button>
       </div>
+      {onImport && (
+        <div className="flex items-center justify-between gap-3 border-t border-line px-2 pb-0.5 pt-2">
+          <p className="min-w-0 text-[12px] text-ink-3">Got a bigger plan? Let an AI break it into tasks.</p>
+          <button
+            type="button"
+            onClick={onImport}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-accent transition-[background-color,transform] hover:bg-accent/10 active:scale-95"
+          >
+            <SparkleIcon />
+            Import with AI
+          </button>
+        </div>
+      )}
     </form>
   );
 }

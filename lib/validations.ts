@@ -247,7 +247,7 @@ export const importPlanSchema = z.strictObject({
     .default([]),
 });
 export type ImportPlan = z.infer<typeof importPlanSchema>;
-export const importProjectSchema = z.strictObject({ teamId: id, plan: importPlanSchema });
+export const importIdeaSchema = z.strictObject({ teamId: id, plan: importPlanSchema });
 
 /* ── Guided tours ───────────────────────────────────────────────────────── */
 

@@ -70,7 +70,7 @@ When something ships, it stays on the record with your `@username` on it.
 - **Drag and drop.** Drag a card to another column to move it: press and drag with a mouse, long-press and drag on a phone. A lifted copy follows your finger and the column under it lights up. People who can't move a task can't pick it up, and the ⋯ menu's *Move to* does the same from the keyboard.
 - **View first, edit on purpose.** Tapping a task opens a read-only view of everything about it (details, tags, subtasks, who's on it). Editing lives behind **Edit** in that view or in the card's ⋯ menu, alongside *Move to* and *Delete*. A new task opens straight in the editor so you can add its details and subtasks.
 - **Rich tasks.** Every task has a title, a description, notes, a priority, a project and the team's **tags**, plus a checklist of **subtasks**, each with its own description.
-- **Import with AI.** Plan a project with any AI assistant (ChatGPT, Claude, Gemini…): describe it in a few lines, copy Blueprint's ready-made prompt (it carries your description, the JSON format, the limits, your team's tags and planning guidance), paste the JSON the assistant writes, check the live preview, and create the project with its tasks and subtasks in one go. Find it as **Import with AI** in Execution, in the empty state, and inside **New project**. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; tags the team doesn't have, and any tags on the project itself, are left off.
+- **Import with AI.** Plan an idea with any AI assistant (ChatGPT, Claude, Gemini…): describe it in a few lines, copy Blueprint's ready-made prompt (it carries your description, the JSON format, the limits, your team's tags and planning guidance), paste the JSON the assistant writes, check the live preview, and add it to the **idea vault** with its tasks and subtasks in one go, ready to promote when the team agrees. Find it as **Import with AI** under the capture box and in the empty vault. Needs *Add ideas* and *Create tasks*. Blueprint never sends anything to an AI itself. Up to 40 tasks and 20 subtasks per task per import; tags the team doesn't have, and any tags on the idea itself, are left off.
 - **Several people per task.** Assign one person or many to a task, and give each subtask its own people.
 - **Private tasks.** When creating a task, choose **Everyone** or **Assignees only**. Private tasks are visible only to their assignees, their creator, the owner, co-owners and roles allowed to see them, and are never even sent to anyone else's browser.
 - **Live focus.** *Start working* shows the team what you're on right now, with a running timer. Several people can be in focus on the same task.
@@ -92,7 +92,7 @@ When something ships, it stays on the record with your `@username` on it.
 
 - **Account window.** Appearance (system, light or dark theme; system, which follows your device, is the default) and Usage live inside the standard account window alongside your profile and security settings.
 - **Free and unlimited.** No caps on teams, ideas, projects or tasks. The Usage page shows what you've made.
-- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. You pick which page it's about: the one you're on, one you visited just before (handy on phones, where support lives on the Profile tab), or none. Plus Privacy Policy and Terms pages.
+- **Support and feedback.** A *Contact support* window in the dashboard, user menu and app Profile tab: **Report a bug** or **Request a feature** right there (both land in the admin panel's **Feedback** inbox), or email support. You pick which page it's about: the one you're on, one you visited just before (handy on phones, where support lives on the Profile tab), any other page of the app (each of your teams and its settings included), or none. Plus Privacy Policy and Terms pages.
 
 ### Phones and installing
 
@@ -443,7 +443,10 @@ Everything is built with one Tailwind variant, `app:`, defined in `app/globals.c
 - Before you're in any team, Ideas and Tasks open a short screen that explains what lives there, with **Create a team**, your pending invites, or your @username to share so someone can invite you (`/dashboard/new`).
 - The Profile tab lives at `/dashboard/me`, so `me`, `new`, `tour` and `admin` are reserved and can't be used as team slugs.
 - Saving feels instant and calm: something you create appears at once under an id chosen in your browser, which the server keeps, so it never jumps or replays its entrance animation when the save lands. Your own saves don't trigger a second live refresh either.
+- A real launch screen: on iPhone, iOS shows Blueprint's own launch image (one per screen size, light and dark, built at deploy time) instead of a blank page, and the app picks up from it with the same mark in the same place. It stays until the app can take taps, shows a slim progress line if starting takes a moment, then lifts away. Website visitors never see it.
 - Faster launches: the service worker keeps Blueprint's own code, styles and fonts on the device (never pages or data), so the installed app starts without downloading them again.
+- Every tab is ready before you tap it: a moment after launch the tab bar loads each tab's screen with its data, so the first switch is instant; a screen opened from that preload quietly refreshes itself if it's more than a few seconds old. Skipped when the phone asks to save data.
+- Native-feeling motion: new screens ease in, and the tab bar's highlight glides to the tab you tap. Reduced-motion settings turn both off.
 - Switching tabs is built to feel instant:
   - Ideas ↔ Tasks within the same team switch on the device without asking the server;
   - every other tab shows its loading screen the moment you tap;
@@ -473,6 +476,7 @@ components/
 lib/
   live.ts                  ids chosen in the browser (no remount after saving), smarter live refresh
   recent-pages.ts          the last pages visited in this tab, so feedback can say which one it's about
+  splash.ts                iPhone launch screens: the screen sizes and the startup-image links
   import-template.ts       the "Import from JSON" format, AI prompt and reply parsing
   tour-demo.ts             on-screen-only samples shown by the guided tours
   crypto.ts                per-team AES-256-GCM field encryption

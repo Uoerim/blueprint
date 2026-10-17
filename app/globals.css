@@ -272,6 +272,67 @@ body {
   animation: pulse-ring 1.8s var(--ease-out-expo) infinite;
 }
 
+/* ── Installed app: launch screen and screen changes ──────────────────────
+   The launch screen (components/launch-screen.tsx) continues iOS's launch
+   image: same mark, same spot. It leaves once the page can take taps, and a
+   CSS-only timeout clears it even if scripts never run. Website visitors never
+   see it. */
+/* Shown only under the app: variant (see components/launch-screen.tsx). */
+.launch-screen {
+  animation: launch-out 0.4s var(--ease-out-expo) 3.5s forwards;
+}
+.launch-screen.is-leaving {
+  pointer-events: none;
+  animation: launch-out 0.42s var(--ease-out-expo) forwards;
+}
+.launch-screen.is-leaving .launch-mark { animation: launch-mark 0.5s var(--ease-out-expo) forwards; }
+.launch-progress {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 72px);
+  width: 64px;
+  height: 3px;
+  margin-left: -32px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink) 10%, transparent);
+  opacity: 0;
+  /* Only shows up if starting takes more than a moment. */
+  animation: launch-progress-in 0.3s ease 0.7s forwards;
+}
+.launch-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: launch-progress-run 1s ease-in-out infinite;
+}
+/* The page sits below the iPhone status bar, iOS's launch image covers the whole
+   screen: lift the mark by half the bar so it doesn't jump at the hand-off. */
+@supports (-webkit-touch-callout: none) {
+  .launch-mark { margin-top: -54px; }
+  .launch-progress { top: calc(50% + 45px); }
+}
+@keyframes launch-out { to { opacity: 0; visibility: hidden; } }
+@keyframes launch-mark { to { opacity: 0; transform: scale(1.22); } }
+@keyframes launch-progress-in { to { opacity: 1; } }
+@keyframes launch-progress-run {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+/* Each new screen of the installed app eases in like a native view, instead of
+   snapping into place. Only from-styles are kept (fill: backwards), so nothing
+   is left transformed afterwards. */
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+}
+@utility screen-in {
+  animation: screen-in 0.32s var(--ease-out-expo) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .pulse-ring::after { animation: none; }

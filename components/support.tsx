@@ -9,6 +9,7 @@ import { submitBugReport } from "@/app/actions/support";
 import { LEGAL_EMAIL } from "@/components/legal-constants";
 import { Dialog, inputCls } from "@/components/ui/dialog";
 import { btn, cx } from "@/components/ui/primitives";
+import { useDashboardData } from "@/app/dashboard/_components/app-shell";
 import { describePage, recentPages, rememberPage } from "@/lib/recent-pages";
 
 /** Contact support: report a bug right here (signed in), or email us about anything else. */
@@ -87,14 +88,28 @@ export function PageMemory() {
 
 const NO_PAGE = "";
 
+const PROFILE = /^\/dashboard\/me(\/|$)/;
+
 /**
- * The pages a report can be about: the one you're on (unless it's the Profile
- * tab, where support lives on phones), then the ones you visited before it.
+ * The pages a report can be about. "Recent": the one you're on and the ones you
+ * visited just before it (on phones support lives on the Profile tab, so the
+ * page before it is usually the one that matters). "All pages": every other
+ * screen of the app, each of your teams and its settings included.
  */
-function pageChoices(): string[] {
+function pageChoices(teams: { slug: string }[], staff: boolean) {
   const here = window.location.pathname;
-  const list = [here, ...recentPages()].filter((p) => !/^\/dashboard\/me(\/|$)/.test(p));
-  return [...new Set(list)].slice(0, 6);
+  const recent = [...new Set([here, ...recentPages()])].slice(0, 5);
+  const all = [
+    "/dashboard",
+    ...teams.flatMap((t) => [`/dashboard/${t.slug}`, `/dashboard/${t.slug}/settings`]),
+    "/dashboard/me",
+    "/dashboard/new",
+    "/dashboard/tour",
+    ...(staff ? ["/admin"] : []),
+  ].filter((p) => !recent.includes(p));
+  // Start on the page you were on, or the one before Profile.
+  const initial = recent.find((p) => !PROFILE.test(p)) ?? here;
+  return { recent, all, initial };
 }
 
 /** Bug reports and feature requests: both go straight to the staff inbox in the admin panel. */
@@ -107,8 +122,13 @@ function BugReportForm() {
   const [sent, setSent] = useState(false);
   const [pending, start] = useTransition();
   // Read once when the form opens (it's only mounted while the window is open).
-  const [choices] = useState(() => (typeof window === "undefined" ? [] : pageChoices()));
-  const [page, setPage] = useState(choices[0] ?? NO_PAGE);
+  const { teams, me } = useDashboardData();
+  const teamNames = new Map(teams.map((t) => [t.slug, t.name]));
+  // Read once when the form opens (it's only mounted while the window is open).
+  const [choices] = useState(() =>
+    typeof window === "undefined" ? { recent: [], all: [], initial: NO_PAGE } : pageChoices(teams, !!me?.staff),
+  );
+  const [page, setPage] = useState(choices.initial);
   const ready = body.trim().length >= MIN && !pending;
 
   const submit = (e: FormEvent) => {
@@ -206,12 +226,25 @@ function BugReportForm() {
                 onChange={(e) => setPage(e.target.value)}
                 className={cx(inputCls, "h-10 w-full appearance-none pr-9 text-[14px]")}
               >
-                {choices.map((p) => (
-                  <option key={p} value={p}>
-                    {describePage(p)}
-                    {p === choices[0] && typeof window !== "undefined" && p === window.location.pathname ? " (this page)" : ""}
-                  </option>
-                ))}
+                {choices.recent.length > 0 && (
+                  <optgroup label="Recent">
+                    {choices.recent.map((p, i) => (
+                      <option key={p} value={p}>
+                        {describePage(p, teamNames)}
+                        {i === 0 ? " (this page)" : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {choices.all.length > 0 && (
+                  <optgroup label="All pages">
+                    {choices.all.map((p) => (
+                      <option key={p} value={p}>
+                        {describePage(p, teamNames)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 <option value={NO_PAGE}>Not about a specific page</option>
               </select>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3">

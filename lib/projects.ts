@@ -24,12 +24,12 @@ export async function returnProjectToIdeas(teamId: string, ideaId: string): Prom
 }
 
 /**
- * Creates a project with its tasks and subtasks from an imported plan, in one
- * transaction (all of it, or none). Texts are encrypted with the team's key.
+ * Creates a raw idea in the vault with its tasks and subtasks from an imported
+ * plan, in one transaction (all of it, or none). Promote it when it's ready. Texts are encrypted with the team's key.
  * Tags go on tasks; ones the team doesn't have are dropped, since an AI may invent some.
  * The caller checks permissions and validates the plan first.
  */
-export async function createProjectFromPlan(teamId: string, userId: string, plan: ImportPlan) {
+export async function createIdeaFromPlan(teamId: string, userId: string, plan: ImportPlan) {
   const known = new Set((await db.teamTag.findMany({ where: { teamId }, select: { name: true } })).map((t) => t.name));
   const keep = (tags: string[]) =>
     [...new Set(tags.map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter((t) => known.has(t)))].slice(0, LIMITS.tagsPerTask);
@@ -41,7 +41,7 @@ export async function createProjectFromPlan(teamId: string, userId: string, plan
           teamId,
           title: encryptText(plan.title, teamId),
           description: encryptOptional(plan.description, teamId),
-          status: "PROMOTED",
+          status: "VAULT",
           createdById: userId,
         },
         select: { id: true },

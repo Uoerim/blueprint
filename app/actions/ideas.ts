@@ -5,18 +5,17 @@ import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { decryptText, encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { createProjectFromPlan, returnProjectToIdeas } from "@/lib/projects";
+import { createIdeaFromPlan, returnProjectToIdeas } from "@/lib/projects";
 import { assertCan, assertMembers, requireTeamAccess } from "@/lib/team-access";
 import {
   createIdeaSchema,
   createProjectSchema,
   deleteIdeaSchema,
-  importProjectSchema,
+  importIdeaSchema,
   promoteIdeaSchema,
   teamScoped,
   updateIdeaSchema,
 } from "@/lib/validations";
-
 
 export async function createIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
@@ -152,21 +151,21 @@ export async function createProject(input: unknown) {
 }
 
 /**
- * Creates a project with its tasks and subtasks from an imported plan (see
- * lib/import-template.ts), all in one transaction. Needs "Create projects",
- * plus "Create tasks" when the plan has tasks. Every text is validated and
+ * Creates a raw idea with its tasks and subtasks from an imported plan (see
+ * lib/import-template.ts), all in one transaction. Needs "Add ideas", plus
+ * "Create tasks" when the plan has tasks. Every text is validated and
  * sanitised like hand-made content, then encrypted. Tags the team doesn't have
- * are dropped, since an AI may invent some.
+ * are left off.
  */
-export async function importProject(input: unknown) {
+export async function importIdea(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
-    const { teamId, plan } = importProjectSchema.parse(input);
-    const access = await requireTeamAccess(teamId, ctx.user.id, "projects.create");
+    const { teamId, plan } = importIdeaSchema.parse(input);
+    const access = await requireTeamAccess(teamId, ctx.user.id, "ideas.create");
     if (plan.tasks.length) assertCan(access, "tasks.create");
-    const project = await createProjectFromPlan(teamId, access.userId, plan);
-    await audit(ctx, { teamId, action: "project.imported", entityType: "Idea", entityId: project.id });
+    const idea = await createIdeaFromPlan(teamId, access.userId, plan);
+    await audit(ctx, { teamId, action: "idea.imported", entityType: "Idea", entityId: idea.id });
     await teamChanged(teamId);
-    return { id: project.id };
+    return { id: idea.id };
   });
 }
 

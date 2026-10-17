@@ -3,8 +3,10 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { LaunchScreen } from "@/components/launch-screen";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_PREVIEW_COOKIE } from "@/lib/app-preview";
+import { startupImages } from "@/lib/splash";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
@@ -17,7 +19,8 @@ export const metadata: Metadata = {
     "A fast, private idea vault and execution board for friends and small squads. Dump ideas, promote them to tasks, see who's in focus, keep what shipped.",
   applicationName: "Blueprint",
   // Installed on an iPhone it opens full screen like an app, under the name "Blueprint".
-  appleWebApp: { capable: true, title: "Blueprint", statusBarStyle: "black" },
+  // Opening it shows Blueprint's own launch screen instead of a blank page (lib/splash.ts).
+  appleWebApp: { capable: true, title: "Blueprint", statusBarStyle: "black", startupImage: startupImages },
   formatDetection: { telephone: false, email: false, address: false },
 };
 
@@ -57,6 +60,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased${preview ? " app-preview" : ""}`}
     >
       <body className="min-h-full flex flex-col">
+        <LaunchScreen />
         <ClerkProvider
           dynamic
           // Sign-in stays on Blueprint's own pages (never Clerk's hosted portal), so Google

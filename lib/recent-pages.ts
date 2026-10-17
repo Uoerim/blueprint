@@ -29,14 +29,18 @@ export function recentPages(): string[] {
   }
 }
 
-/** A readable name for a page: "Home", "Team · night-shift", "Team settings · night-shift". */
-export function describePage(path: string): string {
+/** A readable name for a page: "Home", "Night shift", "Night shift · settings". */
+export function describePage(path: string, teamNames?: ReadonlyMap<string, string>): string {
   if (path === "/dashboard") return "Home";
   if (SKIP.test(path)) return "Profile";
   if (path === "/dashboard/tour") return "Demo team";
   if (path === "/dashboard/new") return "Create a team";
   const team = /^\/dashboard\/([a-z0-9-]+)(\/settings)?\/?$/.exec(path);
-  if (team) return `${team[2] ? "Team settings" : "Team"} · ${team[1]}`;
+  if (team) {
+    const name = teamNames?.get(team[1]!);
+    if (name) return team[2] ? `${name} · settings` : name;
+    return `${team[2] ? "Team settings" : "Team"} · ${team[1]}`;
+  }
   if (path.startsWith("/admin")) return "Admin panel";
   if (path.startsWith("/onboarding")) return "Choosing a username";
   if (path === "/") return "Home page";

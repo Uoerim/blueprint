@@ -17,6 +17,22 @@ export function newId(): string {
 
 let lastLocalChange = 0;
 
+let preloadedAt = 0;
+
+/** The app's tab bar just asked for its screens ahead of time (see BottomNav). */
+export function markPreloaded() {
+  preloadedAt = Date.now();
+}
+
+/**
+ * Whether a screen opened now may be showing data preloaded a while ago: older
+ * than a few seconds, but still within the 5 minutes Next.js keeps preloads.
+ */
+export function mayBePreloadedStale() {
+  const age = Date.now() - preloadedAt;
+  return preloadedAt > 0 && age > 6_000 && age < 300_000;
+}
+
 export function markLocalChange() {
   lastLocalChange = Date.now();
 }

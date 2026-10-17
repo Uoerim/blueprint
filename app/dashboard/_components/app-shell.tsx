@@ -1,10 +1,12 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createContext, use, useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { createContext, use, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Monogram, cx } from "@/components/ui/primitives";
 import { APP_PREVIEW_COOKIE } from "@/lib/app-preview";
+import { markPreloaded } from "@/lib/live";
 import type { Theme } from "@/lib/theme";
 import type { IncomingInvite, TeamSummary } from "@/lib/types";
 import { InvitesBell } from "./invites-bell";
@@ -36,6 +38,8 @@ export type Me = {
 type DashboardData = { teams: TeamSummary[]; me: Me | null };
 const DashboardContext = createContext<DashboardData>({ teams: [], me: null });
 export const useTeams = () => use(DashboardContext).teams;
+/** Your teams and account when inside the dashboard; empty outside it (e.g. on the landing page). */
+export const useDashboardData = () => use(DashboardContext);
 export function useMe(): Me {
   const me = use(DashboardContext).me;
   if (!me) throw new Error("useMe() needs <DashboardProvider>.");
@@ -121,6 +125,22 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
   const here = `${path}?${params.toString()}`;
   // Light the tapped tab at once, before the next screen arrives; forgotten as soon as the address moves.
   const [tapped, setTapped] = useState<{ tab: Tab; from: string } | null>(null);
+  // In the installed app, load every tab's screen (data included) shortly after
+  // launch, so the first tap on each opens it at once. Never on the website, where
+  // this bar is hidden, and never when the phone asks to save data.
+  const navRef = useRef<HTMLElement>(null);
+  const [preload, setPreload] = useState(false);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || getComputedStyle(nav).display === "none") return;
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+    if (saveData) return;
+    const t = window.setTimeout(() => {
+      markPreloaded();
+      setPreload(true);
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const routed: Tab | null =
     path === "/dashboard"
@@ -158,6 +178,7 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
 
   return (
     <nav
+      ref={navRef}
       aria-label="App"
       data-tour="nav"
       className="glass-solid fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto hidden h-[4.25rem] max-w-md items-center justify-around rounded-full border border-line-strong px-2 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.7)] app:flex"
@@ -168,16 +189,27 @@ export function BottomNav({ lastTeam }: { lastTeam: string | null }) {
           <Link
             key={t.id}
             href={t.href}
+            // The team on screen already holds its Ideas and Tasks; no need to fetch them again.
+            prefetch={preload && !(slugHere && (t.id === "ideas" || t.id === "tasks")) ? true : null}
             onClick={(e) => go(e, t.id, t.href)}
             aria-label={t.label}
             data-tour={t.id === "profile" ? "help" : undefined}
             aria-current={on ? "page" : undefined}
             className={cx(
-              "grid size-[3.25rem] place-items-center rounded-full transition-[background-color,color,transform] active:scale-90",
-              on ? "bg-ink text-bg" : "text-ink-3 hover:text-ink",
+              "relative grid size-[3.25rem] place-items-center rounded-full transition-[color,transform] duration-200 active:scale-90",
+              on ? "text-bg" : "text-ink-3 hover:text-ink",
             )}
           >
-            {t.icon}
+            {/* The highlight glides to the tab you tap, like a native tab bar. */}
+            {on && (
+              <motion.span
+                layoutId="app-tab-pill"
+                aria-hidden
+                className="absolute inset-0 rounded-full bg-ink"
+                transition={{ type: "spring", stiffness: 520, damping: 38, mass: 0.8 }}
+              />
+            )}
+            <span className="relative">{t.icon}</span>
           </Link>
         );
       })}

@@ -1,9 +1,9 @@
 import { LIMITS } from "./constants";
 
 /*
- * "Import from JSON": people describe a project to any AI assistant, paste the
- * JSON it writes back into Blueprint, and get a project with its tasks and
- * subtasks in one go. Blueprint never sends anything to an AI itself; the
+ * "Import with AI": people describe an idea to any AI assistant, paste the
+ * JSON it writes back into the idea vault, and get the idea with its tasks and
+ * subtasks in one go, ready to promote to a project. Blueprint never sends anything to an AI itself; the
  * prompt below is copied by the person and used wherever they like.
  */
 
@@ -29,7 +29,7 @@ export const IMPORT_EXAMPLE = {
 };
 
 /** Where the person's own description goes when they haven't written one here. */
-export const PROMPT_PLACEHOLDER = "<describe your project here: what it is, who it's for, what done looks like, any deadline>";
+export const PROMPT_PLACEHOLDER = "<describe your idea here: what it is, who it's for, what done looks like, any deadline>";
 
 /**
  * The prompt to give an AI: the format, the limits, this team's tags (so it
@@ -40,20 +40,20 @@ export function importPrompt(teamTags: string[], about = ""): string {
     ? `Each task's "tags" may only use these names (without #): ${teamTags.join(", ")}. Use an empty list when none fit.`
     : `Leave every task's "tags" list empty.`;
   return [
-    "You are helping me plan a project in Blueprint, a team task app.",
-    "Turn the project I describe at the end into a plan: a project with tasks, and subtasks where they help.",
+    "You are helping me plan an idea in Blueprint, a team app where ideas become projects with tasks.",
+    "Turn the idea I describe at the end into a plan: a title, a short description, the tasks to build it, and subtasks where they help.",
     "",
     "Reply with JSON only (no explanation, no code fences), in exactly this shape:",
     "",
     JSON.stringify(IMPORT_EXAMPLE, null, 2),
     "",
     "Format rules:",
-    `- "title" is required for the project and for every task, up to ${LIMITS.title} characters.`,
+    `- "title" is required for the idea and for every task, up to ${LIMITS.title} characters.`,
     `- "description" is optional, up to ${LIMITS.description} characters. A task may also have "notes", up to ${LIMITS.notes}.`,
     `- At most ${LIMITS.importTasks} tasks, each with at most ${LIMITS.importSubtasks} subtasks.`,
     '- A subtask is a short string, or an object with "title" and an optional "description".',
     '- "priority" is "LOW", "MEDIUM" or "HIGH".',
-    `- ${tagRule} Tags go on tasks only, never on the project.`,
+    `- ${tagRule} Tags go on tasks only, never on the idea itself.`,
     "- Keep the whole reply under 25,000 characters.",
     "",
     "Planning guidance:",
@@ -61,9 +61,9 @@ export function importPrompt(teamTags: string[], about = ""): string {
     "- Put the tasks in the order they should happen.",
     "- Mark only the few tasks that block everything else as HIGH.",
     "- Use subtasks for checklists inside a task, not for separate pieces of work.",
-    "- If something about the project is unclear, make a sensible assumption and put it in the project description.",
+    "- If something about the idea is unclear, make a sensible assumption and put it in the description.",
     "",
-    "My project:",
+    "My idea:",
     about.trim() || PROMPT_PLACEHOLDER,
   ].join("\n");
 }
