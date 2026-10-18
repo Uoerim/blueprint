@@ -382,7 +382,7 @@ The public pages are set up for search engines and sharing: the site title is **
 
 ## Deploy to Vercel
 
-Vercel runs `scripts/vercel-build.mjs` automatically. It checks `ENCRYPTION_KEY`, runs `prisma generate`, applies pending migrations with `prisma migrate deploy`, then builds. It accepts Neon variables under any of their usual names and stops with a clear message if the database or key is missing.
+Vercel runs `scripts/vercel-build.mjs` automatically. On production builds it checks `ENCRYPTION_KEY`, runs `prisma generate`, applies pending migrations with `prisma migrate deploy`, then builds; any other build skips migrations, so it can never change the production database. It accepts Neon variables under any of their usual names and stops with a clear message if the database or key is missing.
 
 ### 1. Clerk production instance
 
@@ -401,7 +401,7 @@ Vercel runs `scripts/vercel-build.mjs` automatically. It checks `ENCRYPTION_KEY`
 3. Under **Settings → Environment Variables**, add the Clerk variables, `ENCRYPTION_KEY` and `ALLOWED_ORIGINS` from the table above.
    - Save `CLERK_SECRET_KEY` and `ENCRYPTION_KEY` as **Sensitive**, so their values can never be read back in the dashboard (see [Secrets](#secrets)).
    - Scope the live Clerk keys and the production database to **Production**.
-   - Give **Preview** your development Clerk keys, a separate Neon branch, and its own `ENCRYPTION_KEY`, so preview builds never touch production data.
+   - Only `main` deploys: `vercel.json` turns off preview builds for other branches and pull requests (Dependabot's included), and the build script only applies migrations on production builds. If you want previews, enable them for chosen branches in `vercel.json` and give **Preview** your development Clerk keys, a separate Neon branch and its own `ENCRYPTION_KEY`, never the production ones.
 4. Add your domain under **Domains** and point DNS at Vercel.
 5. **Deploy.** `NEXT_PUBLIC_*` values are built in, so redeploy after changing them.
 
