@@ -647,17 +647,13 @@ function PriorityBadge({ value }: { value: TaskDTO["priority"] }) {
   );
 }
 
+/**
+ * The "done" line through a title. It's drawn on the text itself (a background
+ * on the inline text), so it follows every wrapped line and sweeps across them
+ * in reading order, instead of one stretched line over the whole box.
+ */
 function Strike({ on, children, className }: { on: boolean; children: React.ReactNode; className?: string }) {
-  return (
-    <span className={cx("relative inline", className)}>
-      {children}
-      {on && (
-        <svg className="pointer-events-none absolute left-0 top-1/2 h-2 w-full -translate-y-1/2 overflow-visible" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden>
-          <motion.path d="M0 2.4 Q 30 1 60 2 T 100 1.6" stroke="#10B981" strokeWidth="1.8" fill="none" vectorEffect="non-scaling-stroke" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }} />
-        </svg>
-      )}
-    </span>
-  );
+  return <span className={cx(on && "strike-line", className)}>{children}</span>;
 }
 
 /** Small markers after a title: private, has details, subtask progress. */

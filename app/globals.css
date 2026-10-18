@@ -333,6 +333,20 @@ body {
   animation: screen-in 0.32s var(--ease-out-expo) backwards;
 }
 
+/* Done tasks: a line drawn through the text itself. On an inline element the
+   background runs along each wrapped line in turn, so animating its width
+   sweeps the line across line 1, then line 2. */
+.strike-line {
+  background-image: linear-gradient(#10b981, #10b981);
+  background-repeat: no-repeat;
+  background-position: 0 calc(50% + 0.06em);
+  background-size: 100% 1.5px;
+  animation: strike-in 0.5s var(--ease-out-expo) backwards;
+}
+@keyframes strike-in {
+  from { background-size: 0% 1.5px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .pulse-ring::after { animation: none; }
