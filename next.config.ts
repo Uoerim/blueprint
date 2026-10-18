@@ -28,8 +28,9 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {
-    // The biggest legitimate payload (an idea promoted with 12 tasks) is a few KB.
-    serverActions: { bodySizeLimit: "32kb" },
+    // The biggest legitimate payload is an "Import with AI" plan: up to 30,000
+    // characters, which in Arabic or emoji is 2 to 4 bytes each. Anything bigger is refused.
+    serverActions: { bodySizeLimit: "128kb" },
     // Keep screens you just left for 30s, so switching tabs back is instant. LivePulse
     // re-checks each screen as you return and refreshes it if anything moved, and
     // Clerk clears this cache whenever you sign in or out.

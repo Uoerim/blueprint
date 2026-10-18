@@ -9,8 +9,13 @@ import { getClientIp } from "@/lib/request";
  * Only Claude's own return addresses (or loopback, for Claude on this
  * computer) are accepted, so no other website can start the sign-in flow.
  * Clients are public (no secret); PKCE protects the code exchange. Apps that
- * nobody connected within a day are cleared out as new ones arrive.
+ * nobody connected within a day are cleared out as new ones arrive, and a
+ * site-wide cap on fresh, unused registrations stops a flood spread over many
+ * addresses from filling the table.
  */
+
+const MAX_FRESH_PER_HOUR = 1000;
+
 export async function POST(req: Request) {
   const ip = getClientIp(req.headers);
   const rl = await rateLimit("oauthRegister", `ip:${ip}`, 200);
@@ -39,6 +44,8 @@ export async function POST(req: Request) {
   }
 
   try {
+    const fresh = await db.oAuthClient.count({ where: { createdAt: { gt: new Date(Date.now() - 3_600_000) }, grants: { none: {} } } });
+    if (fresh >= MAX_FRESH_PER_HOUR) return oauthError("temporarily_unavailable", "Too many new connections right now. Try again later.", 503);
     // Housekeeping: apps registered over a day ago that nobody ever connected.
     await db.oAuthClient.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 86_400_000) }, grants: { none: {} } } });
     const client = await db.oAuthClient.create({

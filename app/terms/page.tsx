@@ -4,7 +4,8 @@ import { LegalPage, Mail, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The rules for using Blueprint.",
+  description: "The rules for using Blueprint, including content, acceptable use and connecting Claude.",
+  alternates: { canonical: "/terms" },
 };
 
 const link = "text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink";

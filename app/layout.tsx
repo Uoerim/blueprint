@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { LaunchScreen } from "@/components/launch-screen";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_PREVIEW_COOKIE } from "@/lib/app-preview";
+import { SITE, siteUrl } from "@/lib/site";
 import { startupImages } from "@/lib/splash";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
@@ -14,10 +15,25 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Blueprint — where raw ideas become shipped reality", template: "%s · Blueprint" },
-  description:
-    "A fast, private idea vault and execution board for friends and small squads. Dump ideas, promote them to tasks, see who's in focus, keep what shipped.",
-  applicationName: "Blueprint",
+  metadataBase: siteUrl(),
+  title: { default: SITE.name, template: `%s · ${SITE.shortName}` },
+  description: SITE.description,
+  applicationName: SITE.shortName,
+  keywords: [...SITE.keywords],
+  authors: [{ name: "Blueprint" }],
+  creator: "Blueprint",
+  category: "productivity",
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
+  openGraph: {
+    type: "website",
+    siteName: SITE.name,
+    title: SITE.name,
+    description: SITE.description,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image", title: SITE.name, description: SITE.description },
   // Installed on an iPhone it opens full screen like an app, under the name "Blueprint".
   // Opening it shows Blueprint's own launch screen instead of a blank page (lib/splash.ts).
   appleWebApp: { capable: true, title: "Blueprint", statusBarStyle: "black", startupImage: startupImages },

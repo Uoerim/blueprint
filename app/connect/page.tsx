@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { parseScopes, redirectWith } from "@/lib/oauth";
 import { ConsentForm } from "./consent-form";
 
-export const metadata: Metadata = { title: "Connect Claude", robots: { index: false } };
+export const metadata: Metadata = { title: "Connect Claude", robots: { index: false, follow: false } };
 
 /**
  * The OAuth consent screen (authorization endpoint) for Connect Claude. You're

@@ -32,6 +32,7 @@ Capture ideas, agree on the good ones, turn them into projects, and ship them to
 - [Security and privacy](#security-and-privacy)
 - [Tech stack](#tech-stack)
 - [Self-hosting](#self-hosting)
+- [Search and link previews](#search-and-link-previews)
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Administration](#administration)
 - [Installed phone app](#installed-phone-app)
@@ -227,6 +228,11 @@ flowchart LR
 | Bug reports | 5 an hour per user, 10 per IP | Sending a report from the Contact support window |
 | Live change-check | 90 per IP and per user | `/api/pulse` |
 
+| Connect Claude | 120 requests and 30 changes per connection; generous per-IP ceilings | `/api/mcp`, OAuth token and registration (plus a site-wide cap on new, unused app registrations) |
+| Activity | 60 per user, 120 per IP | Team, project and task history |
+
+**Floods and denial of service.** Vercel absorbs network-level floods (DDoS) in front of the app on every plan. Inside the app, every request that reaches the database is either signed in (and rate limited per person) or capped: the only write that needs no sign-in, Claude's app registration, has a per-IP limit and a site-wide hourly cap. Request bodies are capped (server actions 128 KB, MCP 256 KB, OAuth 4–8 KB), lists are paginated, and searches return at most 8 results. Because the in-memory limits count per server instance, a determined, distributed attack is best stopped at the platform: see the [production checklist](#production-checklist).
+
 The per-IP ceiling is higher than the per-user one where people often share a network (an office, a classroom), so teammates don't use up each other's allowance. Sign-in and sign-up themselves are submitted to Clerk, which applies its own rate limits; turn on Clerk's **bot sign-up protection** in the Clerk dashboard as well.
 
 #### Layer 2: HTTP headers and Content Security Policy (`proxy.ts`, `next.config.ts`)
@@ -351,6 +357,7 @@ npm run site:role -- your_username ADMIN
 | `POSTGRES_URL_NON_POOLING` | ✅ | Neon direct connection string, used for migrations (`DATABASE_URL_UNPOOLED` also works) |
 | `ENCRYPTION_KEY` | ✅ in production | 32 bytes as 64 hex characters. Encrypts idea and task text. |
 | `ALLOWED_ORIGINS` | Recommended | Comma-separated origins allowed to send mutations, e.g. `https://blueprint.raqameen.com`. Without it the origin must match the host the request reached. |
+| `SITE_URL` | | Public address for search results, link previews, the sitemap and `robots.txt`. On Vercel the production domain is used automatically. |
 | `SEED_INVITE_USERNAME` | | Your username, to receive invites to the seeded demo teams |
 
 ### Scripts
@@ -368,6 +375,10 @@ npm run site:role -- your_username ADMIN
 | `npm run site:role -- <username> <ROLE>` | Set a site role: `USER`, `SUPPORT`, `MODERATOR` or `ADMIN` |
 | `npm run site:role -- list` / `unsuspend <username>` | List staff, or lift a suspension |
 | `npm run team:role -- <username> <team-slug> <ROLE>` | Set a team role: `OWNER`, `CO_OWNER` or `MEMBER` |
+
+## Search and link previews
+
+The public pages are set up for search engines and sharing: the site title is **Blueprint - Idea Vault**, with a description, keywords, a canonical address, Open Graph and X/Twitter cards with a generated preview image (`app/opengraph-image.tsx`), schema.org structured data (`WebSite` and `WebApplication`, so Google shows the right site name), `robots.txt` and `sitemap.xml`. Everything inside the app (`/dashboard`, `/admin`, `/connect`, sign-in) is marked `noindex` and disallowed in `robots.txt`. The address comes from `SITE_URL`, or the Vercel production domain.
 
 ## Deploy to Vercel
 
@@ -409,6 +420,22 @@ Vercel flags variables that look like secrets but are readable in the dashboard.
 npm run site:role -- your_username ADMIN
 npm run db:encrypt -- --apply   # only if the database already had data from before encryption
 ```
+
+### Production checklist
+
+The code handles what it can; these settings live in each provider's dashboard and are worth turning on once:
+
+| Where | Setting | Why |
+| --- | --- | --- |
+| **Vercel** | Firewall → **Attack Challenge Mode** (turn on during an attack), and a rate-limit rule for `/api/*` if your plan has one | Stops distributed floods at the edge, before they reach the app or the database |
+| **Vercel** | Spend Management with a hard limit | A flood can't turn into a surprise bill |
+| **Vercel** | Environment variables marked **Sensitive** (`CLERK_SECRET_KEY`, `ENCRYPTION_KEY`, database URLs) | Values can't be read back from the dashboard |
+| **Neon** | A maximum autoscaling size for compute, and IP Allow (on plans that have it) | Caps database cost under load; only your hosting can connect |
+| **Neon** | Keep the connection strings only in Vercel; rotate the password if one ever leaks | The database can't be reached without them |
+| **Clerk** | Bot sign-up protection, and attack protection (lockout after failed attempts) | Stops fake accounts and password guessing |
+| **GitHub** | Branch protection on `main` (CI must pass), secret scanning and push protection, Dependabot alerts | Bad code, leaked secrets and vulnerable packages are caught before they ship |
+| **You** | A backup of `ENCRYPTION_KEY` somewhere safe and offline | Without it, encrypted ideas and tasks can't be read |
+| **Google** | Add the site in Search Console and submit `/sitemap.xml` | Faster, correct indexing as *Blueprint - Idea Vault* |
 
 ## Administration
 
@@ -532,6 +559,7 @@ lib/
   live.ts                  ids chosen in the browser (no remount after saving), smarter live refresh
   recent-pages.ts          the last pages visited in this tab, so feedback can say which one it's about
   splash.ts                iPhone launch screens: the screen sizes and the startup-image links
+  site.ts                  the site's public name, description and address (search, previews, sitemap)
   import-template.ts       the "Import from JSON" format, AI prompt and reply parsing
   tour-demo.ts             on-screen-only samples shown by the guided tours
   crypto.ts                per-team AES-256-GCM field encryption

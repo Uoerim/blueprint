@@ -4,7 +4,8 @@ import { LegalPage, Mail, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "What Blueprint collects, why, who handles it and how to get it deleted.",
+  description: "What Blueprint collects, why, who handles it, how Connect Claude works and how to get your data deleted.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

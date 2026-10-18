@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { getViewer, isLockedOut } from "@/lib/auth";
 import { OnboardingForm } from "./onboarding-form";
 
-export const metadata = { title: "Choose your username" };
+export const metadata = { title: "Choose your username", robots: { index: false, follow: false } };
 
 export default async function OnboardingPage() {
   const user = await getViewer();

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
@@ -17,6 +18,9 @@ import { InvitesBell } from "./_components/invites-bell";
 import { LivePulse } from "./_components/live-pulse";
 import { TeamSwitcher } from "./_components/team-switcher";
 import { UsernameChip } from "./_components/username-chip";
+
+// The app itself is private: never in search results.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   // Your account, teams and invites in one wait; every query is scoped to the verified session.

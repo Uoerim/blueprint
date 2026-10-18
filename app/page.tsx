@@ -11,12 +11,37 @@ import { LandingNav } from "@/components/landing/nav";
 import { ProjectDemo } from "@/components/landing/project-demo";
 import { SupportButton } from "@/components/support";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
+import { SITE, siteUrl } from "@/lib/site";
 
 const REPO = "https://github.com/Uoerim/blueprint";
+
+/**
+ * Structured data (schema.org) so Google shows the site as "Blueprint - Idea
+ * Vault" and understands it's a free web app. Built from constants only; "<" is
+ * escaped so nothing can break out of the script tag.
+ */
+function StructuredData() {
+  const url = siteUrl().origin;
+  const data = [
+    { "@context": "https://schema.org", "@type": "WebSite", name: SITE.name, alternateName: [SITE.shortName, "Blueprint Idea Vault"], url },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      name: SITE.name,
+      url,
+      description: SITE.description,
+      applicationCategory: "ProductivityApplication",
+      operatingSystem: "Web, iOS, Android",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+  ];
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
+}
 
 export default function Home() {
   return (
     <>
+      <StructuredData />
       <AppLandingRedirect />
       <LandingNav />
       <main className="flex-1">

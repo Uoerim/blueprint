@@ -17,6 +17,10 @@ You'll get a reply within 7 days. Please give us a reasonable chance to fix the 
 
 Out of scope: denial-of-service and volume testing against the hosted service, social engineering, and findings in third-party services (Clerk, Neon, Vercel, Anthropic and Claude itself) that should go to those vendors.
 
+## Supported versions
+
+Only the latest commit on `main` (what runs at blueprint.raqameen.com) gets security fixes. Self-hosted copies should stay up to date with it.
+
 ## How Blueprint is protected
 
 The full design (edge screening, rate limits, CSP, team isolation, field encryption and the append-only audit trail) is documented in the [Security architecture](./README.md#security-architecture) section of the README, and the Connect Claude model (OAuth 2.1 with PKCE, rotating refresh tokens, scopes and per-team switches) in [Connect Claude](./README.md#connect-claude).

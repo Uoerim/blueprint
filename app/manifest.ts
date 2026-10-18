@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 // Makes Blueprint installable as a home-screen app on Android, iOS and desktop.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Blueprint",
+    name: "Blueprint - Idea Vault",
     short_name: "Blueprint",
-    description: "A private idea vault and execution board for small teams.",
+    description: "A private idea vault and task board for small teams.",
     id: "/dashboard",
     start_url: "/dashboard",
     scope: "/",
