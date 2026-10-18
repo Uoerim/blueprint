@@ -1,12 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { ClaudeMark } from "@/components/claude-mark";
 import { Monogram, readable } from "@/components/ui/primitives";
 import { clock, dayLabel } from "@/lib/time";
 import { useWorkspace } from "./workspace";
 
 type Entry =
-  | { kind: "task"; at: string; id: string; title: string; who: string | null; idea: string | null }
+  | { kind: "task"; at: string; id: string; title: string; who: string | null; idea: string | null; viaClaude: boolean }
   | { kind: "idea"; at: string; id: string; title: string; count: number };
 
 export function ShippedView() {
@@ -43,6 +44,7 @@ export function ShippedView() {
       // Credit whoever marked it done (older rows: the first assignee).
       who: t.completedById ?? t.assigneeIds[0] ?? null,
       idea: t.idea?.title ?? null,
+      viaClaude: t.completedVia === "claude",
     })),
     ...executed,
   ].sort((a, b) => b.at.localeCompare(a.at));
@@ -118,6 +120,7 @@ export function ShippedView() {
                       <p className="truncate text-[14px] text-ink">
                         <span className="font-mono text-xs" style={{ color: readable(m?.accentColor) }}>@{m?.username ?? "someone"}</span>{" "}
                         shipped {e.title}
+                        {e.viaClaude && <ClaudeMark kind="finished" compact className="ml-1.5 align-middle" />}
                       </p>
                       {e.idea && <p className="truncate text-[11px] text-ink-3">◆ {e.idea}</p>}
                     </div>

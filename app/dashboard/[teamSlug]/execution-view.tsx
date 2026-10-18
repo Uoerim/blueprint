@@ -3,6 +3,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { archiveIdea, createProject, deleteIdea, returnToIdeas, updateIdea } from "@/app/actions/ideas";
+import { ActivityFeed } from "@/components/activity-feed";
+import { ClaudeMark } from "@/components/claude-mark";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { btn, cx, Monogram, readable } from "@/components/ui/primitives";
@@ -220,9 +222,14 @@ function ProjectPage({ project }: { project: IdeaDTO }) {
           <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">
             {project.description || <span className="text-ink-3">No description yet. Add one so everyone knows what done looks like.</span>}
           </p>
-          {author && (
-            <p className="mt-2 text-[13px] text-ink-3">
-              Started by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
+          {(author || project.createdVia === "claude") && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
+              {author && (
+                <span>
+                  Started by <span className="font-mono" style={{ color: readable(author.accentColor) }}>@{author.username}</span>
+                </span>
+              )}
+              {project.createdVia === "claude" && <ClaudeMark kind="made" />}
             </p>
           )}
         </div>
@@ -407,6 +414,7 @@ function ProjectDialog({
   /** Project settings only: back to ideas, archive, delete. */
   actions?: React.ReactNode;
 }) {
+  const { team, demo } = useWorkspace();
   return (
     <Dialog
       open={open}
@@ -418,6 +426,12 @@ function ProjectDialog({
         <div className="space-y-6">
           {canEdit && <ProjectForm project={project} onClose={onClose} />}
           {actions}
+          {project && !demo && (
+            <section aria-label="Activity" className="border-t border-line pt-4">
+              <p className="mb-2 text-[14px] font-medium text-ink">Activity</p>
+              <ActivityFeed teamId={team.id} ideaId={project.id} filter />
+            </section>
+          )}
         </div>
       )}
     </Dialog>
@@ -474,6 +488,7 @@ function ProjectForm({ project, onClose }: { project?: IdeaDTO; onClose: () => v
           title: t,
           description: d || null,
           status: "PROMOTED",
+          createdVia: null,
           sparksCount: 0,
           sparkedByMe: false,
           authorId: viewer.id,

@@ -47,9 +47,10 @@ export default function PrivacyPage() {
             as the keys themselves.
           </li>
           <li>
-            <strong>Security records.</strong> A log of important actions (for example creating a team, changing someone&apos;s
-            role or archiving a project) with the time, your username and a shortened form of the IP address it came from
-            (the network only, not your exact address), and whether it was done through Claude. These records can&apos;t be edited.
+            <strong>Activity and security records.</strong> A log of what happens in your teams and account (for example
+            creating or moving a task, changing someone&apos;s role or archiving a project) with the time, your username, a
+            shortened form of the IP address it came from (the network only, not your exact address), which fields changed (never
+            what you wrote) and whether it was done through Claude. These records can&apos;t be edited or deleted.
           </li>
           <li>
             <strong>Technical data.</strong> Our hosting provider processes your IP address and basic request information to
@@ -97,7 +98,8 @@ export default function PrivacyPage() {
         <ul>
           <li>
             <strong>Your teammates</strong> see everything in the teams you share with them, along with your @username, display
-            name, colour and profile picture.
+            name, colour and profile picture. They also see the team&apos;s activity (who did what and when, including what was
+            done through Claude), but never IP addresses, and never activity about private tasks they can&apos;t see.
           </li>
           <li>
             <strong>Other signed-in users</strong> can see your @username, display name and colour when they search for people to
@@ -157,7 +159,8 @@ export default function PrivacyPage() {
           <li>
             <strong>What Claude can do.</strong> Only what you allowed when connecting, and never more than your own role
             allows. It can&apos;t delete anything, manage members, roles or invites, or change settings. Its changes appear as
-            yours and are marked &ldquo;via Claude&rdquo; in the security records.
+            yours, marked &ldquo;via Claude&rdquo; in the team&apos;s activity, and things it makes or finishes carry a
+            permanent &ldquo;by Claude&rdquo; label.
           </li>
           <li>
             <strong>Stopping it.</strong> Disconnect any time from the Connect Claude page in your account; the connection and

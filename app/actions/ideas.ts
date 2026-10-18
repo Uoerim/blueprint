@@ -76,7 +76,7 @@ export async function promoteIdea(input: unknown) {
       ),
       db.idea.updateMany({ where: { id: idea.id, teamId: data.teamId }, data: { status: "PROMOTED" } }),
     ]);
-    await audit(ctx, { teamId: data.teamId, action: "idea.promoted", entityType: "Idea", entityId: idea.id });
+    await audit(ctx, { teamId: data.teamId, action: "idea.promoted", entityType: "Idea", entityId: idea.id, ideaId: idea.id });
     await teamChanged(data.teamId);
     return { created: data.tasks.length };
   });
@@ -106,7 +106,7 @@ export async function archiveIdea(input: unknown) {
     if (!own && !access.can(idea.isProject ? "projects.archive" : "ideas.manage")) forbid("archive this");
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status: "ARCHIVED" } });
     await db.taskAssignee.updateMany({ where: { teamId, task: { ideaId: itemId }, focusedAt: { not: null } }, data: { focusedAt: null } });
-    await audit(ctx, { teamId, action: "idea.archived", entityType: "Idea", entityId: itemId });
+    await audit(ctx, { teamId, action: "idea.archived", entityType: "Idea", entityId: itemId, ideaId: itemId });
     await teamChanged(teamId);
     return null;
   });
@@ -128,7 +128,7 @@ export async function createProject(input: unknown) {
       },
       select: { id: true },
     });
-    await audit(ctx, { teamId: data.teamId, action: "project.created", entityType: "Idea", entityId: project.id });
+    await audit(ctx, { teamId: data.teamId, action: "project.created", entityType: "Idea", entityId: project.id, ideaId: project.id });
     await teamChanged(data.teamId);
     return { id: project.id };
   });
@@ -147,7 +147,7 @@ export async function importIdea(input: unknown) {
     const access = await requireTeamAccess(teamId, ctx.user.id, "ideas.create");
     if (plan.tasks.length) assertCan(access, "tasks.create");
     const idea = await createIdeaFromPlan(teamId, access.userId, plan);
-    await audit(ctx, { teamId, action: "idea.imported", entityType: "Idea", entityId: idea.id });
+    await audit(ctx, { teamId, action: "idea.imported", entityType: "Idea", entityId: idea.id, ideaId: idea.id });
     await teamChanged(teamId);
     return { id: idea.id };
   });
@@ -168,6 +168,14 @@ export async function updateIdea(input: unknown) {
         ...(title !== undefined && { title: encryptText(title, teamId) }),
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
       },
+    });
+    await audit(ctx, {
+      teamId,
+      action: "idea.updated",
+      entityType: "Idea",
+      entityId: itemId,
+      ideaId: itemId,
+      detail: [title !== undefined && "title", description !== undefined && "description"].filter(Boolean).join(","),
     });
     await teamChanged(teamId);
     return null;
@@ -190,7 +198,7 @@ export async function returnToIdeas(input: unknown) {
     if (idea.createdById !== access.userId && !access.can("projects.archive")) forbid("move this project back to ideas");
     // One transaction: the project never ends up half reset.
     if (!(await returnProjectToIdeas(teamId, itemId))) throw new ActionError("Only projects in Execution can go back to ideas.");
-    await audit(ctx, { teamId, action: "project.returned_to_ideas", entityType: "Idea", entityId: itemId });
+    await audit(ctx, { teamId, action: "project.returned_to_ideas", entityType: "Idea", entityId: itemId, ideaId: itemId });
     await teamChanged(teamId);
     return null;
   });
@@ -207,7 +215,7 @@ export async function restoreIdea(input: unknown) {
     if (!own && !access.can(idea.isProject ? "projects.archive" : "ideas.manage")) forbid("restore this");
     const status = idea.isProject ? "PROMOTED" : "VAULT";
     await db.idea.updateMany({ where: { id: itemId, teamId }, data: { status } });
-    await audit(ctx, { teamId, action: "idea.restored", entityType: "Idea", entityId: itemId });
+    await audit(ctx, { teamId, action: "idea.restored", entityType: "Idea", entityId: itemId, ideaId: itemId });
     await teamChanged(teamId);
     return { status };
   });
@@ -237,7 +245,7 @@ export async function deleteIdea(input: unknown) {
       db.idea.deleteMany({ where: { id: itemId, teamId } }),
     ]);
     const withTasks = idea.isProject && idea._count.tasks > 0;
-    await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId });
+    await audit(ctx, { teamId, action: withTasks ? "idea.deleted.with_tasks" : "idea.deleted", entityType: "Idea", entityId: itemId, ideaId: itemId });
     await teamChanged(teamId);
     return null;
   });

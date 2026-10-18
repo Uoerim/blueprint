@@ -30,6 +30,8 @@ export type IdeaDTO = {
   title: string;
   description: string | null;
   status: "VAULT" | "PROMOTED" | "ARCHIVED";
+  /** "claude" when Claude made it (permanent). */
+  createdVia: "claude" | null;
   sparksCount: number;
   sparkedByMe: boolean;
   authorId: string;
@@ -50,6 +52,9 @@ export type SubtaskDTO = {
   done: boolean;
   assigneeIds: string[];
   completedAt: string | null;
+  /** "claude" when Claude added it (permanent) or ticked it. */
+  createdVia: "claude" | null;
+  completedVia: "claude" | null;
 };
 
 export type TaskDTO = {
@@ -70,6 +75,11 @@ export type TaskDTO = {
   idea: { id: string; title: string } | null;
   completedAt: string | null;
   completedById: string | null;
+  /** "claude" when Claude made it (permanent), or finished it. */
+  createdVia: "claude" | null;
+  completedVia: "claude" | null;
+  /** When Claude last worked on it; never cleared once set. */
+  claudeAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

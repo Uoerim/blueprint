@@ -12,6 +12,9 @@ export async function generateMetadata({ params }: PageProps<"/dashboard/[teamSl
   return { title: teamSlug.replace(/-/g, " ") };
 }
 
+/** Only the one known marker value reaches the browser. */
+const via = (v: string | null) => (v === "claude" ? "claude" : null);
+
 export default async function TeamPage({ params, searchParams }: PageProps<"/dashboard/[teamSlug]">) {
   const [{ teamSlug }, sp] = await Promise.all([params, searchParams]);
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -39,6 +42,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         title: true,
         description: true,
         status: true,
+        createdVia: true,
         sparksCount: true,
         sparkedByUserIds: true,
         createdById: true,
@@ -62,12 +66,15 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
         createdById: true,
         completedById: true,
         completedAt: true,
+        createdVia: true,
+        completedVia: true,
+        claudeAt: true,
         createdAt: true,
         updatedAt: true,
         idea: { select: { id: true, title: true } },
         assignees: { select: { userId: true, focusedAt: true }, orderBy: { assignedAt: "asc" } },
         subtasks: {
-          select: { id: true, title: true, description: true, done: true, completedAt: true, assignees: { select: { userId: true } } },
+          select: { id: true, title: true, description: true, done: true, completedAt: true, createdVia: true, completedVia: true, assignees: { select: { userId: true } } },
           orderBy: { position: "asc" },
         },
       },
@@ -105,6 +112,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
     title: decryptText(i.title, team.id),
     description: decryptOptional(i.description, team.id),
     status: i.status,
+    createdVia: via(i.createdVia),
     sparksCount: i.sparksCount,
     sparkedByMe: i.sparkedByUserIds.includes(user.id),
     authorId: i.createdById,
@@ -133,10 +141,15 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/das
       done: s.done,
       assigneeIds: s.assignees.map((a) => a.userId),
       completedAt: s.completedAt?.toISOString() ?? null,
+      createdVia: via(s.createdVia),
+      completedVia: via(s.completedVia),
     })),
     idea: t.idea && { id: t.idea.id, title: decryptText(t.idea.title, team.id) },
     completedAt: t.completedAt?.toISOString() ?? null,
     completedById: t.completedById,
+    createdVia: via(t.createdVia),
+    completedVia: via(t.completedVia),
+    claudeAt: t.claudeAt?.toISOString() ?? null,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   }));

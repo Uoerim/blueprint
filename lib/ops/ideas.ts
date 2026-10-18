@@ -17,11 +17,13 @@ export async function opCreateIdea(ctx: Ctx, input: unknown) {
         teamId: data.teamId,
         title: encryptText(data.title, data.teamId),
         description: encryptOptional(data.description, data.teamId),
+        // "Made by Claude" is permanent (a database trigger refuses changes).
+        createdVia: ctx.via ?? null,
         createdById: ctx.user.id,
       },
       select: { id: true },
     });
-    await audit(ctx, { teamId: data.teamId, action: "idea.created", entityType: "Idea", entityId: idea.id });
+    await audit(ctx, { teamId: data.teamId, action: "idea.created", entityType: "Idea", entityId: idea.id, ideaId: idea.id });
     await teamChanged(data.teamId);
     return { id: idea.id };
 }

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { archiveIdea, createIdea, deleteIdea, promoteIdea, toggleSpark, updateIdea } from "@/app/actions/ideas";
+import { ClaudeMark } from "@/components/claude-mark";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
@@ -198,6 +199,7 @@ function CaptureBar({ onImport }: { onImport?: () => void }) {
           title,
           description: null,
           status: "VAULT",
+          createdVia: null,
           sparksCount: 0,
           sparkedByMe: false,
           authorId: viewer.id,
@@ -386,9 +388,14 @@ function IdeaCard({ idea }: { idea: IdeaDTO }) {
         )}
       </div>
       {idea.description && <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-ink-2">{idea.description}</p>}
-      {idea.taskCount > 0 && (
-        <p className="mt-3 font-mono text-[11px] text-ink-3">
-          {idea.doneCount}/{idea.taskCount} tasks
+      {(idea.taskCount > 0 || idea.createdVia === "claude") && (
+        <p className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px] text-ink-3">
+          {idea.createdVia === "claude" && <ClaudeMark kind="made" className="font-sans" />}
+          {idea.taskCount > 0 && (
+            <span>
+              {idea.doneCount}/{idea.taskCount} tasks
+            </span>
+          )}
         </p>
       )}
       <div className="mt-auto flex items-center gap-2 pt-4">
@@ -430,6 +437,7 @@ function IdeaPage({ idea }: { idea: IdeaDTO }) {
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[12px] text-ink-3">
             <span className="text-amber" aria-hidden>✦</span> Raw idea, still in the vault
+            {idea.createdVia === "claude" && <ClaudeMark kind="made" className="ml-1" />}
           </p>
           <h2 className="mt-1 text-[clamp(1.4rem,2.6vw,2rem)] font-semibold leading-tight tracking-[-0.03em]">{idea.title}</h2>
           <p className="mt-2 max-w-[68ch] whitespace-pre-line text-[15px] leading-relaxed text-ink-2">

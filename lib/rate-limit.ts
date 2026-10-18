@@ -8,7 +8,7 @@ import { LRUCache } from "lru-cache";
  * bot screening, origin checks, auth and per-team checks don't depend on it.
  */
 
-export type Tier = "global" | "username" | "invite" | "write" | "auth" | "report" | "pulse" | "oauth" | "oauthRegister" | "agent" | "agentWrite";
+export type Tier = "global" | "username" | "invite" | "write" | "auth" | "report" | "pulse" | "oauth" | "oauthRegister" | "agent" | "agentWrite" | "read";
 
 /**
  * `limit` applies per signed-in user (and per IP when there's no user);
@@ -42,6 +42,8 @@ export const TIERS: Record<Tier, { limit: number; ipLimit?: number; windowMs: nu
   agent: { limit: 120, ipLimit: 1200, windowMs: 60_000 },
   // Changes made through Claude, per connection.
   agentWrite: { limit: 30, windowMs: 60_000 },
+  // Reading team activity (settings, project settings, task history).
+  read: { limit: 60, ipLimit: 120, windowMs: 60_000 },
 };
 
 export type RateLimitResult = {

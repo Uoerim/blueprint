@@ -1,12 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { audit, runAction } from "@/lib/action";
+import { runAction } from "@/lib/action";
 import { teamChanged } from "@/lib/activity";
 import { ActionError } from "@/lib/auth";
 import { encryptOptional, encryptText } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { deny, done, loadSubtask, loadTask, opCreateSubtask, opCreateTask, opSetTaskStatus, opToggleSubtask, opUpdateTask } from "@/lib/ops/tasks";
+import { deny, done, loadSubtask, loadTask, logTask, opCreateSubtask, opCreateTask, opSetTaskStatus, opToggleSubtask, opUpdateTask } from "@/lib/ops/tasks";
 import { assertMembers, requireTeamAccess } from "@/lib/team-access";
 import { canDeleteTask, canEditTask } from "@/lib/team-permissions";
 import { id, prioritySchema, subtaskAssigneesSchema, taskAssigneesSchema, teamScoped, updateSubtaskSchema } from "@/lib/validations";
@@ -33,9 +33,10 @@ export async function setTaskPriority(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId, priority } = z.strictObject({ teamId: id, itemId: id, priority: prioritySchema }).parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, itemId);
+    const { facts, ideaId } = await loadTask(access, itemId);
     if (!canEditTask(facts)) deny();
     await db.task.updateMany({ where: { id: itemId, teamId }, data: { priority } });
+    await logTask(ctx, { teamId, action: "task.priority", taskId: itemId, ideaId, detail: priority });
     return done(teamId);
   });
 }
@@ -45,13 +46,14 @@ export async function setTaskAssignees(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId, userIds } = taskAssigneesSchema.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, itemId);
+    const { facts, ideaId } = await loadTask(access, itemId);
     if (!canEditTask(facts)) deny();
     const next = await assertMembers(teamId, userIds);
     await db.$transaction([
       db.taskAssignee.deleteMany({ where: { taskId: itemId, userId: { notIn: next } } }),
       db.taskAssignee.createMany({ data: next.map((userId) => ({ taskId: itemId, userId, teamId })), skipDuplicates: true }),
     ]);
+    await logTask(ctx, { teamId, action: "task.assignees", taskId: itemId, ideaId, detail: String(next.length) });
     return done(teamId);
   });
 }
@@ -71,7 +73,7 @@ export async function startFocus(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts, status } = await loadTask(access, itemId);
+    const { facts, status, ideaId } = await loadTask(access, itemId);
     if (status === "DONE") throw new ActionError("That task is already shipped.");
     const assigned = facts.assigneeIds.includes(access.userId);
     if (!assigned && !canEditTask(facts)) deny("Only people assigned to this task can work on it.");
@@ -89,9 +91,9 @@ export async function startFocus(input: unknown) {
         create: { taskId: itemId, userId: access.userId, teamId, focusedAt: now },
         update: { focusedAt: now },
       }),
-      db.task.updateMany({ where: { id: itemId, teamId }, data: { status: "IN_PROGRESS", completedAt: null, completedById: null } }),
+      db.task.updateMany({ where: { id: itemId, teamId }, data: { status: "IN_PROGRESS", completedAt: null, completedById: null, completedVia: null } }),
     ]);
-    await audit(ctx, { teamId, action: "task.focus", entityType: "Task", entityId: itemId });
+    await logTask(ctx, { teamId, action: "task.focus", taskId: itemId, ideaId });
     await Promise.all(elsewhere.map((e) => teamChanged(e.teamId)));
     return done(teamId);
   });
@@ -110,10 +112,10 @@ export async function deleteTask(input: unknown) {
   return runAction({ tier: "write" }, async (ctx) => {
     const { teamId, itemId } = teamScoped.parse(input);
     const access = await requireTeamAccess(teamId, ctx.user.id);
-    const { facts } = await loadTask(access, itemId);
+    const { facts, ideaId } = await loadTask(access, itemId);
     if (!canDeleteTask(facts)) deny("You don't have permission to delete this task.");
     await db.task.deleteMany({ where: { id: itemId, teamId } });
-    await audit(ctx, { teamId, action: "task.deleted", entityType: "Task", entityId: itemId });
+    await logTask(ctx, { teamId, action: "task.deleted", taskId: itemId, ideaId });
     return done(teamId);
   });
 }
@@ -137,6 +139,7 @@ export async function updateSubtask(input: unknown) {
         ...(description !== undefined && { description: encryptOptional(description, teamId) }),
       },
     });
+    await logTask(ctx, { teamId, action: "subtask.updated", taskId: sub.taskId, ideaId: sub.ideaId, subtaskId: itemId });
     return done(teamId);
   });
 }
@@ -156,6 +159,7 @@ export async function setSubtaskAssignees(input: unknown) {
       db.subtaskAssignee.deleteMany({ where: { subtaskId: itemId, userId: { notIn: next } } }),
       db.subtaskAssignee.createMany({ data: next.map((userId) => ({ subtaskId: itemId, userId })), skipDuplicates: true }),
     ]);
+    await logTask(ctx, { teamId, action: "subtask.assignees", taskId: sub.taskId, ideaId: sub.ideaId, subtaskId: itemId, detail: String(next.length) });
     return done(teamId);
   });
 }
@@ -167,6 +171,7 @@ export async function deleteSubtask(input: unknown) {
     const sub = await loadSubtask(access, itemId);
     if (!canEditTask(sub.facts)) deny();
     await db.subtask.deleteMany({ where: { id: itemId, teamId } });
+    await logTask(ctx, { teamId, action: "subtask.deleted", taskId: sub.taskId, ideaId: sub.ideaId, subtaskId: itemId });
     return done(teamId);
   });
 }

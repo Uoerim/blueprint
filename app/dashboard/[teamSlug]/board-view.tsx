@@ -30,12 +30,15 @@ import {
   updateSubtask,
   updateTask,
 } from "@/app/actions/tasks";
+import { ActivityFeed } from "@/components/activity-feed";
+import { ClaudeMark, taskMark, taskMarks } from "@/components/claude-mark";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, Field, inputCls } from "@/components/ui/dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { btn, cx, Monogram, PRIORITY_COLORS, readable } from "@/components/ui/primitives";
 import { LIMITS, PRIORITY_LABEL, TASK_COLUMNS } from "@/lib/constants";
 import { newId } from "@/lib/live";
+import { timeAgo } from "@/lib/time";
 import {
   canDeleteTask,
   canEditTask,
@@ -340,6 +343,9 @@ function NewTask({ projectId, onCreated }: { projectId?: string; onCreated: (id:
           idea: proj ? { id: proj.id, title: proj.title } : null,
           completedAt: null,
           completedById: null,
+          createdVia: null,
+          completedVia: null,
+          claudeAt: null,
           createdAt: now,
           updatedAt: now,
         }),
@@ -442,6 +448,7 @@ function statusPatch(task: TaskDTO, status: TaskStatus, viewerId: string): Parti
     focus: status === "IN_PROGRESS" ? task.focus : [],
     completedAt: status === "DONE" ? (task.status === "DONE" ? task.completedAt : new Date().toISOString()) : null,
     completedById: status === "DONE" ? (task.status === "DONE" ? task.completedById : viewerId) : null,
+    completedVia: status === "DONE" && task.status === "DONE" ? task.completedVia : null,
   };
 }
 
@@ -746,8 +753,9 @@ function TaskCard({ task, scoped, landing, onView, onEdit, onDelete }: { task: T
           <TaskMenu task={task} can={{ edit: c.edit, move: c.move, remove: c.remove }} onEdit={() => onEdit(task.id)} onMove={c.setStatus} onDelete={() => onDelete(task)} />
         </span>
       </div>
-      {(task.tags.length > 0 || (task.idea && !scoped)) && (
+      {(task.tags.length > 0 || (task.idea && !scoped) || taskMark(task)) && (
         <div className="relative z-10 mt-1.5 flex flex-wrap items-center gap-1.5">
+          {taskMark(task) && <ClaudeMark kind={taskMark(task)!} />}
           {task.idea && !scoped && <ProjectChip idea={task.idea} className="max-w-full" />}
           {task.tags.map((t) => (
             <TagPill key={t} name={t} />
@@ -806,6 +814,7 @@ function TaskRow({ task, scoped, onView, onEdit, onDelete }: { task: TaskDTO; sc
         <Strike on={c.striking || done}>{task.title}</Strike>
         <TaskMeta task={task} />
       </button>
+      {taskMark(task) && <ClaudeMark kind={taskMark(task)!} compact />}
       {task.idea && !scoped && <ProjectChip idea={task.idea} className="hidden max-w-48 lg:flex" />}
       {task.focus.length > 0 && <span className="hidden font-mono text-[11px] text-amber sm:inline">in focus</span>}
       {c.edit ? <PriorityPicker value={task.priority} onChange={c.priority} /> : <PriorityBadge value={task.priority} />}
@@ -979,6 +988,14 @@ function TaskView({ task, onEdit, onDelete }: { task: TaskDTO; onEdit: () => voi
       <h3 className="text-xl font-semibold leading-snug tracking-tight">
         <Strike on={c.striking || done}>{task.title}</Strike>
       </h3>
+      {taskMarks(task).length > 0 && (
+        <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+          {taskMarks(task).map((k) => (
+            <ClaudeMark key={k} kind={k} />
+          ))}
+          {task.claudeAt && <span className="text-[12px] text-ink-3" suppressHydrationWarning>Claude last worked on it {timeAgo(task.claudeAt)}</span>}
+        </div>
+      )}
 
       <dl className="grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
         <Fact label="Project">{task.idea ? <ProjectChip idea={task.idea} className="text-[13px]" /> : <span className="text-ink-3">None</span>}</Fact>
@@ -1000,10 +1017,36 @@ function TaskView({ task, onEdit, onDelete }: { task: TaskDTO; onEdit: () => voi
 
       <Subtasks task={task} facts={access.facts} canEdit={false} />
 
+      <TaskHistory task={task} />
+
       {!access.edit && <p className="text-[12px] text-ink-3">You can work on and finish tasks assigned to you. Ask a team owner to change the details.</p>}
       {access.remove && (
         <button type="button" onClick={onDelete} className={cx(btn.ghost, btn.sm, "-ml-3 text-rose hover:text-rose")}>Delete task</button>
       )}
+    </div>
+  );
+}
+
+/** The task's own history, from the team's activity log (who did what, including Claude). */
+function TaskHistory({ task }: { task: TaskDTO }) {
+  const { team, demo, isPending } = useWorkspace();
+  const [open, setOpen] = useState(false);
+  if (demo || isPending(task.id)) return null;
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex items-center gap-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:text-ink">
+        <motion.span animate={{ rotate: open ? 90 : 0 }} aria-hidden>›</motion.span>
+        History
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="history" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
+            <div className="pt-2">
+              <ActivityFeed teamId={team.id} taskId={task.id} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1162,7 +1205,7 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
       pendingId: subId,
       optimistic: () =>
         patchTask(task.id, {
-          subtasks: [...task.subtasks, { id: subId, title: t, description: null, done: false, assigneeIds: people, completedAt: null }],
+          subtasks: [...task.subtasks, { id: subId, title: t, description: null, done: false, assigneeIds: people, completedAt: null, createdVia: null, completedVia: null }],
         }),
     });
   };
@@ -1190,7 +1233,7 @@ function Subtasks({ task, facts, canEdit }: { task: TaskDTO; facts: TaskAccessFa
             canToggle={!isPending(s.id) && canToggleSubtask(facts, s.assigneeIds)}
             onToggle={() =>
               run(() => toggleSubtask({ teamId: team.id, itemId: s.id, done: !s.done }), {
-                optimistic: () => patchSub(s.id, { done: !s.done, completedAt: s.done ? null : new Date().toISOString() }),
+                optimistic: () => patchSub(s.id, { done: !s.done, completedAt: s.done ? null : new Date().toISOString(), completedVia: null }),
               })
             }
             onUpdate={(patch) =>
@@ -1290,6 +1333,12 @@ function SubtaskRow({
           />
         ) : (
           <span className={cx("min-w-0 flex-1 px-1.5 text-[14px]", sub.done ? "text-ink-3 line-through" : "text-ink")}>{sub.title}</span>
+        )}
+        {(sub.createdVia === "claude" || (sub.done && sub.completedVia === "claude")) && (
+          <ClaudeMark
+            kind={sub.createdVia === "claude" ? (sub.done && sub.completedVia === "claude" ? "addedTicked" : "added") : "ticked"}
+            iconOnly
+          />
         )}
         {!temp && (canEdit || hasDetails) && (
           <button

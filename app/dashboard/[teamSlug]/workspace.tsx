@@ -31,6 +31,8 @@ type TaskOp = { type: "patch"; id: string; patch: Partial<TaskDTO> } | { type: "
 type IdeaOp = { type: "patch"; id: string; patch: Partial<IdeaDTO> } | { type: "add"; idea: IdeaDTO } | { type: "remove"; id: string };
 
 type Ctx = {
+  /** The on-screen demo team: nothing is sent to the server (no activity to load). */
+  demo: boolean;
   team: { id: string; name: string; slug: string; description: string | null };
   viewer: Viewer;
   myRole: MemberDTO["role"];
@@ -205,6 +207,7 @@ export function Workspace(props: {
   const memberMap = useMemo(() => new Map(props.members.map((m) => [m.userId, m])), [props.members]);
 
   const ctx: Ctx = {
+    demo: !!props.demo,
     team: props.team,
     viewer: props.viewer,
     myRole: props.myRole,

@@ -174,6 +174,8 @@ model Idea {
   status           IdeaStatus @default(VAULT)
   sparksCount      Int        @default(0)
   sparkedByUserIds String[]
+  /// "claude" when Claude created it. Permanent: a database trigger refuses any change.
+  createdVia       String?
   createdById      String
   createdBy        User       @relation(fields: [createdById], references: [id])
   createdAt        DateTime   @default(now())
@@ -210,6 +212,12 @@ model Task {
   completedById String?
   completedBy   User?          @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
   completedAt   DateTime?
+  /// "claude" when Claude created it. Permanent: a database trigger refuses any change.
+  createdVia    String?
+  /// "claude" when Claude marked it done; cleared if it's reopened.
+  completedVia  String?
+  /// When Claude last changed it or its subtasks. Once set it can never be cleared (trigger).
+  claudeAt      DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   assignees     TaskAssignee[]
@@ -245,6 +253,10 @@ model Subtask {
   position    Int               @default(0)
   createdById String
   completedAt DateTime?
+  /// "claude" when Claude added it. Permanent: a database trigger refuses any change.
+  createdVia   String?
+  /// "claude" when Claude ticked it; cleared if it's unticked.
+  completedVia String?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   assignees   SubtaskAssignee[]
@@ -298,9 +310,16 @@ model AuditLog {
   ipAddress     String
   /// "claude" when the change was made through a connected Claude, otherwise empty.
   via           String?
+  /// The task and the idea/project the event belongs to, so a project's and a task's history can be shown.
+  taskId        String?
+  ideaId        String?
+  /// Non-content details, e.g. the column a task moved to or which fields changed.
+  detail        String?
   createdAt     DateTime @default(now())
 
   @@index([teamId, createdAt])
+  @@index([ideaId, createdAt])
+  @@index([taskId, createdAt])
 }
 
 /// A bug report sent from the Contact support window, read by staff in the

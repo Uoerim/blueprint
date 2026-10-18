@@ -31,9 +31,9 @@ export function demoContent(viewer: Viewer, now = Date.now()) {
   const ago = (min: number) => new Date(now - min * 60_000).toISOString();
   const project = { id: "cdemoprojectdemoproject01", title: "Pocket synth beta" };
   const ideas: IdeaDTO[] = [
-    { id: "cdemoideadarkmodedemo0001", title: "Dark mode for the synth", description: "Night sessions are half our usage.", status: "VAULT", sparksCount: 3, sparkedByMe: true, authorId: MAYA, createdAt: ago(40), taskCount: 0, doneCount: 0 },
-    { id: "cdemoideashakeundodemo001", title: "Shake to undo the last note", description: null, status: "VAULT", sparksCount: 1, sparkedByMe: false, authorId: viewer.id, createdAt: ago(180), taskCount: 0, doneCount: 0 },
-    { ...project, description: "Ship a beta to 50 friends and collect feedback.", status: "PROMOTED", sparksCount: 4, sparkedByMe: true, authorId: viewer.id, createdAt: ago(2_000), taskCount: 4, doneCount: 1 },
+    { id: "cdemoideadarkmodedemo0001", title: "Dark mode for the synth", description: "Night sessions are half our usage.", status: "VAULT", createdVia: null, sparksCount: 3, sparkedByMe: true, authorId: MAYA, createdAt: ago(40), taskCount: 0, doneCount: 0 },
+    { id: "cdemoideashakeundodemo001", title: "Shake to undo the last note", description: null, status: "VAULT", createdVia: null, sparksCount: 1, sparkedByMe: false, authorId: viewer.id, createdAt: ago(180), taskCount: 0, doneCount: 0 },
+    { ...project, description: "Ship a beta to 50 friends and collect feedback.", status: "PROMOTED", createdVia: null, sparksCount: 4, sparkedByMe: true, authorId: viewer.id, createdAt: ago(2_000), taskCount: 4, doneCount: 1 },
   ];
   const task = (t: Partial<TaskDTO> & Pick<TaskDTO, "id" | "title">): TaskDTO => ({
     description: null,
@@ -49,14 +49,17 @@ export function demoContent(viewer: Viewer, now = Date.now()) {
     idea: project,
     completedAt: null,
     completedById: null,
+    createdVia: null,
+    completedVia: null,
+    claudeAt: null,
     createdAt: ago(1_500),
     updatedAt: ago(30),
     ...t,
   });
   const tasks: TaskDTO[] = [
     task({ id: "cdemotaskrecorddemovid001", title: "Record the demo video", priority: "HIGH", status: "IN_PROGRESS", assigneeIds: [MAYA], focus: [{ userId: MAYA, since: ago(12) }], tags: ["feature"], subtasks: [
-      { id: "cdemosubshotlistdemosub01", title: "Write the shot list", description: null, done: true, assigneeIds: [MAYA], completedAt: ago(60) },
-      { id: "cdemosubfilmdemosubfilm01", title: "Film", description: null, done: false, assigneeIds: [MAYA], completedAt: null },
+      { id: "cdemosubshotlistdemosub01", title: "Write the shot list", description: null, done: true, assigneeIds: [MAYA], completedAt: ago(60), createdVia: null, completedVia: null },
+      { id: "cdemosubfilmdemosubfilm01", title: "Film", description: null, done: false, assigneeIds: [MAYA], completedAt: null, createdVia: null, completedVia: null },
     ] }),
     task({ id: "cdemotasktestflightdemo01", title: "Set up the TestFlight build", status: "READY", assigneeIds: [viewer.id] }),
     task({ id: "cdemotaskcrashfixdemo0001", title: "Fix the crash on rotate", priority: "HIGH", tags: ["bug"], assigneeIds: [SAM] }),

@@ -2,7 +2,6 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import type { Ctx } from "@/lib/action";
-import { writeAudit } from "@/lib/audit";
 import { ActionError } from "@/lib/auth";
 import { LIMITS } from "@/lib/constants";
 import { decryptOptional, decryptText } from "@/lib/crypto";
@@ -25,7 +24,8 @@ import { id } from "@/lib/validations";
  *   (lib/ops), so the person's role and every task rule apply unchanged;
  * - needs the scope it's listed under; there are no delete, member, role,
  *   invite or settings tools at all.
- * Changes are recorded in the audit trail as the person's, marked "via claude".
+ * Changes are recorded in the team's activity as the person's, marked "via claude",
+ * and things Claude makes or finishes carry a permanent "by Claude" mark.
  */
 
 export type ToolCtx = AgentAuth & { ip: string };
@@ -62,9 +62,6 @@ async function openTeam(ctx: ToolCtx, ref: string): Promise<{ id: string; slug: 
 
 const opCtx = (ctx: ToolCtx): Ctx => ({ user: ctx.user, ip: ctx.ip, via: "claude" });
 
-/** Every change made through Claude gets its own audit entry (the person, the target, "via claude"). */
-const recordChange = (ctx: ToolCtx, teamId: string, entityType: "Task" | "Subtask" | "Idea", entityId: string) =>
-  writeAudit(ctx.user, ctx.ip, { action: "agent.write", entityType, entityId, teamId, via: "claude" });
 const usernames = (rows: { user: { username: string | null } }[]) => rows.map((r) => r.user.username).filter(Boolean);
 const clip = (s: string | null | undefined, n: number) => (s && s.length > n ? `${s.slice(0, n)}…` : s ?? null);
 
@@ -270,7 +267,6 @@ export const TOOLS: Tool[] = [
       );
       if (!Object.keys(changes).length) throw new ActionError("Pass at least one field to change.");
       await opUpdateTask(opCtx(ctx), { teamId: t.id, itemId: a.task_id, ...changes });
-      await recordChange(ctx, t.id, "Task", a.task_id);
       return { ok: true, task_id: a.task_id };
     },
   }),
@@ -284,7 +280,6 @@ export const TOOLS: Tool[] = [
     run: async (ctx, a) => {
       const t = await openTeam(ctx, a.team);
       await opSetTaskStatus(opCtx(ctx), { teamId: t.id, itemId: a.task_id, status: STATUS[a.status] });
-      await recordChange(ctx, t.id, "Task", a.task_id);
       return { ok: true, task_id: a.task_id, status: a.status };
     },
   }),
@@ -309,7 +304,6 @@ export const TOOLS: Tool[] = [
         const res = await opCreateSubtask(opCtx(ctx), { teamId: t.id, taskId: a.task_id, title: s.title, description: s.description });
         ids.push(res.id);
       }
-      await recordChange(ctx, t.id, "Task", a.task_id);
       return { ok: true, task_id: a.task_id, subtask_ids: ids };
     },
   }),
@@ -323,7 +317,6 @@ export const TOOLS: Tool[] = [
     run: async (ctx, a) => {
       const t = await openTeam(ctx, a.team);
       await opToggleSubtask(opCtx(ctx), { teamId: t.id, itemId: a.subtask_id, done: a.done });
-      await recordChange(ctx, t.id, "Subtask", a.subtask_id);
       return { ok: true, subtask_id: a.subtask_id, done: a.done };
     },
   }),
@@ -355,7 +348,6 @@ export const TOOLS: Tool[] = [
         projectId: a.project_id ?? null,
         assigneeIds: a.assign_to_me ? [ctx.user.id] : [],
       });
-      await recordChange(ctx, t.id, "Task", res.id);
       return { ok: true, task_id: res.id };
     },
   }),
@@ -369,7 +361,6 @@ export const TOOLS: Tool[] = [
     run: async (ctx, a) => {
       const t = await openTeam(ctx, a.team);
       const res = await opCreateIdea(opCtx(ctx), { teamId: t.id, title: a.title, description: a.description });
-      await recordChange(ctx, t.id, "Idea", res.id);
       return { ok: true, idea_id: res.id };
     },
   }),

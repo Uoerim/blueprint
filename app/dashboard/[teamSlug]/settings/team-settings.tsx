@@ -1,5 +1,6 @@
 "use client";
 
+import { ActivityFeed } from "@/components/activity-feed";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
@@ -141,6 +142,7 @@ export function TeamSettings({
     ["roles", "Roles"],
     ["tags", "Tags"],
     ["claude", "Claude"],
+    ["activity", "Activity"],
     ["projects", "Projects"],
     ["archive", "Archive"],
     ["danger", myRole === "OWNER" || can("team.cleanup") ? "Danger zone" : "Leave"],
@@ -170,6 +172,9 @@ export function TeamSettings({
       <Roles {...shared} roles={roles} />
       <Tags {...shared} tags={tags} />
       <ClaudeAccess {...shared} pending={pending} />
+      <Card id="activity" title="Activity" note="Everything that happens in this team, newest first. It can't be edited or deleted. Changes made through Claude are marked.">
+        <ActivityFeed teamId={team.id} filter />
+      </Card>
       <Projects {...shared} projects={projects} />
       <Archive {...shared} archived={archived} />
       <Danger {...shared} archivedCount={archived.length} shippedCount={shippedCount} onGone={() => router.push("/dashboard")} />
